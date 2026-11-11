@@ -6104,43 +6104,92 @@ var STYLE = `<style id="th-gal-shell-style">
   }
   .th-gal-btn-hero:hover { background: rgba(244, 114, 182, 0.3) !important; }
 
-  /* ★ v72：连携转移的确认条 */
+  /* ══ ★ v165W：连携移动确认弹窗（原来是底部一条窄条，现在改成居中弹窗）══
+     玩家原话：「此时弹出弹窗，询问玩家是否跟随移动。」
+     「弹窗」不该是脚下一行小字，得是眼睛躲不开的一块。
+     做法：
+       · 居中（left/top 50% + translate），不再贴底边
+       · 竖排三段：标题 / 问话 / 目的地，目的地用高亮色单独一行
+       · 两个按钮平铺等宽，手指好点（原来挤成两个小胶囊）
+       · 尺寸全部吃 --ui-scale，手机端跟着 #75 那套自动缩 */
   .th-gal-link-confirm {
     position: absolute !important;
     left: 50% !important;
-    bottom: 96px !important;
-    transform: translateX(-50%) !important;
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
     z-index: 2147483100 !important;
     display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    flex-wrap: wrap !important;
-    max-width: 86% !important;
-    padding: 8px 12px !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(250, 204, 21, 0.5) !important;
-    background: rgba(11, 12, 16, 0.9) !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: calc(7px * var(--ui-scale, 1)) !important;
+    width: min(86%, calc(320px * var(--ui-scale, 1))) !important;
+    padding: calc(14px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1)) !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(250, 204, 21, 0.55) !important;
+    background: rgba(11, 12, 16, 0.94) !important;
     color: #f8fafc !important;
-    font-size: calc(11px * var(--ui-scale, 1)) !important;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
+    font-size: calc(12px * var(--ui-scale, 1)) !important;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(250, 204, 21, 0.12) inset !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    text-align: center !important;
+    animation: th-gal-link-pop 0.16s ease-out !important;
+  }
+  @keyframes th-gal-link-pop {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.94); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   }
   .th-gal-link-confirm[hidden] { display: none !important; }
-  .th-gal-link-confirm .th-gal-link-text { font-weight: 700 !important; }
-  .th-gal-link-confirm button {
-    padding: 4px 12px !important;
-    border-radius: 999px !important;
+  .th-gal-link-confirm .th-gal-link-head {
+    font-size: calc(10px * var(--ui-scale, 1)) !important;
+    font-weight: 800 !important;
+    letter-spacing: 1px !important;
+    color: #fbbf24 !important;
+    opacity: 0.9 !important;
+  }
+  .th-gal-link-confirm .th-gal-link-text {
+    font-weight: 700 !important;
+    line-height: 1.45 !important;
+    font-size: calc(12px * var(--ui-scale, 1)) !important;
+  }
+  /* 目的地：单独一行 + 高亮，长地名折行也不跟问句挤 */
+  .th-gal-link-confirm .th-gal-link-dest {
+    font-size: calc(11px * var(--ui-scale, 1)) !important;
+    font-weight: 800 !important;
+    color: #7dd3fc !important;
+    background: rgba(56, 189, 248, 0.12) !important;
+    border: 1px solid rgba(56, 189, 248, 0.28) !important;
+    border-radius: 7px !important;
+    padding: calc(4px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1)) !important;
+    word-break: break-all !important;
+  }
+  .th-gal-link-confirm .th-gal-link-acts {
+    display: flex !important;
+    gap: calc(8px * var(--ui-scale, 1)) !important;
+    margin-top: calc(2px * var(--ui-scale, 1)) !important;
+  }
+  .th-gal-link-confirm .th-gal-link-acts button {
+    flex: 1 1 0 !important;
+    padding: calc(7px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1)) !important;
+    border-radius: 9px !important;
     border: 1px solid rgba(255, 255, 255, 0.26) !important;
-    background: rgba(56, 189, 248, 0.18) !important;
+    background: rgba(56, 189, 248, 0.2) !important;
     color: #e0f2fe !important;
     font-weight: 800 !important;
+    font-size: calc(12px * var(--ui-scale, 1)) !important;
     cursor: pointer !important;
+    transition: background 0.12s !important;
   }
-  .th-gal-link-confirm button:hover { background: rgba(56, 189, 248, 0.34) !important; }
-  .th-gal-link-confirm button.th-gal-link-no {
-    background: rgba(148, 163, 184, 0.18) !important;
-    color: #e2e8f0 !important;
+  .th-gal-link-confirm .th-gal-link-acts button:hover { background: rgba(56, 189, 248, 0.36) !important; }
+  .th-gal-link-confirm .th-gal-link-acts button.th-gal-link-no {
+    background: rgba(148, 163, 184, 0.16) !important;
+    color: #cbd5e1 !important;
+  }
+  .th-gal-link-confirm .th-gal-link-acts button.th-gal-link-no:hover { background: rgba(148, 163, 184, 0.3) !important; }
+  /* 超窄屏再压一档（跟状态卡那套断点对齐） */
+  @media (max-width: 380px) {
+    .th-gal-link-confirm { width: 92% !important; padding: calc(11px * var(--ui-scale, 1)) !important; }
   }
 
   /* ★ v68：修改器按钮 */
@@ -14838,6 +14887,43 @@ function v147AfterLastThinkClose(decoded) {
   return txt && txt.trim() ? txt : '';
 }
 
+/* ══ ★ v165W：先把「内置思维链」整块剥掉，再解析正文 ══════════════════
+   玩家原话：「弄个内置思维链，因为我们的格式要求比较多。要输出在正文前，
+              思维链后进行思考。思考的步骤和内容你来定，主要是强调各种格式，
+              比如说，有没有遵循对话格式。有没有输出content标签，
+              本轮有没有触发被邀请连携移动，本轮有没有触发邀请连携移动，
+              本轮有没有触发nsfw插图……最后再强调一遍结尾记得输出变量标签。」
+
+   ── 为什么必须在这里剥，而不是只靠「第二层」那条兜底 ──
+   思维链的检查项里**必然会写出 `<content>` 这个字样**
+   （「本轮有没有输出 <content> 标签？」—— 不写出标签名就说不清）。
+   而 v147PickTag 用的是**第一个**匹配：
+       <thinking>…有没有输出 <content> 标签…</thinking><content>真正的正文</content>
+   第一个 `<content>` 落在思维链里，正则会从它一路吃到第一个 `</content>`，
+   于是对话框拿到的正文 = 「标签…</thinking><content>真正的正文」这种乱七八糟的东西。
+   而且 `</content>` 之前的字全被当正文，把思维链尾部也带进去了。
+
+   ── 做法 ──
+   在 decode 之后、找正文标签之前，把成对的思维链块（开标签到闭标签，含内容）
+   整块删掉，连开标签一起。删完再走原来那三层。
+   这样思维链里写多少 `<content>` 字样都不会污染正文。
+
+   ★ 只剥**成对**的：流式生成到一半只有 `<thinking>` 没有闭合时，剥了会把正文一起吃掉。
+     那种情况交给第二层（最后一个闭标签之后）和流式保护去处理，宁可多等一拍。 */
+var V165W_THINK_TAGS = ['thinking', 'think', 'thought', 'reasoning', '自检', '格式自检'];
+function v165wStripThinkBlock(txt) {
+  var out = String(txt == null ? '' : txt);
+  for (var i = 0; i < V165W_THINK_TAGS.length; i++) {
+    var t = V165W_THINK_TAGS[i];
+    /* 成对：开标签到最近的同名闭标签，含中间全部内容 */
+    out = out.replace(
+      new RegExp('<' + t + '(?=[\\s>])[^>]*>[\\s\\S]*?<\\/' + t + '\\s*>', 'gi'),
+      ''
+    );
+  }
+  return out;
+}
+
 /* ★ v103：思维链标签**连里面的内容一起剥掉**。
    旧版只取「思维链收尾标签**之后**」的部分 —— 意味着思维链本身不进对话框，
    但模型如果把思维链放在正文后面就会被收进去。新契约下思维链一律不进。 */
@@ -14848,8 +14934,8 @@ var RE_THINK_BLOCK = /<\s*(think|thinking|thought|Interleaving|reasoning|cot|scr
    以前第一层（认 <content>）天然把它们排除在外；一旦这一楼没写 <content>，
    第二、三层就会把它们当正文塞进对话框。现在一律先剥。
    正则一律写成字面量，不拼字符串（拼字符串容易把反斜杠层数算错）。 */
-var RE_NON_PROSE = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|在场人物|重要记忆|连携转移|地点)(?=[\s>])[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi;
-var RE_NON_PROSE_OPEN = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|在场人物|重要记忆|连携转移|地点)(?=[\s>])[^>]*>[\s\S]*$/i;
+var RE_NON_PROSE = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|在场人物|重要记忆|连携转移|连携移动-被邀请|连携移动-邀请|地点)(?=[\s>])[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi;
+var RE_NON_PROSE_OPEN = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|在场人物|重要记忆|连携转移|连携移动-被邀请|连携移动-邀请|地点)(?=[\s>])[^>]*>[\s\S]*$/i;
 var RE_ANY_TAG = /<[^>]+>/g;
 
 function stripNonProse(text) {
@@ -14923,9 +15009,15 @@ function parseContentWithLayer(rawText) {
   var decoded = decodeEntities(rawText);
   if (!decoded || !decoded.trim()) return { text: '', layer: 0, tag: '' };
 
+  /* ★ v165W：先把成对的内置思维链整块剥掉。
+     思维链的自检清单里会写出 `<content>` 字样，不剥的话 v147PickTag 会从
+     思维链里那个 `<content>` 一路吃到正文的 `</content>`，对话框拿到的就是一锅粥。
+     位置必须在 stripNonProse 之前 —— 后面那两步都假设「文本里没有思维链」。 */
+  var noThink = v165wStripThinkBlock(decoded);
+
   /* ★ v147：先把「明显不是正文」的块整块剥掉（后台推演 / UpdateVariable 等），
      否则第一层的 <content> 若不存在、第二层会把它们当正文塞进对话框。 */
-  var cleaned = stripNonProse(decoded);
+  var cleaned = stripNonProse(noThink);
 
   /* ★ v165i：**标签外一律剪掉**。剪完的字符串里只剩「<正文标签>…</正文标签>」，
      这样后面不管谁再拿这段去用（包括从 DOM 读回来的那条旁路），
@@ -14939,8 +15031,13 @@ function parseContentWithLayer(rawText) {
     if (packed1) return { text: packed1, layer: 1, tag: hit.tag };
   }
 
-  /* 第二层：思维链尾部之后（★ 用剪之前的 cleaned —— 这一层本来就没有正文标签，
-     剪过之后 cleaned 会被原样返回，行为一致；用 cleaned 是为了保留思维链上下文） */
+  /* 第二层：思维链尾部之后（★ 用剥完思维链之后再剥契约块的那份。
+     ★ v165W：这里原来是 cleaned —— 而 cleaned 只剥了契约块、没剥思维链块，
+     所以「模型漏写 <content>」时这一层会拿「思维链尾部之后」的内容，
+     本来是对的；但思维链里若写了 <content> 字样，stripNonProse 之后
+     那个假标签仍在，v147StripAllTags 会把它当普通标签吞掉，反而更乱。
+     现在传 noThink（思维链已整块删掉），第二层退化成「整条消息里剩下的正文」，
+     对漏写 <content> 的情况依然能兜住。 */
   var tail = v147AfterLastThinkClose(cleaned);
   if (tail) {
     var packed2 = compactProse(tail);
@@ -15045,6 +15142,179 @@ function isKnownPlace(label) {
   return false;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   ★ v165W：连携移动（双标签，取代旧的 <连携转移>）
+   ─────────────────────────────────────────────────────────────────────
+   玩家原话：
+     「在做一个更新，连携功能升级。当剧情里出现对方客观上带user前往某地，
+       则输出标签<连携移动-被邀请>(角色名)/(角色名)|(某地)<连携移动-被邀请>。
+       此时弹出弹窗，询问玩家是否跟随移动。确认后，玩家才会移动到那个地点，
+       而女方已经在那边了(因为变量更新自动更新了地点)。同理，玩家可以向女方
+       发出请求去某地，女方答应后，输出标签<连携移动-邀请>...<连携移动-邀请>，
+       此时玩家和对方会瞬移到那个地点。」
+
+   ── 两个标签的语义差别（这是整个功能的骨）──
+     <连携移动-被邀请>  对方要带 {{user}} 走 → **必须问玩家**，玩家点头才动。
+                        不点头就谁都不动，这一条作废。
+                        这就是玩家说的「确认后，玩家才会移动到那个地点」。
+
+     <连携移动-邀请>    {{user}} 请对方跟他走，对方已答应 → **直接动，不问**。
+                        {{user}} 自己发出的邀请，玩家已经用行动表态了，
+                        再弹一次窗问「你要不要去」是多余的。
+                        这就是玩家说的「此时玩家和对方会瞬移到那个地点」。
+
+   ── 标签体格式（用户指定）──
+     <连携移动-被邀请>角色名/(角色名)|(某地)</连携移动-被邀请>
+     举例：<连携移动-被邀请>春日久美子/(神谷奈绪)|(西村太郎家·厨房)</连携移动-被邀请>
+
+   ★ 为什么解析要写成「先剥括注再按 | 切」而不是死磕一种格式：
+     用户给的模板里同时有 斜杠、圆括号、竖线三种分隔符，
+     模型很可能写成「春日久美子|西村太郎家·厨房」或者只写「春日久美子」。
+     解析器要能吃下这几种变体，否则一处写法不同整个人就卡在原地。
+     但**地名必须过 isKnownPlace**，认不出就整条作废（不许猜、不许搬错地方）。
+
+   ★ 旧 <连携转移> 继续支持（老存档、老世界书还在用），
+     走的是同一套 doLinkMove，只是多了「带路:」「地点:」两个键要认。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* 从标签体里抠出「谁」和「去哪」。
+   能吃下的写法：
+     春日久美子/(神谷奈绪)|(西村太郎家·厨房)      ← 用户模板
+     春日久美子|西村太郎家·厨房                  ← 少一层括注
+     (春日久美子)|(西村太郎家·厨房)               ← 全带括号
+     春日久美子／西村太郎家·厨房                  ← 全角斜杠
+     带路:春日久美子|地点:西村太郎家·厨房          ← 旧连携转移
+   返回 { who, dest }；认不出 dest 时 dest 为空串。
+   ⚠ who 可以为空（模型没写人名），但 dest 必须有 —— 没目的地的移动等于没发生。 */
+function parseLinkMoveBody(body) {
+  var s = String(body == null ? '' : body).trim();
+  if (!s) return { who: '', dest: '', mins: 0 };
+
+  /* 旧写法：带路:XXX|地点:YYY（可能还有 |耗时:20） */
+  if (/带路\s*[:：]|地点\s*[:：]/.test(s)) {
+    var who0 = '', dest0 = '', mins0 = 0;
+    var mw = s.match(/带路\s*[:：]\s*([^|｜\n<)）]+)/);
+    if (mw && mw[1]) who0 = mw[1].trim();
+    var md = s.match(/地点\s*[:：]\s*([^|｜\n<)）]+)/);
+    if (md && md[1]) dest0 = md[1].trim();
+    var mt = s.match(/耗时\s*[:：]\s*(\d{1,3})/);
+    if (mt && mt[1]) mins0 = Math.min(180, parseInt(mt[1], 10));
+    return { who: cleanLinkName(who0), dest: cleanLinkPlace(dest0), mins: mins0 };
+  }
+
+  /* 新写法：按 | 或 ｜ 切两半。
+     切之前先把「人名那一半里的 /(角色名)」去掉 —— 用户模板里的
+     `春日久美子/(神谷奈绪)` 是「显示名/(括号里的正式名)」，
+     两个名字指向同一个人，取斜杠前那个即可。 */
+  var parts = s.split(/[|｜]/);
+  if (parts.length >= 2) {
+    var w1 = parts[0], d1 = parts.slice(1).join('|');
+    /* 目的地可能也被括注包着：(西村太郎家·厨房) */
+    return {
+      who: cleanLinkName(stripLinkParen(w1, true)),
+      dest: cleanLinkPlace(stripLinkParen(d1, false)),
+      mins: 0
+    };
+  }
+
+  /* 只有一个部分：可能是「谁 去 哪」这种没有竖线的自然写法。
+     这里不猜 —— 猜错的代价是玩家被搬到一个没写过的地方。
+     只接受「前半是人名、后半是合法地名」这一种情况（靠 isKnownPlace 兜底）。 */
+  var flat = s.replace(/[()（）]/g, '');
+  var slash = flat.split(/[\/／]/);
+  if (slash.length >= 2) {
+    return { who: cleanLinkName(slash[0]), dest: cleanLinkPlace(slash.slice(1).join('/')), mins: 0 };
+  }
+  return { who: '', dest: cleanLinkPlace(flat), mins: 0 };
+}
+
+/* 去掉一层括注。keepSlash=true 时保留斜杠前的部分（人名那种「甲/(乙)」写法）。 */
+function stripLinkParen(txt, keepSlash) {
+  var s = String(txt == null ? '' : txt).trim();
+  /* 先处理「甲/(乙)」：取斜杠前那个甲 */
+  if (keepSlash) {
+    var m = s.match(/^([^\/／]*)[\/／]\s*[（(]/);
+    if (m && m[1].trim()) return m[1].trim();
+  }
+  /* 整体被一对括号包着：(某地) → 某地 */
+  var m2 = s.match(/^[（(]\s*([\s\S]*?)\s*[)）]$/);
+  if (m2) return m2[1].trim();
+  /* 括注在尾巴上：春日久美子(结奈) → 春日久美子 */
+  s = s.replace(/[（(][^（()）]*[)）]\s*$/, '').trim();
+  return s;
+}
+
+/* 人名清洗：去空白、去首尾标点。不做「这个名字存不存在」的校验 ——
+   世界书里的人物名和变量里的键可能有一两个字的差异，
+   这里认不出就让变量那一步自己跳过，不要因为名字对不上就整条作废。 */
+function cleanLinkName(txt) {
+  return String(txt == null ? '' : txt)
+    .replace(/[\s\u3000]/g, '')
+    .replace(/^[，。、；：,;:!！?？\-—]+|[，。、；：,;:!！?？\-—]+$/g, '')
+    .trim();
+}
+/* 地名清洗：去掉模型爱加的括注和尾标点。不在这里判合法性（交给 isKnownPlace）。 */
+function cleanLinkPlace(txt) {
+  return String(txt == null ? '' : txt)
+    .replace(/^[（(]\s*|\s*[)）]$/g, '')
+    .replace(/[，。；,;]+$/, '')
+    .trim();
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   主解析：从一条正文里找出连携指令
+   返回 null 或 { kind:'invite'|'beinvited', who, dest, mins, sig, tagName }
+     kind='beinvited' → 被邀请（对方带 {{user}}）→ 要弹窗问
+     kind='invite'    → 邀请（{{user}} 带对方）→ 直接动
+   ★ 一轮只认一个：两个标签同时出现时按「被邀请优先」取，
+     因为被邀请需要玩家同意，漏掉它会让玩家觉得「我明明被邀请了却没反应」；
+     反之丢掉一个「邀请」最多是这一轮没瞬移，下轮还能补。
+   ══════════════════════════════════════════════════════════════════════ */
+function checkLinkMove(rawText) {
+  if (!rawText) return null;
+  var text = String(rawText);
+
+  /* 先扫被邀请，再扫邀请 */
+  var order = [
+    { tag: '连携移动-被邀请', kind: 'beinvited' },
+    { tag: '连携移动-邀请', kind: 'invite' }
+  ];
+  for (var i = 0; i < order.length; i++) {
+    var t = order[i];
+    var re = new RegExp('<\\s*' + t.tag + '[^>]*>([\\s\\S]*?)<\\s*\\/\\s*' + t.tag + '\\s*>', 'i');
+    var m = text.match(re);
+    if (!m) continue;
+    var parsed = parseLinkMoveBody(m[1]);
+    if (!parsed.dest) continue;
+    return {
+      kind: t.kind,
+      who: parsed.who,
+      dest: parsed.dest,
+      mins: parsed.mins,
+      tagName: t.tag,
+      sig: latestAiMessageKey() + '|' + t.tag + '|' + parsed.who + '|' + parsed.dest
+    };
+  }
+
+  /* 旧标签兜底：<连携转移>带路:X|地点:Y</连携转移>
+     老存档和老世界书还在写它，语义等同于「被邀请」（要问玩家）。 */
+  var mo = text.match(/<\s*连携转移[^>]*>([\s\S]*?)(?:<\s*\/\s*连携转移\s*>|$)/i);
+  if (mo && mo[1]) {
+    var p2 = parseLinkMoveBody(mo[1]);
+    if (p2.dest) {
+      return {
+        kind: 'beinvited',
+        who: p2.who,
+        dest: p2.dest,
+        mins: p2.mins,
+        tagName: '连携转移',
+        sig: latestAiMessageKey() + '|连携转移|' + p2.who + '|' + p2.dest
+      };
+    }
+  }
+  return null;
+}
+
 /* ══════════════════════════════════════════════════════════════
    ★ v71 连携转移：剧情里有人把 {{user}} 带到别处时，正文 AI 会写一次
      <连携转移>带路:春日久美子|地点:西村太郎家·厨房</连携转移>
@@ -15072,28 +15342,21 @@ function linkMarkSeen(sig) {
   try { localStorage.setItem(linkStorageKey(), String(sig)); } catch (e) {}
   try { window.__thLinkAppliedKey = sig; } catch (e2) {}
 }
+/* ★ v165W：checkLinkTag 已经被 checkLinkMove 完全取代 ——
+   新的那个同时认 <连携移动-被邀请> / <连携移动-邀请> / 旧 <连携转移> 三种标签，
+   而且返回的 kind 决定「弹窗还是直接瞬移」。
+   这里保留这个名字只当别名，让还在调它的地方不至于报错。
+   ⚠ 不要再往这里加新逻辑：单一判据，都写进 checkLinkMove。 */
 function checkLinkTag(pageText) {
-  if (!pageText) return null;
-  var text = String(pageText);
-  var m = text.match(/<\s*连携转移[^>]*>([\s\S]*?)(?:<\s*\/\s*连携转移\s*>|$)/i);
-  if (!m || !m[1]) return null;
-  var body = String(m[1]).trim();
-  if (!body) return null;
-  var dest = '';
-  var dm = body.match(/地点\s*[:：]\s*([^|｜\n<]+)/);
-  if (dm && dm[1]) dest = dm[1].trim();
-  if (!dest) return null;                       /* 没写目的地就当没看见 */
-  dest = dest.replace(/[，。；,;]+$/, '');
-  var who = '';
-  var wm = body.match(/带路\s*[:：]\s*([^|｜\n<]+)/);
-  if (wm && wm[1]) who = wm[1].trim();
-  var mins = 0;
-  var tm = body.match(/耗时\s*[:：]\s*(\d{1,3})/);
-  if (tm && tm[1]) mins = Math.min(180, parseInt(tm[1], 10));
-  var raw = text.match(/<\s*连携转移[^>]*>[\s\S]*?(?:<\s*\/\s*连携转移\s*>|$)/i);
-  return { dest: dest, who: who, mins: mins, sig: latestAiMessageKey() + '|' + dest + '|' + who + '|' + String(raw ? raw[0].length : 0) };
+  return checkLinkMove(pageText);
 }
-/* ★ v72：确认条。点「跟着走」才真的挪人；点「留在这里」就作废掉这一次。 */
+/* 老 checkLinkTag 的正版实现（已下线，保留在注释里备查：只认 <连携转移>，
+   解析「带路:」「地点:」「耗时:」三个键）——现在这一步由 parseLinkMoveBody 承担。 */
+/* ★ v72：确认条。点「跟着走」才真的挪人；点「留在这里」就作废掉这一次。
+   ★ v165W：从「窄条」升级成「弹窗」—— 玩家原话是「此时弹出弹窗，询问玩家是否跟随移动」。
+     结构：标题（连携移动）→ 一句问话 → 目的地高亮 → 两个按钮。
+     仍然挂在 .th-gal-shell-viewport 里（absolute），跟着游戏壳走，
+     不像插图那两颗 fixed 按钮那样会飘出屏幕。 */
 function linkBar() {
   var doc = getDoc();
   var node = doc.querySelector('#th-gal-shell-root .th-gal-link-confirm');
@@ -15103,9 +15366,14 @@ function linkBar() {
   node = doc.createElement('div');
   node.className = 'th-gal-link-confirm';
   node.setAttribute('hidden', '');
-  node.innerHTML = '<span class="th-gal-link-text"></span>'
-    + '<button type="button" class="th-gal-link-yes">跟着走</button>'
-    + '<button type="button" class="th-gal-link-no">留在这里</button>';
+  node.innerHTML =
+      '<div class="th-gal-link-head">🔗 连携移动</div>'
+    + '<div class="th-gal-link-text"></div>'
+    + '<div class="th-gal-link-dest"></div>'
+    + '<div class="th-gal-link-acts">'
+    +   '<button type="button" class="th-gal-link-yes">跟着走</button>'
+    +   '<button type="button" class="th-gal-link-no">留在这里</button>'
+    + '</div>';
   host.appendChild(node);
   var yes = node.querySelector('.th-gal-link-yes');
   var no = node.querySelector('.th-gal-link-no');
@@ -15118,8 +15386,15 @@ function showLinkConfirm(info) {
   if (!node) return false;
   var t = node.querySelector('.th-gal-link-text');
   if (t) {
-    t.textContent = '跟着 ' + (info.who || '对方') + ' 去 ' + info.dest + '？';
+    /* ★ v165W：文案按 kind 分。被邀请是「她要带你去」，语气是征询；
+       invite 根本不会走到这里（直接瞬移），所以这里只处理被邀请那一种。
+       旧 <连携转移> 也走这条路，文案同样适用（带路:XXX = 她要带你去）。 */
+    var who = info.who || '对方';
+    t.textContent = who + ' 要带你一起去 ' + info.dest + '，跟着走吗？';
   }
+  /* 目的地那一行单独放，长地名不会跟问句挤在一起 */
+  var d = node.querySelector('.th-gal-link-dest');
+  if (d) d.textContent = info.dest || '';
   node.removeAttribute('hidden');
   return true;
 }
@@ -15144,7 +15419,13 @@ function declineLink() {
   try { popToast('🚶 留在原地'); } catch (e) {}
   return 'declined';
 }
-/* 真的挪人（确认之后调） */
+/* 真的挪人。
+   ★ v165W：两种 kind 都走这里，差别只有「时间推不推」和「{{user}} 的地点在不在这一轮写」：
+     · beinvited（被邀请）：玩家点了「跟着走」才进来 →
+       脚本负责把 {{user}} 挪过去 + 把那个人标成到场 + 推时间。
+     · invite（邀请）：{{user}} 请她一起去、她已答应 →
+       也是两个人一起过去，但**时间是这一轮正文里已经走过去的时间**，
+       不要重复推（否则一次邀约推两遍，玩家会觉得时间莫名跳了两格）。 */
 function doLinkTransfer(info) {
   if (!info || !info.dest) return '';
   if (!isKnownPlace(info.dest)) return '';
@@ -15160,7 +15441,7 @@ function doLinkTransfer(info) {
   } finally {
     window.__thTagSwitchBusy = false;
   }
-  /* 带路的人跟着一起到场：变量里也写成到场，免得她自己显示在别处 */
+  /* 对方跟着一起到场：变量里也写成到场，免得她显示在别处 */
   if (info.who) {
     var patch = { stat_data: {} };
     var table = '主要角色列表';
@@ -15172,16 +15453,26 @@ function doLinkTransfer(info) {
     patch.stat_data[table][info.who] = { 地点: info.dest, 在场状态: true };
     try { writeVars(patch); } catch (e2) {}
   }
-  /* 时间往后推：给了耗时就用它，没给就按一段路算（屋里走动不算） */
+  /* 时间往后推：给了耗时就用它，没给就按一段路算（屋里走动不算）
+     ★ invite 不推：那一轮正文里人已经在路上了，时间是 AI 在 /时间 里写好的。 */
+  if (info.kind !== 'invite') {
+    try {
+      var indoor = matchIndoorLocation ? matchIndoorLocation(info.dest) : null;
+      var mins = info.mins > 0 ? info.mins : (indoor ? 0 : SCENE_MINUTES);
+      if (mins) advanceClock(mins);
+    } catch (e3) {}
+  }
   try {
-    var indoor = matchIndoorLocation ? matchIndoorLocation(info.dest) : null;
-    var mins = info.mins > 0 ? info.mins : (indoor ? 0 : SCENE_MINUTES);
-    if (mins) advanceClock(mins);
-  } catch (e3) {}
-  try { popToast('🚶 连携转移：被带到 ' + info.dest + (info.who ? '（' + info.who + ' 带路）' : '')); } catch (e4) {}
+    popToast(info.kind === 'invite'
+      ? '🚶 连携移动：' + (info.who || '对方') + ' 跟你一起来到了 ' + info.dest
+      : '🚶 连携移动：被带到 ' + info.dest + (info.who ? '（' + info.who + ' 带路）' : ''));
+  } catch (e4) {}
   return moved || info.dest;
 }
-/* 认一次：合法 + 还没用过 → 问一句（或直接挪）。返回人话，没动作返回 ''。 */
+/* 认一次：合法 + 还没用过 → 按 kind 分流。返回人话，没动作返回 ''。
+   ★ v165W：这里是「弹不弹窗」的唯一决策点 ——
+     beinvited → 弹窗等玩家点头（玩家原话「此时弹出弹窗，询问玩家是否跟随移动」）
+     invite    → 直接瞬移（玩家原话「此时玩家和对方会瞬移到那个地点」） */
 function applyLinkTag(info) {
   if (!info || !info.dest) return '';
   if (!isKnownPlace(info.dest)) return '';                       /* 不在固值地点表里就不动 */
@@ -15190,10 +15481,17 @@ function applyLinkTag(info) {
   if (linkSeenKey() === sig) return '';                          /* 上次已经认过 / 拒绝过了（刷新页面也算） */
   if (window.__thTagSwitchBusy) return '';
   if (linkPending && linkPending.sig === sig) return '';          /* 已经在问了，别重复问 */
+
+  /* ── 邀请：{{user}} 自己发出的，玩家已用行动表态 → 不问，直接动 ── */
+  if (info.kind === 'invite') {
+    return doLinkTransfer(info);
+  }
+
+  /* ── 被邀请：必须问玩家 ── */
   if (!LINK_CONFIRM) return doLinkTransfer(info);
   linkPending = info;
   lockTagForCurrentMessage();                                    /* 先别让地点标签把人拽走，等玩家回答 */
-  if (!showLinkConfirm(info)) { linkPending = null; return doLinkTransfer(info); }   /* 画不出确认条就直接走老路 */
+  if (!showLinkConfirm(info)) { linkPending = null; return doLinkTransfer(info); }   /* 画不出弹窗就直接走老路 */
   return 'pending';
 }
 
@@ -16736,13 +17034,50 @@ var APARTMENT_PLACES = [
   '公寓3楼走廊-303号房', '公寓3楼走廊-305号房',
   '公寓4楼走廊-405号房', '公寓4楼走廊-407号房',
   '301室-门口', '301室-客厅', '301室-厨房', '301室-主卧',
-  '301室-次卧1', '301室-浴室', '301室-杂物间', '301室-阳台'
+  '301室-次卧1', '301室-浴室', '301室-杂物间', '301室-阳台',
+  /* ══ ★ v165W：五位女主的「号房室内」18 个点 ══════════════════════════
+     v165V 补了 TH_MAP_GRAPH 拓扑和世界书地点总表，但**漏了这张固值表**。
+     后果是一整条链路全断：
+       · isKnownPlace('201室-客厅') → isApartmentScene 认（含「室」不含关键字？
+         实际上它只认 公寓/便利店/301室 —— 「201室-客厅」三个都不含，
+         所以 isApartmentScene 返回 false，直接掉到 parseLocation，
+         宅邸名对不上、户外地名也对不上 → 判非法）
+       · normalizeApartmentPlace('201室') → 认不出 → 空串
+       · 于是正文写 <地点>地点:201室-客厅</地点> 时，人卡在原地不动；
+         连携移动写「带你去 201室-客厅」也会被 isKnownPlace 挡下。
+     现在补进表里，并把门牌归一化一起补上（见 normalizeApartmentPlace 的号室分支）。 */
+  '201室-客厅', '201室-主卧', '201室-浴室',
+  '203室-客厅', '203室-主卧', '203室-浴室',
+  '303室-客厅', '303室-主卧', '303室-厨房', '303室-浴室',
+  '305室-客厅', '305室-主卧', '305室-厨房', '305室-浴室',
+  '407室-客厅', '407室-主卧', '407室-浴室', '407室-阳台'
 ];
 var APARTMENT_301_ROOMS = ['门口', '客厅', '厨房', '主卧', '次卧1', '浴室', '杂物间', '阳台'];
+/* ★ v165W：五位女主家的门牌 → 各自的房间清单（每家的布局确实不同：
+   303/305 有厨房没有阳台，201/203 两者都没有，407 有阳台没有厨房）。
+   不写「统一都有四间」—— 世界书里明写「不许写表里没有的房间」。 */
+var APT_HOME_ROOMS = {
+  '201': ['客厅', '主卧', '浴室'],
+  '203': ['客厅', '主卧', '浴室'],
+  '303': ['客厅', '主卧', '厨房', '浴室'],
+  '305': ['客厅', '主卧', '厨房', '浴室'],
+  '407': ['客厅', '主卧', '浴室', '阳台']
+};
+/* 「几零几室」这种门牌：201 / 203 / 303 / 305 / 407 */
+function aptHomeNo(txt) {
+  var m = /(20[13]|30[35]|407)\s*(?:室|号室|号|房间|屋)?/.exec(String(txt || ''));
+  return m ? m[1] : '';
+}
 
 function isApartmentScene(name) {
   var t = String(name || '');
-  return t.indexOf('公寓') !== -1 || t.indexOf('便利店') !== -1 || t.indexOf('301室') !== -1;
+  /* ★ v165W：五位女主的门牌（201/203/303/305/407）也要认成公寓场景。
+     原来的判据只有 公寓/便利店/301室 三个 —— 「201室-客厅」一个都不含，
+     于是 isApartmentScene 返回 false，直接掉到宅邸/户外那套判据，
+     结果是「非法地点」，正文标签和连携移动都挪不动人。 */
+  if (/公寓|便利店|301室/.test(t)) return true;
+  if (aptHomeNo(t) && /室/.test(t)) return true;
+  return false;
 }
 
 /* 把公寓地点的歪写法拉回 21 个固值；认不出返回空串。
@@ -16774,6 +17109,24 @@ function normalizeApartmentPlace(name) {
       if (syn.indexOf(APARTMENT_301_ROOMS[r]) !== -1) return '301室-' + APARTMENT_301_ROOMS[r];
     }
     return '301室-门口';
+  }
+
+  /* ══ ★ v165W：五位女主家的室内（201 / 203 / 303 / 305 / 407）══════════
+     判据顺序很重要：
+       ① 先抠门牌号（aptHomeNo），抠不到就走不下去
+       ② 再按**那一家自己的房间清单**匹配（APT_HOME_ROOMS）
+          —— 不能拿 301 那 8 间套过来：301 有次卧1/杂物间/阳台，
+             而这五家根本没有；按 301 的套会把「201室-阳台」
+             （表里没有）判成合法，玩家就被搬进一间不存在的房间。
+       ③ 门牌认得出但房间名认不出 → 落到那家的「客厅」
+          （客厅是进门第一间，是唯一合理的兜底；世界书里也这么写） */
+  var homeNo = aptHomeNo(syn);
+  if (homeNo && APT_HOME_ROOMS[homeNo]) {
+    var rooms = APT_HOME_ROOMS[homeNo];
+    for (var hr = 0; hr < rooms.length; hr++) {
+      if (syn.indexOf(rooms[hr]) !== -1) return homeNo + '室-' + rooms[hr];
+    }
+    return homeNo + '室-客厅';
   }
 
   /* 楼层走廊 / 几号门房：从模糊写法里抓楼层数与门号 */
@@ -17823,7 +18176,7 @@ function lcsBuildPool(containerEl) {
     try { t = (containerEl && containerEl.textContent) || ""; } catch (e0) {}
     if (!t) return null;
     t = String(t);
-    var bad = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|重要记忆|连携转移|地点|SystemDicePool)\b/i.exec(t);
+    var bad = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|重要记忆|连携转移|连携移动|地点|SystemDicePool|thinking|think|thought)\b/i.exec(t);
     if (bad) t = t.slice(0, bad.index);
     var norm = lcsNormText(t);
     if (norm.length < 24) return null;
@@ -18293,7 +18646,7 @@ function listTextFromMes(mes) {
        可三层解析的最后一层是「整层全收」—— 于是思维链反倒原原本本漏进对话框。
        现在改成就地砍掉第一个非正文标签及其之后的内容（正文总在它们前面），不再放弃。 */
     try {
-      var badTag = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|重要记忆|连携转移|地点|SystemDicePool)\b/i.exec(text);
+      var badTag = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|重要记忆|连携转移|连携移动|地点|SystemDicePool|thinking|think|thought)\b/i.exec(text);
       if (badTag) text = String(text.slice(0, badTag.index)).trim();
     } catch (eCut) {}
     if (text.length < 12) { try { window.__thProseFail = 'too-short:' + text.length; } catch (eF3) {} return ''; }
