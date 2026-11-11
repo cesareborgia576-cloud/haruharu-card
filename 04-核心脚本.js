@@ -10157,10 +10157,15 @@ function thVerRender() {
      不给它编好看的话：拿不到就老实说拿不到。 */
   var refIsSha = !!(ref && /^[0-9a-f]{40}$/.test(ref));
   var followLine = '';
-  if (chan === 'dev' && refIsSha) {
-    followLine = '<span class="k">追最新</span>　<b class="is-ok">自动追到线上最新 commit</b>';
-  } else if (chan === 'dev') {
-    followLine = '<span class="k">追最新</span>　<b class="is-bad">没追到（下面的 ref 不是 commit）</b>';
+  if (refIsSha) {
+    /* 两条通道都吃 latest.json 了：拿到 sha 就说明追上了。
+       稳定卡追的是 stableRef（作者放行那版），开发卡追的是 ref（每次推送）。 */
+    followLine = '<span class="k">追最新</span>　<b class="is-ok">'
+      + (chan === 'dev' ? '自动追到线上最新开发版' : '自动追到线上已放行版本')
+      + '</b>';
+  } else {
+    followLine = '<span class="k">追最新</span>　<b class="is-bad">没追到（按卡里钉的 '
+      + (ref && /^v[\d.]+$/.test(ref) ? '版本 tag' : 'ref') + ' 跑）</b>';
   }
   html += '<div class="th-ver-diag">'
     + '<div class="th-ver-diag-t">诊断</div>'
@@ -10193,10 +10198,14 @@ function thVerRender() {
     html += '<div class="th-ver-hint">当前是<b>开发通道</b>：每次打开都会问一次线上最新 commit，'
       + '所以<b>推完直接刷新就是新的</b>，不用重新导入开发卡。'
       + '问不到（断网 / 代理）就回落到卡里钉的那一版，不会打不开。</div>';
+  } else {
+    html += '<div class="th-ver-hint">当前是<b>稳定通道（玩家版）</b>：每次打开会问一次'
+      + '作者<b>已放行</b>的那一版，所以作者发版后刷新即可，不必重新导入卡。'
+      + '<b>不会</b>吃到还在测的开发版。问不到就回落到卡里钉的那一版。</div>';
   }
   if (isNew) {
-    html += '<div class="th-ver-hint">点「刷新并换到 ' + thVerEsc(TH_VER.latest) + '」会先记住这个版本 tag，'
-      + '再整页重载 —— 下次加载才真正换脚本。'
+    html += '<div class="th-ver-hint">点「刷新并换到 ' + thVerEsc(TH_VER.latest) + '」直接整页重载 —— '
+      + 'loader 开机时会重新问一次线上该用哪一版，重载完就是新的。'
       + '已经跑起来的脚本卸不掉，刷新是唯一能换源的动作。</div>';
   }
   if (!TH_VER.first && !TH_VER.err && !isNew && cur && cv && cur !== cv) {
@@ -10273,44 +10282,44 @@ try {
         return;
       }
 
-      /* ★ 刷新之前**必须先把「下次用哪个 ref」告诉 loader**。
-         只写 location.reload() 是无效的：loader 每次开机都按卡里钉的那个 ref
-         去拉脚本，卡没换 ⇒ ref 没变 ⇒ 刷新一百次拉到的还是同一批旧脚本。
-         （天元录为此被作者骂过两次，前一次只加了诊断没动真因。）
-         ⇒ 写 localStorage.cqHotRef = 线上版本号，loader 开机读它
-           （脚本/00 第 110 行 `if (!DEV && saved && /^v[\d.]+$/.test(saved)) REF = saved;`）
-           就会改从那个版本 tag 拉脚本。
-         ⚠ **只写 cqHotRef，别动 cqHotCardTag**：后者存的是卡自带 ref，
-           改了会让 loader 判成"换了张卡"，把记住的 ref 清掉。
-         ⚠ 开发通道不写：DEV 刻意钉 commit，写了也会被 loader 忽略
-           （第 110 行有 `!DEV` 前置），不如直接说清楚"重新导入开发卡"。 */
+      /* ★ v168：两条通道的「刷新」现在做的是**同一件事** —— 直接重载。
+         loader 开机读 latest.json（开发读 ref、稳定读 stableRef），
+         所以重载 = 重新问一次线上现在该用哪个 ref ⇒ 能吃到新脚本。
+
+         ── 为什么不再写 localStorage.cqHotRef ────────────────────────────
+           旧逻辑是"把线上版本 tag 写进 cqHotRef，让 loader 换源"。
+           那是老 loader 的做法（它开机读 cqHotRef 当 REF）。
+           v168 之后 loader 改成读 latest.json 了，而 **cqHotRef 仍然会被读**
+           （稳定卡第 110 行 `if (!DEV && saved && /^v[\d.]+$/.test(saved)) REF = saved;`
+            这行是留给"玩家手点更新后记住某版"的兼容路径）——
+           写一个 tag 进去，反而会**盖掉** latest.json 给的 stableRef，
+           让玩家卡退回按 tag 拉，实打实是倒退。
+         ⇒ 所以现在两条通道都只重载，一个字都不写。
+         ⚠ 如果哪天要手工把玩家钉在某个版本，才写 cqHotRef；
+           正常刷新绝不能写，否则 latest.json 那套就白做了。 */
       if (a === 'refresh') {
         var tg = String(TH_VER.latest || '');
         var cur = thVerCurVer();
         var dev = (thVerChan() === 'dev');
-        /* ★ 开发通道：刷新**真有用**了。
-           改造前 loader 钉死卡里的 sha，刷新一百次也是同一批脚本，所以这里是
-           一句"要换请重导开发卡"的说明。
-           现在 loader 开机读 latest.json 拿最新 commit（见 脚本/00 的 loadLatestRef），
-           所以重载 = 重新问一次线上最新 ⇒ 能吃到刚推的脚本。
-           ⚠ 不给它写 cqHotRef：开发通道 loader 有 `!DEV` 守卫，写了也不读，
-             写进去反而会在将来切回稳定卡时变成一颗定时炸弹。 */
+
+        /* 开发通道：线上号只在推版本时变，跟"有没有新脚本"无关，不拦 */
         if (dev) {
-          if (typeof showToast === 'function') {
-            showToast('正在重新问线上最新 commit…', 1500);
-          }
+          if (typeof showToast === 'function') showToast('正在重新问线上最新 commit…', 1500);
           try { (window.top || window).location.reload(); }
           catch (eRd) { try { location.reload(); } catch (eRd2) {} }
           return;
         }
-        if (!/^v[\d.]+$/.test(tg) || !thVerNewer(tg, cur)) {
+
+        /* 稳定通道：只有线上真的比当前新才值得重载，否则白闪一下 */
+        if (!/^v[\d.]+$/.test(tg)) {
+          if (typeof showToast === 'function') showToast('还没拿到线上版本号，先点「⟳ 立刻重查」', 2600);
+          return;
+        }
+        if (!thVerNewer(tg, cur)) {
           if (typeof showToast === 'function') showToast('线上没有比当前更新的版本', 2600);
           return;
         }
-        try { localStorage.setItem('cqHotRef', tg); } catch (eS0) {}
-        try { if (window.top && window.top !== window) window.top.localStorage.setItem('cqHotRef', tg); } catch (eS1) {}
-        try { if (window.parent && window.parent !== window) window.parent.localStorage.setItem('cqHotRef', tg); } catch (eS2) {}
-        if (typeof showToast === 'function') showToast('已记住 ' + tg + '，正在重载…', 1800);
+        if (typeof showToast === 'function') showToast('正在更新到 ' + tg + '…', 1600);
         try { (window.top || window).location.reload(); }
         catch (eR) { try { location.reload(); } catch (eR2) {} }
         return;
