@@ -8749,6 +8749,16 @@ var STYLE = `<style id="th-gal-shell-style">
     padding-left: 2px !important;
   }
   .th-gal-hud-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 4px !important; }
+  /* ★ v166：只有一个按钮的组，让它横跨两列。
+     不然那一格右边会空一个洞 —— 「版本」只有一颗、「修复」是三颗，
+     两个组都会留洞，看着像少画了个按钮，其实是排版没兜住。
+     用 :only-child 从根上处理，不给任何单个组开特例：
+     以后谁再往里加一颗，自动回到两列，不用改 CSS。 */
+  .th-gal-hud-grid > .th-gal-shell-act-btn:only-child { grid-column: 1 / -1 !important; }
+  /* 奇数颗时最后一颗也跨两列 —— 「修复」是 3 颗，第 3 颗独占一行右边照样空。
+     两个规则合起来，两列网格里**看不见任何空格子**。
+     （"版本"组将来加第二颗时会自动回到左右并排，不用再动这里。） */
+  .th-gal-hud-grid > .th-gal-shell-act-btn:last-child:nth-child(odd) { grid-column: 1 / -1 !important; }
   .th-gal-hud-grid .th-gal-shell-act-btn {
     width: 100% !important; box-sizing: border-box !important;
     height: 26px !important; padding: 0 6px !important;
