@@ -435,6 +435,23 @@ var SCENE_IMGS = {
   '301室-杂物间': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431377.jpg',
   '301室-阳台': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431383.jpg',
 
+  /* ══ ★ v165V：五位女主的「号房室内」════════════════════════════════
+     玩家原话：「公寓篇很多角色住的号房居然没有房间？」
+     —— 以前这五个号房只有「走廊-XXX号门」一个死胡同，进不去屋。
+     拓扑（TH_MAP_GRAPH）已经补上室内点，这里给它们配图。
+
+     ★ 刻意留空，不是漏了：
+       301室那八张是「玩家自己家」的图，套到结奈/奈绪/千鹤/千晴/紫苑家里
+       会变成「五个人住同一间屋」，比没图更离谱。
+       留空之后 getSceneBgUrl 返回 ''，页面**保持上一张背景不换**
+       —— 和便利店那两格同一个处理（见上面 v165f 的注释），不会白屏、不会报错。
+       以后有了各家的专属室内图，按同名 key 填进来即可，拓扑和推演都不用再动。 */
+  '201室-客厅': '', '201室-主卧': '', '201室-浴室': '',
+  '203室-客厅': '', '203室-主卧': '', '203室-浴室': '',
+  '303室-客厅': '', '303室-主卧': '', '303室-厨房': '', '303室-浴室': '',
+  '305室-客厅': '', '305室-主卧': '', '305室-厨房': '', '305室-浴室': '',
+  '407室-客厅': '', '407室-主卧': '', '407室-浴室': '', '407室-阳台': '',
+
   /* ══ ★ v98：神社篇场景图（单图兼容位）。
      分时段的图请填到下面的 SHRINE_IMG_SETS 里（白天/日落/夜晚各一格）；
      这里留着当“没配分时段图时的兜底”。两边都留空时 getSceneBgUrl 会返回 ''，
@@ -1017,10 +1034,37 @@ var MAP_TOPOLOGY = {
     { label: '前往: 203号门前(神谷奈绪)', target: '公寓2楼走廊-203号门' }
   ],
   '公寓2楼走廊-201号门': [
-    { label: '前往: 返回2楼走廊', target: '公寓2楼走廊' }
+    { label: '前往: 返回2楼走廊', target: '公寓2楼走廊' },
+    /* ★ v165V：以前这里只有「返回走廊」一条 —— 五个女主的房门都是死胡同，
+       玩家报「公寓篇很多角色住的号房居然没有房间」说的就是这个。
+       现在每个号房都补了室内点，敲开门就能进去。 */
+    { label: '🚪 进屋: 201室客厅', target: '201室-客厅' }
+  ],
+  '201室-客厅': [
+    { label: '前往: 201室主卧', target: '201室-主卧' },
+    { label: '前往: 201室浴室', target: '201室-浴室' },
+    { label: '🚪 走出门口', target: '公寓2楼走廊-201号门' }
+  ],
+  '201室-主卧': [
+    { label: '前往: 201室客厅', target: '201室-客厅' }
+  ],
+  '201室-浴室': [
+    { label: '前往: 201室客厅', target: '201室-客厅' }
   ],
   '公寓2楼走廊-203号门': [
-    { label: '前往: 返回2楼走廊', target: '公寓2楼走廊' }
+    { label: '前往: 返回2楼走廊', target: '公寓2楼走廊' },
+    { label: '🚪 进屋: 203室客厅', target: '203室-客厅' }
+  ],
+  '203室-客厅': [
+    { label: '前往: 203室主卧', target: '203室-主卧' },
+    { label: '前往: 203室浴室', target: '203室-浴室' },
+    { label: '🚪 走出门口', target: '公寓2楼走廊-203号门' }
+  ],
+  '203室-主卧': [
+    { label: '前往: 203室客厅', target: '203室-客厅' }
+  ],
+  '203室-浴室': [
+    { label: '前往: 203室客厅', target: '203室-客厅' }
   ],
   '公寓3楼走廊': [
     { label: '前往: 下2楼走廊', target: '公寓2楼走廊' },
@@ -1030,10 +1074,42 @@ var MAP_TOPOLOGY = {
     { label: '前往: 305号房门前', target: '公寓3楼走廊-305号房' }
   ],
   '公寓3楼走廊-303号房': [
-    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' }
+    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' },
+    { label: '🚪 进屋: 303室客厅', target: '303室-客厅' }
+  ],
+  '303室-客厅': [
+    { label: '前往: 303室主卧', target: '303室-主卧' },
+    { label: '前往: 303室厨房', target: '303室-厨房' },
+    { label: '前往: 303室浴室', target: '303室-浴室' },
+    { label: '🚪 走出门口', target: '公寓3楼走廊-303号房' }
+  ],
+  '303室-主卧': [
+    { label: '前往: 303室客厅', target: '303室-客厅' }
+  ],
+  '303室-厨房': [
+    { label: '前往: 303室客厅', target: '303室-客厅' }
+  ],
+  '303室-浴室': [
+    { label: '前往: 303室客厅', target: '303室-客厅' }
   ],
   '公寓3楼走廊-305号房': [
-    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' }
+    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' },
+    { label: '🚪 进屋: 305室客厅', target: '305室-客厅' }
+  ],
+  '305室-客厅': [
+    { label: '前往: 305室主卧', target: '305室-主卧' },
+    { label: '前往: 305室厨房', target: '305室-厨房' },
+    { label: '前往: 305室浴室', target: '305室-浴室' },
+    { label: '🚪 走出门口', target: '公寓3楼走廊-305号房' }
+  ],
+  '305室-主卧': [
+    { label: '前往: 305室客厅', target: '305室-客厅' }
+  ],
+  '305室-厨房': [
+    { label: '前往: 305室客厅', target: '305室-客厅' }
+  ],
+  '305室-浴室': [
+    { label: '前往: 305室客厅', target: '305室-客厅' }
   ],
   '公寓4楼走廊': [
     { label: '前往: 下3楼走廊', target: '公寓3楼走廊' },
@@ -1044,7 +1120,23 @@ var MAP_TOPOLOGY = {
     { label: '前往: 返回4楼走廊', target: '公寓4楼走廊' }
   ],
   '公寓4楼走廊-407号房': [
-    { label: '前往: 返回4楼走廊', target: '公寓4楼走廊' }
+    { label: '前往: 返回4楼走廊', target: '公寓4楼走廊' },
+    { label: '🚪 进屋: 407室客厅', target: '407室-客厅' }
+  ],
+  '407室-客厅': [
+    { label: '前往: 407室主卧', target: '407室-主卧' },
+    { label: '前往: 407室浴室', target: '407室-浴室' },
+    { label: '前往: 407室阳台', target: '407室-阳台' },
+    { label: '🚪 走出门口', target: '公寓4楼走廊-407号房' }
+  ],
+  '407室-主卧': [
+    { label: '前往: 407室客厅', target: '407室-客厅' }
+  ],
+  '407室-浴室': [
+    { label: '前往: 407室客厅', target: '407室-客厅' }
+  ],
+  '407室-阳台': [
+    { label: '前往: 407室客厅', target: '407室-客厅' }
   ],
   '301室-门口': [
     { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' },
@@ -1997,7 +2089,23 @@ var TH_MAP_GRID = {};
 
 function thMapAreaOf(name) {
   var p = TH_MAP_GRID[name];
-  if (!p) return '夏越村';
+  /* ★ v165V：不在格子表里的名字，不能一律当夏越村。
+     玩家报「公寓篇很多角色住的号房居然没有房间」之后补了 17 个室内点
+     （201室-客厅 之类），它们**刻意不上小地图**（小地图只画到「号门」
+     这一层，再往里加格子会把 58~68 那片挤爆）。
+     但 thMapAreaOf 原来遇到查不到坐标的名字直接 return '夏越村' ——
+     于是站在「201室-客厅」时，顶栏片区、BGM、预热图、选项来路全按
+     夏越村算，等于人进了公寓却被当成在村里。
+     现在：先按名字判片区（和 08 的 placeAreaOf 同一套正则），
+     判不出来才退回格子坐标、再退回夏越村。 */
+  if (!p) {
+    var t = String(name || '');
+    if (/^30[135]室-|^40[57]室-/.test(t)) return '公寓';
+    if (/^301室-/.test(t)) return '公寓';
+    if (/公寓|便利店|号门|号房/.test(t)) return '公寓';
+    if (/神社|鸟居|神龛|佛堂|檐廊|温泉|巫女|后山|苔庭/.test(t)) return '神社';
+    return '夏越村';
+  }
   for (var i = 0; i < TH_MAP_AREAS.length; i++) {
     var a = TH_MAP_AREAS[i];
     if (p[0] >= a.x0 && p[0] <= a.x1 && p[1] >= a.y0 && p[1] <= a.y1) return a.key;
@@ -8533,6 +8641,51 @@ var STYLE = `<style id="th-gal-shell-style">
   .th-gal-status-card .ts-energy { color: #8ee6a0 !important; }
   .th-gal-status-card .ts-energy.is-low { color: #ff8f8f !important; }
   .th-gal-mini-hud { display: none !important; }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     ★ v165V：手机端状态卡缩身
+     ─────────────────────────────────────────────────────────────────────
+     玩家原话：「手机端的左上角玩家面板巨大，根本没有适配手机端。」
+
+     ── 为什么「巨大」──
+     状态卡的所有尺寸都是硬像素（9~12px 字号、34px 头像、7px 间距），
+     而且 --ui-scale 固定是 1 —— 全卡没有一处按屏幕大小调过它。
+     桌面宽屏 980px 卡宽看着刚好；手机竖屏只有 375px，
+     同样一张卡占掉 56% 宽度 ≈ 210px，头像还是 34px，
+     文字还是 12px —— 相对屏幕就是「巨大」，而且三行内容挤成一坨。
+
+     ── 改法 ──
+     不删信息，只按档收缩：窄屏时把头像、字号、间距、内边距按比例压下来，
+     同时把 max-width 从 56% 提到 68%（卡片本身变窄但能容下内容），
+     避免压小之后文字被 ellipsis 切掉。
+     用 max-width 媒体查询而不是 JS —— 转屏时浏览器自己重算，不需要监听。
+     ══════════════════════════════════════════════════════════════════════ */
+  @media (max-width: 520px) {
+    .th-gal-status-card {
+      --ui-scale: 0.78;                 /* 一次定义，下面所有 calc 自动跟着缩 */
+      top: 6px !important; left: 6px !important;
+      gap: calc(5px * var(--ui-scale, 1)) !important;
+      padding: calc(4px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1)) calc(4px * var(--ui-scale, 1)) calc(4px * var(--ui-scale, 1)) !important;
+      max-width: 70% !important;
+      border-radius: 8px !important;
+    }
+    .th-gal-status-card .ts-avatar {
+      width: calc(26px * var(--ui-scale, 1)) !important;
+      height: calc(26px * var(--ui-scale, 1)) !important;
+    }
+    .th-gal-status-card .ts-avatar-q { font-size: calc(11px * var(--ui-scale, 1)) !important; }
+    .th-gal-status-card .ts-name { max-width: calc(72px * var(--ui-scale, 1)) !important; }
+    /* 第三行（地点 + 角色数）在手机上最占地方，压小一号 */
+    .th-gal-status-card .ts-line3 { font-size: calc(8px * var(--ui-scale, 1)) !important; }
+  }
+  /* 超窄屏（小屏手机竖握）再收一档，保证不挡画面 */
+  @media (max-width: 380px) {
+    .th-gal-status-card { --ui-scale: 0.68; max-width: 76% !important; }
+    .th-gal-status-card .ts-avatar {
+      width: calc(22px * var(--ui-scale, 1)) !important;
+      height: calc(22px * var(--ui-scale, 1)) !important;
+    }
+  }
 
   /* ══════════ ★ v160：节日「幕」——上半深、下半淡，中间渐变 ══════════ */
   .th-gal-fest-scene {
@@ -15731,8 +15884,40 @@ function parseIllustrationTag(rawText) {
    视口量不出来（刚搬进弹窗、display:none 那一瞬间）就用窗口高度兜底，绝不拿 0 去算。 */
 /* ★ 对话框高度：小 / 中 / 大 / 特大（按钮循环切换，记在浏览器缓存里）
    以前框高是 height:auto，改成「一页一句」之后框就被压成一条，所以现在改成固定高度。 */
-var DLG_H_KEY = 'thGalDialogueHeight';
+/* ★ v165V：旧存储键已废弃，不再读写任何地方。
+   留着这一行只是为了留个记号 —— 老玩家的 localStorage 里可能还存着 s/m/l/xl，
+   那些值**故意不读**：不换键名的话，新默认值 auto 永远接不住（v97 踩过这个坑）。
+   现在实际用的是下面那个 DLG_H_KEY_V2。 */
+var DLG_H_KEY = 'thGalDialogueHeight';   /* @deprecated 见 DLG_H_KEY_V2 */
+/* ══ ★ v165V：新增「自适应」档，并把它设成默认 ══════════════════════════
+   玩家原话：「对话框依旧不是多高多宽就自适应显示多少字。」
+
+   ── 为什么改了这么多次还是不对 ──
+   分页的容量算法本身是对的（computeGalAvailH 读 stage 的真实 clientHeight，
+   galBodyAvailW 量真实 clientWidth，再用 Canvas 量字宽算每行几个字）。
+   问题**根本不在分页**，在 stage 本身多高：
+
+     dialogueHeightPx = 视口高 × dlgHRatio()
+
+   而 dlgHRatio() 是四个**写死的档位比值**（0.28 / 0.40 / 0.54 / 0.68），
+   默认 'm' = 0.40。也就是说无论屏幕多大、正文多长，
+   对话框永远只占视口高度的 40% —— 分页当然只能往那 40% 里塞，
+   玩家的感受就是「框那么大、字就那么一点点」。
+
+   ── 改法 ──
+   加一个 auto 档：ratio 不是一个常数，而是**每次现算**：
+     ① 量视口真实高度 vpH
+     ② 减去头顶必须留出的画面（至少 26%，保证立绘/场景还看得见）
+     ③ 剩下多少就给对话框多少，上限 0.80、下限 0.34
+   并且把默认档位从 'm' 改成 'auto' —— 没人手动切过时，天生就是自适应的。
+   玩家仍可用那颗按钮切回 s/m/l/xl 固定档，切过就听他的（存 localStorage）。
+
+   ★ 为什么不是「对话框高度 = 内容高度」：
+     正文是流式的，内容一长框就顶到天花板，把场景全遮住；
+     而且分页会因此无限重算（框变高 → 装更多字 → 内容变矮 → 框变矮…）。
+     固定上限 + 按屏自适应，才是「多高就显示多少字」的稳定解。 */
 var DLG_H_LEVELS = [
+  { k: 'auto', name: '自适应', ratio: -1 },   /* ratio < 0 = 每次现算，见 dlgHRatio() */
   { k: 's',  name: '小',   ratio: 0.28 },
   { k: 'm',  name: '中',   ratio: 0.40 },
   { k: 'l',  name: '大',   ratio: 0.54 },
@@ -15740,21 +15925,68 @@ var DLG_H_LEVELS = [
 ];
 function dlgHLevel(k) {
   for (var i = 0; i < DLG_H_LEVELS.length; i++) { if (DLG_H_LEVELS[i].k === k) return DLG_H_LEVELS[i]; }
-  return DLG_H_LEVELS[1];
+  return DLG_H_LEVELS[0];
 }
-function dlgHPref() { var k = 'm'; try { k = localStorage.getItem(DLG_H_KEY) || 'm'; } catch (e) {} return k; }
-function dlgHRatio() { return dlgHLevel(dlgHPref()).ratio; }
+/* ★ v165V：默认改成 auto。
+   ★ 存储键一起换名（V2）：老玩家 localStorage 里存着 'm'，
+     不换名的话新默认值永远接不住 —— 上次 v97 改分页默认值就踩过这个坑。 */
+var DLG_H_KEY_V2 = 'thGalDialogueHeightV2';
+function dlgHPref() {
+  var k = 'auto';
+  try { k = localStorage.getItem(DLG_H_KEY_V2) || 'auto'; } catch (e) {}
+  /* 认不出的值一律回 auto（旧版键 thGalDialogueHeight 里的 s/m/l/xl 不再读取） */
+  for (var i = 0; i < DLG_H_LEVELS.length; i++) { if (DLG_H_LEVELS[i].k === k) return k; }
+  return 'auto';
+}
+/* ══ ★ v165V：auto 档的比值算子在「给定视口高度」时才真正算 ══
+   ★ 为什么要拆成 dlgHRatioFor(vpH) 而不是 dlgHRatio() 自己再去量一次：
+     dialogueHeightPx() 先调 dialogueViewportMetrics() 量出一个 vpH，
+     再拿它乘比例；如果比例函数自己又量一次视口，两把尺子就可能不同源
+     （第一帧视口还没排版完 / 键盘顶起 / 转屏中间态），
+     于是「框按 A 值画、分页按 B 值算」，玩家看到的还是「框大字少」。
+     所以：量视口只有一次，比例换算纯粹吃这个入参。 */
+function dlgHRatioFor(vpH) {
+  var h = Number(vpH) || 0;
+  if (!(h > 0)) return 0.40;              /* 实在量不到，退回旧默认 */
+  /* 对话框占的份额：屏幕越矮，越要把画面留出来（矮屏对话框占比反而要小一点，
+     否则整个视口只剩字）。用「先给画面一个保底百分比，剩下的再给框」来算。 */
+  var keepScene = 0.26;                   /* 至少 26% 留给场景/立绘 */
+  if (h < 520) keepScene = 0.34;          /* 手机横握那种矮屏：再多留一点 */
+  else if (h > 900) keepScene = 0.22;     /* 大屏可以多给框 */
+  var r = 1 - keepScene;
+  if (r > 0.80) r = 0.80;
+  if (r < 0.34) r = 0.34;
+  return r;
+}
+function dlgHRatio() {
+  var lv = dlgHLevel(dlgHPref());
+  if (lv.ratio > 0) return lv.ratio;      /* 固定档：照旧 */
+  /* auto 档：自己量一次视口（给不带 bodyEl 的调用点用，比如按钮文案） */
+  var vpH = 0;
+  try {
+    var vpEl = getDoc().querySelector('.th-gal-shell-viewport');
+    vpH = (vpEl && vpEl.clientHeight) || 0;
+  } catch (e0) {}
+  if (!(vpH > 0)) {
+    try { vpH = window.innerHeight || 0; } catch (e1) {}
+  }
+  return dlgHRatioFor(vpH);
+}
 function nextDlgHPref() {
   var cur = dlgHPref();
   var idx = 0;
   for (var i = 0; i < DLG_H_LEVELS.length; i++) { if (DLG_H_LEVELS[i].k === cur) { idx = i; break; } }
   return DLG_H_LEVELS[(idx + 1) % DLG_H_LEVELS.length].k;
 }
-/* 对话框固定高度（px）：视口高 × 当前档位比例 */
+/* 对话框固定高度（px）：视口高 × 当前档位比例
+   ★ v165V：量视口只量这一次，auto 档的比例也吃这个 vpH（见 dlgHRatioFor 的注释）。
+     这样「画多高的框」和「算能装多少字」用的是同一个数，不会再错位。 */
 function dialogueHeightPx(bodyEl) {
   var m = dialogueViewportMetrics(bodyEl);
   if (!m.vpH) return 0;
-  return Math.max(64, Math.round(m.vpH * dlgHRatio()));
+  var lv = dlgHLevel(dlgHPref());
+  var ratio = (lv.ratio > 0) ? lv.ratio : dlgHRatioFor(m.vpH);
+  return Math.max(64, Math.round(m.vpH * ratio));
 }
 function dialogueViewportMetrics(bodyEl) {
   var vpEl = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-shell-viewport') : null;
@@ -20646,16 +20878,45 @@ function setupInteractions(shell) {
   }
   syncDlgHBtn();
   try { fitDialogueStage(shell); } catch (eF0) {}
+  /* ★ v165V：auto 档是「按当前视口现算」的，首帧和转屏都必须重算一次。
+     以前只靠窗口 resize 触发 —— 手机上先弹出键盘 / 先横屏再进游戏时，
+     vpH 量到的是旧值，框高就一直停在错的那个比例上。 */
+  try {
+    if (!HOST.__galDlgHFitBound) {
+      HOST.__galDlgHFitBound = true;
+      /* 闭包直接抓住当前 shell（不靠全局变量 —— 这个作用域里根本没有 __thGalShell） */
+      var refitDlgH = function () {
+        try {
+          if (!shell || !shell.isConnected) return;
+          fitDialogueStage(shell);
+          if (typeof DialogueReader !== 'undefined' && DialogueReader.refit) DialogueReader.refit();
+        } catch (eRF) {}
+      };
+      window.addEventListener('resize', refitDlgH, { passive: true });
+      window.addEventListener('orientationchange', function () {
+        setTimeout(refitDlgH, 220);
+      }, { passive: true });
+    }
+  } catch (eBind) {}
   if (btnDlgH) {
     btnDlgH.onclick = function (e) {
       e.stopPropagation();
       try { PixelAudio.playSelect(); } catch (eA) {}
       var nextK = nextDlgHPref();
-      try { localStorage.setItem(DLG_H_KEY, nextK); } catch (eL) {}
+      /* ★ v165V：存的必须是新键 DLG_H_KEY_V2。
+         用旧键的话 dlgHPref() 读不到 —— 玩家每点一次都「切了等于没切」
+         （界面当拍确实变了，下次重开又回到默认，v97 改分页默认值时踩过同款坑）。 */
+      try { localStorage.setItem(DLG_H_KEY_V2, nextK); } catch (eL) {}
       syncDlgHBtn();
       try { fitDialogueStage(shell); } catch (eF) {}
       try { DialogueReader.refit(); } catch (eR) {}
-      popToast('对话框高度已切为：【' + dlgHLevel(nextK).name + '】（视口 ' + Math.round(dlgHLevel(nextK).ratio * 100) + '%）');
+      /* ★ v165V：auto 档的 ratio 是 -1（现算标记），直接 ×100 会打出「-100%」。
+         只有固定档才报百分比，auto 档说清楚它是按屏算的。 */
+      var nlv = dlgHLevel(nextK);
+      popToast('对话框高度已切为：【' + nlv.name + '】' +
+        (nlv.ratio > 0
+          ? '（视口 ' + Math.round(nlv.ratio * 100) + '%）'
+          : '（跟着屏幕走，框有多高就装多少字）'));
     };
   }
 
