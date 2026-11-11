@@ -1177,12 +1177,45 @@
       '  left: 0 !important; top: 0 !important;',
       '  width: 100% !important; height: 100% !important;',
       '  z-index: 34 !important;',
-      '}',      '#' + NEXT_BTN_ID + '.in-shell {',
+      '}',
+      '#' + NEXT_BTN_ID + '.in-shell {',
       '  position: absolute !important;',
       '  right: 10px !important;',
       '  bottom: 6px !important;',
       '  left: auto !important;',
       '}',
+      /* ══ ★ v165X：按钮搬进游戏视口之后，它对「视口内所有东西」都必须可见 ══
+         ── 一、层级 ──
+         旧 z-index 是 2147483641，比全屏壳 th-gal-shell-root.is-fullscreen
+         的 2147483642 低一级 ⇒ 全屏时整颗按钮被壳盖住。这里抬到 ...645，
+         压过视口里所有层（立绘 15 / 插图 34、35 / 对话框 80）。
+
+         ── 二、这条规则到底在防什么 ──
+         下面（约 200 行后）还有一条基础规则 `#gal-cg-next-btn
+         { position: fixed !important; bottom: 84px; left: 36px }`。
+         按 CSS 级联，`#id.in-shell`（1 id + 1 class）本就压得过 `#id`（1 id），
+         与书写顺序无关 —— 所以**上面那条已经够用**，这条纯属冗余保险：
+         万一以后有人把基础规则写成 `div#id[class]` 之类的同级选择器，
+         这里用 `div` + id + `.in-shell` + `[class]`（1 id + 2 class/attr）
+         仍然能赢。
+
+         ── 三、别再被「pos=static」骗一次 ──
+         v165X 期间有四次「实测按钮还是 static」，全都出在诊断脚本
+         _diag_final.mjs 自己身上：它的注入条件是
+         `if (extraCss && !extraCss.startsWith('/*'))`，
+         本数组第一个元素恰好是注释 '/* Galgame 姓名牌 *\/'，
+         于是 addStyleTag 从未执行 —— 测的是一个没样式的裸 div。
+         修掉判据后实测：120x31，pos=absolute，z=2147483645。
+         ⇒ 以后怀疑 CSS 没生效，先确认「样式到底注进去了没有」。 */
+      'div#' + NEXT_BTN_ID + '.in-shell[class], div#' + AUTO_BTN_ID + '.in-shell[class] {',
+      '  position: absolute !important;',
+      '  z-index: 2147483645 !important;',
+      '  bottom: 8px !important;',
+      '  right: 10px !important;',
+      '  left: auto !important;',
+      '}',
+      'div#' + NEXT_BTN_ID + '.in-shell[class] { bottom: 8px !important; right: 10px !important; }',
+      'div#' + AUTO_BTN_ID + '.in-shell[class] { bottom: 46px !important; right: 10px !important; }',
       '#' + CG_CONTAINER_ID + '.active { opacity: 1 !important; }',
       'body.gal-cg-active #character, body.gal-cg-active .expression-holder, body.gal-cg-active .character-avatar {',
       '  opacity: 0 !important; transition: opacity 0.4s ease !important;',
@@ -1382,9 +1415,36 @@
       vp = (shell && shell.querySelector) ? shell.querySelector('.th-gal-shell-viewport') : null;
     } catch (e) { vp = null; }
 
+    /* ★ v165X：两颗按钮也要一起搬进来。
+       ── 为什么以前「按钮不在游戏里」怎么调都调不好 ────────────────────
+       它们一直是 appendChild 到 body 的，靠 `position: fixed; left:36px` 定位 ——
+       fixed 是相对**浏览器视口**算的，而游戏舞台在页面里只是居中的一块 16:9 区域。
+       于是：
+         · 桌面：舞台居中留白多，按钮落在舞台左边的空白里 → 看着「在游戏外面」；
+         · 手机：舞台几乎占满宽度，fixed 的 left:36px 落在舞台内，
+           但 bottom:84px 是相对整窗算的，会压到聊天输入框那一带；
+         · 全屏（th-stage-portal-on）：壳被搬到 body 底下并抬到 2147483642，
+           按钮还在原地 2147483641 → 被壳整个盖住，彻底看不见。
+       三次修都只动了 left / z-index，没动「挂在哪」——
+       所以每次换场景就复发。这次直接把按钮搬进 .th-gal-shell-viewport，
+       跟插图那两层（box / fig）享受同一个父容器和同一套 absolute 坐标。
+       ── 点不到的问题 ──────────────────────────────────────────────
+       视口本身是 overflow:hidden 的，按钮放在 bottom:8px 是安全的；
+       但插图正图层 #CG_FIGURE 是 pointer-events:none，容器层可能是 auto ——
+       所以按钮的 z-index 必须压过它们（见 CSS 里的 2147483645）。 */
     if (vp) {
       try { if (box.parentNode !== vp) vp.appendChild(box); } catch (e1) {}
       try { if (fig && fig.parentNode !== vp) vp.appendChild(fig); } catch (e2) {}
+      try {
+        var nb = doc.getElementById(NEXT_BTN_ID);
+        if (nb && nb.parentNode !== vp) vp.appendChild(nb);
+        if (nb && nb.classList) nb.classList.add('in-shell');
+      } catch (eBtn1) {}
+      try {
+        var ab = doc.getElementById(AUTO_BTN_ID);
+        if (ab && ab.parentNode !== vp) vp.appendChild(ab);
+        if (ab && ab.classList) ab.classList.add('in-shell');
+      } catch (eBtn2) {}
       if (box.classList) box.classList.add('in-shell');
       if (fig && fig.classList) fig.classList.add('in-shell');
       try { box.style.left = ''; box.style.top = ''; box.style.width = ''; box.style.height = ''; } catch (e3) {}
@@ -1394,6 +1454,17 @@
 
     try { if (box.parentNode !== doc.body) doc.body.appendChild(box); } catch (e5) {}
     try { if (fig && fig.parentNode !== doc.body) doc.body.appendChild(fig); } catch (e6) {}
+    /* 没壳的时候按钮也得回到 body，否则摘掉游戏壳之后按钮会跟着消失 */
+    try {
+      var nb2 = doc.getElementById(NEXT_BTN_ID);
+      if (nb2 && nb2.parentNode !== doc.body) doc.body.appendChild(nb2);
+      if (nb2 && nb2.classList) nb2.classList.remove('in-shell');
+    } catch (eBtn3) {}
+    try {
+      var ab2 = doc.getElementById(AUTO_BTN_ID);
+      if (ab2 && ab2.parentNode !== doc.body) doc.body.appendChild(ab2);
+      if (ab2 && ab2.classList) ab2.classList.remove('in-shell');
+    } catch (eBtn4) {}
     if (box.classList) box.classList.remove('in-shell');
     if (fig && fig.classList) fig.classList.remove('in-shell');
     try {
@@ -1552,32 +1623,64 @@
      不碰 bottom（底部 84px 是相对整窗算的，任何宽度都安全）。 */
   function clampGalleryBtns() {
     var doc = getDoc();
-    var vw = 0;
-    try { vw = window.innerWidth || (doc.documentElement && doc.documentElement.clientWidth) || 0; } catch (eV) {}
-    if (!vw) return;
-
     var next = doc.getElementById(NEXT_BTN_ID);
     var auto = doc.getElementById(AUTO_BTN_ID);
 
-    /* 「下一张」贴左边，只要保证不被右边裁到就行（正常不会） */
-    if (next) {
-      var nw = next.offsetWidth || 96;
-      var nl = Math.max(8, Math.min(36, vw - nw - 8));
-      next.style.setProperty('left', nl + 'px', 'important');
+    /* ★ v165X：按钮已经搬进游戏视口（absolute），不再需要按浏览器视口夹 left。
+       这时候本来就没有「跑出屏幕」这回事了 —— 视口自己 overflow:hidden。
+       但还有一个窄屏细节要处理：两颗键都贴右边，窄屏时会叠在一起，
+       所以「自动」用 right 值错开，宽度不够就让它单独一行（bottom 抬高）。 */
+    var vw = 0;
+    try {
+      var shell = doc.getElementById('th-gal-shell-root');
+      var vp = (shell && shell.querySelector) ? shell.querySelector('.th-gal-shell-viewport') : null;
+      vw = (vp && vp.clientWidth) || 0;
+    } catch (eV) {}
+    if (!vw) { try { vw = window.innerWidth || 0; } catch (eW) {} }
+
+    /* 裸看态（没有游戏壳）：还是 fixed，退回旧的夹取逻辑，别让它跑出去 */
+    var noShell = false;
+    try {
+      noShell = !(next && next.classList && next.classList.contains('in-shell'));
+    } catch (eNo) { noShell = true; }
+    if (noShell) {
+      if (!vw) return;
+      if (next) {
+        var nw = next.offsetWidth || 96;
+        next.style.setProperty('left', Math.max(8, Math.min(36, vw - nw - 8)) + 'px', 'important');
+        next.style.removeProperty('right');
+      }
+      if (auto) {
+        var aw = auto.offsetWidth || 82;
+        var nw2 = next ? (next.offsetWidth || 96) : 96;
+        var nl2 = next ? (parseFloat(next.style.left) || 36) : 36;
+        var left = 190;
+        if (left + aw + 8 > vw) left = nl2 + nw2 + 8;
+        if (left + aw + 8 > vw) left = Math.max(8, vw - aw - 8);
+        auto.style.setProperty('left', left + 'px', 'important');
+        auto.style.removeProperty('right');
+      }
+      return;
     }
-    /* 「自动」本来在 next 右侧 190px 处。窄屏时改成「紧挨着 next 右边」，
-       再夹一次右边界 —— 这样手机上两颗键挨在一起，都不会跑出去。 */
+
+    /* 壳内态：贴右下角。宽度太窄（< 300px）时把「自动」叠到「下一张」上面一行，
+       否则两颗键会互相盖住 —— 手机上就是这种情况。 */
+    if (!vw) return;
+    var nextW = (next && next.offsetWidth) || 0;
+    var autoW = (auto && auto.offsetWidth) || 0;
+    var need = nextW + autoW + 26;      /* 8(右) + 8(间距) + 10(再右) */
+    var stack = need > vw;
+    if (next) {
+      next.style.setProperty('right', '10px', 'important');
+      next.style.setProperty('bottom', '8px', 'important');
+      next.style.removeProperty('left');
+    }
     if (auto) {
-      var aw = auto.offsetWidth || 82;
-      var base = 190;
-      /* 放不下就回退到「next 宽度 + 左边距 + 8」 */
-      var nw2 = next ? (next.offsetWidth || 96) : 96;
-      var nl2 = next ? (parseFloat(next.style.left) || 36) : 36;
-      var fallback = nl2 + nw2 + 8;
-      var left = base;
-      if (left + aw + 8 > vw) left = fallback;
-      if (left + aw + 8 > vw) left = Math.max(8, vw - aw - 8);
-      auto.style.setProperty('left', left + 'px', 'important');
+      auto.style.setProperty('right', '10px', 'important');
+      auto.style.setProperty('bottom', stack ? '46px' : '8px', 'important');
+      /* 不叠的时候，「自动」放在「下一张」左边：右偏移 = 10 + nextW + 8 */
+      if (!stack) auto.style.setProperty('right', (10 + nextW + 8) + 'px', 'important');
+      auto.style.removeProperty('left');
     }
   }
   /* 视口尺寸变了（转屏 / 拉窗口）重新夹一次 */
