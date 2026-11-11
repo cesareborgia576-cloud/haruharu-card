@@ -10150,6 +10150,18 @@ function thVerRender() {
   /* 卡版本 vs 实际运行 不一致 = 热更新生效了（脚本换了、卡没换）。
      这不是错误，是正常状态，用金色标出即可；只有在"卡比线上旧"时才算异常。 */
   var sameCard = (cv && cur && cv === cur);
+  /* ★ 开发通道"追最新"的结果，直接印在诊断里。
+     老板要判断这台机器到底吃没吃到刚推的那版，看这一行就够：
+       · 追到最新  → "自动追到最新（卡里 7582464…）"
+       · 没追上    → "用卡里钉的死版"
+     不给它编好看的话：拿不到就老实说拿不到。 */
+  var refIsSha = !!(ref && /^[0-9a-f]{40}$/.test(ref));
+  var followLine = '';
+  if (chan === 'dev' && refIsSha) {
+    followLine = '<span class="k">追最新</span>　<b class="is-ok">自动追到线上最新 commit</b>';
+  } else if (chan === 'dev') {
+    followLine = '<span class="k">追最新</span>　<b class="is-bad">没追到（下面的 ref 不是 commit）</b>';
+  }
   html += '<div class="th-ver-diag">'
     + '<div class="th-ver-diag-t">诊断</div>'
     + '<span class="k">卡版本</span>　<b>' + thVerEsc(cv || '未知') + '</b>'
@@ -10157,7 +10169,8 @@ function thVerRender() {
     + '<span class="k">通道</span>　<b>' + (chan === 'dev' ? '开发（DEV）' : '稳定（玩家）') + '</b>'
     + '　<span class="k">线上版本</span>　<b class="' + (TH_VER.err ? 'is-bad' : '') + '">' + thVerEsc(online) + '</b><br>'
     + '<span class="k">本页脚本来自</span>　<b>' + thVerEsc(ref ? ref.slice(0, 12) : '未知') + '</b>'
-    + '<span class="k">（' + (ref && /^[0-9a-f]{40}$/.test(ref) ? 'commit' : 'tag') + '）</span><br>'
+    + '<span class="k">（' + (refIsSha ? 'commit' : 'tag') + '）</span><br>'
+    + (followLine ? followLine + '<br>' : '')
     + '<span class="k">上次检查</span>　<b>' + thVerEsc(last) + '</b>'
     + '</div>';
 
@@ -10177,9 +10190,9 @@ function thVerRender() {
       + '这不等于「已是最新」，也不等于「卡坏了」—— 点「⟳ 立刻重查」再试一次。</div>';
   }
   if (chan === 'dev') {
-    html += '<div class="th-ver-hint">当前是<b>开发通道</b>：脚本按 commit sha 拉，'
-      + '线上报的号只用于对账，<b>不会</b>把玩家引到未测的版本上。'
-      + '要换脚本得重新导入开发卡。</div>';
+    html += '<div class="th-ver-hint">当前是<b>开发通道</b>：每次打开都会问一次线上最新 commit，'
+      + '所以<b>推完直接刷新就是新的</b>，不用重新导入开发卡。'
+      + '问不到（断网 / 代理）就回落到卡里钉的那一版，不会打不开。</div>';
   }
   if (isNew) {
     html += '<div class="th-ver-hint">点「刷新并换到 ' + thVerEsc(TH_VER.latest) + '」会先记住这个版本 tag，'
@@ -10275,10 +10288,19 @@ try {
         var tg = String(TH_VER.latest || '');
         var cur = thVerCurVer();
         var dev = (thVerChan() === 'dev');
+        /* ★ 开发通道：刷新**真有用**了。
+           改造前 loader 钉死卡里的 sha，刷新一百次也是同一批脚本，所以这里是
+           一句"要换请重导开发卡"的说明。
+           现在 loader 开机读 latest.json 拿最新 commit（见 脚本/00 的 loadLatestRef），
+           所以重载 = 重新问一次线上最新 ⇒ 能吃到刚推的脚本。
+           ⚠ 不给它写 cqHotRef：开发通道 loader 有 `!DEV` 守卫，写了也不读，
+             写进去反而会在将来切回稳定卡时变成一颗定时炸弹。 */
         if (dev) {
           if (typeof showToast === 'function') {
-            showToast('开发通道按 commit 拉脚本，刷新不会换版本——要换请重新导入开发卡', 3600);
+            showToast('正在重新问线上最新 commit…', 1500);
           }
+          try { (window.top || window).location.reload(); }
+          catch (eRd) { try { location.reload(); } catch (eRd2) {} }
           return;
         }
         if (!/^v[\d.]+$/.test(tg) || !thVerNewer(tg, cur)) {
