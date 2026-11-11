@@ -5590,21 +5590,79 @@ var STYLE = `<style id="th-gal-shell-style">
     color: #cbd5e1 !important;
   }
   .th-gal-dialogue-btn {
-    background: rgba(255, 255, 255, 0.14) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    color: #f1f5f9 !important;
-    border-radius: 3px !important;
-    padding: 1px 5px !important;
-    font-size: calc(8px * var(--ui-scale, 1)) !important;
+    /* ══ ★ v165X：按钮统一做成「小框」══════════════════════════════════
+       玩家原话：「对话框的x按钮改名为关闭，往左挪一点，
+                 并且和其他对话框里的按钮也搞成美化小框的按钮。」
+       以前是 padding:1px 5px 的裸透明小字，浮在正文角上像没做完。
+       现在统一成：圆角小框 + 描边 + 半透明底 + hover 抬起，
+       尺寸用 em 而不是 px —— 手机端字号被压到 10px 时，按钮跟着一起缩，
+       不会出现「字小了按钮还那么大、把正文挤没」的情况。 */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    background: rgba(30, 41, 59, 0.72) !important;
+    border: 1px solid rgba(148, 163, 184, 0.42) !important;
+    color: #e8eef7 !important;
+    border-radius: 6px !important;
+    padding: 2px 7px !important;
+    font-size: calc(8.5px * var(--ui-scale, 1)) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em !important;
     cursor: pointer !important;
-    line-height: 1 !important;
+    line-height: 1.35 !important;
+    white-space: nowrap !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    transition: background .16s, border-color .16s, transform .16s, color .16s !important;
+    user-select: none !important;
   }
-  .th-gal-dialogue-btn:hover { background: #475569 !important; }
+  .th-gal-dialogue-btn:hover {
+    background: rgba(56, 89, 138, 0.9) !important;
+    border-color: rgba(147, 197, 253, 0.75) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+  }
+  .th-gal-dialogue-btn:active { transform: translateY(0) scale(0.96) !important; }
+  /* 关闭键：往左挪一点（玩家原话），并且用暖色调跟「推进台词」那三颗区分开 ——
+     它不是翻页，是「退出去」，颜色必须不一样，否则连点三下手会滑。 */
+  .th-gal-dialogue-btn.th-gal-dialogue-close {
+    margin-left: 7px !important;
+    background: rgba(69, 26, 34, 0.78) !important;
+    border-color: rgba(248, 113, 113, 0.48) !important;
+    color: #ffe0e0 !important;
+  }
+  .th-gal-dialogue-btn.th-gal-dialogue-close:hover {
+    background: rgba(127, 29, 29, 0.92) !important;
+    border-color: rgba(252, 165, 165, 0.9) !important;
+    color: #ffffff !important;
+  }
+  /* 自动播放：开着的时候高亮成青色，一眼看出「现在在被自动翻」 */
+  .th-gal-dialogue-btn.th-gal-dialogue-auto.is-auto-on {
+    background: rgba(12, 74, 110, 0.88) !important;
+    border-color: rgba(56, 189, 248, 0.85) !important;
+    color: #e0f6ff !important;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.42) !important;
+  }
+  /* 只有一页 / 没正文时压暗：功能还在，但翻不动 */
+  .th-gal-dialogue-btn.th-gal-dialogue-auto.is-auto-mute {
+    opacity: 0.5 !important;
+  }
   
   .th-gal-dialogue-body {
     display: block !important;
     margin: 0 !important;
-    padding: 0 46px 0 0 !important;
+    /* ══ ★ v165X：右侧那 46px 是「给浮动按钮让位」的历史遗留 ══════════════
+       .th-gal-dialogue-floating-tools 是 absolute top:5px right:8px，
+       它**只占对话框最上面一行**（高约 16px），正文却为它在右边让了整整 46px 的
+       竖条空地 —— 从第二行开始，那块地一直是空的。
+       桌面 940px 里丢 46px 看不出来；手机上正文总共才 335px，
+       再丢 46px 就是 13.7%，叠加两侧留白后玩家看到的就是「只显示了一大半」。
+       （玩家原话：「只显示了一半宽度的内容」）
+       ⇒ 改成只让「第一行」避让：正文用 padding-top 给工具条腾出一行高度，
+         右侧内边距缩到 8px 的普通留白。这样文字能用满整个框宽。 */
+    padding: 0 8px 0 0 !important;
     font-size: calc(11px * var(--ui-scale, 1)) !important;
     line-height: 1.42 !important;
     color: #ffffff !important;
@@ -5625,12 +5683,45 @@ var STYLE = `<style id="th-gal-shell-style">
     box-sizing: border-box !important;
     pointer-events: auto !important;
   }
+  /* ★ v165X：给顶部那行工具条留位置 —— 第一行文字从它下面开始，
+     而不是在右边留一条 46px 的空带。 */
+  .th-gal-dialogue-stage.has-tools-line .th-gal-dialogue-body {
+    padding-top: calc(18px * var(--ui-scale, 1)) !important;
+  }
 
   @media (min-width: 1024px) {
     .th-gal-shell-root { font-size: calc(13px * var(--ui-scale, 1)) !important; }
     .th-gal-dialogue-body {
       font-size: calc(15px * var(--ui-scale, 1)) !important;
       line-height: 1.5 !important;
+    }
+  }
+  /* ══ ★ v165X：窄屏的对话框 —— 字号和留白按屏显缩小 ══════════════════
+     为什么必须单独给这一段：
+       --ui-scale 在全卡范围里固定是 1，只有状态卡自己在媒体查询里改过它。
+       对话框的字号 calc(11px * var(--ui-scale,1)) 于是永远是 11px ——
+       在 1280px 桌面上 11px 显得小、在 360px 手机上 11px 却显得「字大行少」，
+       一行只装 24 个字（实测），一页装不下两句话，玩家就得一直点「下一页」。
+     这里按「一个短句 ≈ 14~16 字」定档：手机 10px、超窄 9.5px，
+     同时把行高收到 1.5 以内的紧凑值，让一页能舒服装下 4~6 句。 */
+  @media (max-width: 520px) {
+    .th-gal-dialogue-stage { padding: 5px 8px !important; }
+    .th-gal-dialogue-body {
+      font-size: 10.5px !important;
+      line-height: 1.45 !important;
+      padding-right: 6px !important;
+    }
+    .th-gal-dialogue-stage.has-tools-line .th-gal-dialogue-body {
+      padding-top: 17px !important;
+    }
+    /* 工具条本身也跟着缩 —— 三颗键（回顶/上页/关）在 320px 上很占地方 */
+    .th-gal-dialogue-floating-tools { gap: 4px !important; right: 6px !important; }
+    .th-gal-dialogue-page-indicator { font-size: 8px !important; }
+  }
+  @media (max-width: 380px) {
+    .th-gal-dialogue-body {
+      font-size: 10px !important;
+      line-height: 1.42 !important;
     }
   }
 
@@ -11770,8 +11861,11 @@ function buildShellDOM() {
         '</div>' +
       '</div>' +
 
-      /* 对话框 */
-      '<div class="th-gal-dialogue-stage" hidden>' +
+      /* 对话框。
+         ★ v165X：class 里带 has-tools-line —— 上面那行工具条（页码/回顶/上页/关）
+           是常驻的，正文必须从它下面开始。以前靠 padding-right:46px 绕开它，
+           结果整块右侧空地浪费掉（手机上占 13.7% 宽度）。 */
+      '<div class="th-gal-dialogue-stage has-tools-line" hidden>' +
         '<div class="th-gal-dialogue-name" hidden></div>' +
         '<div class="th-gal-dialogue-floating-tools">' +
           '<span class="th-gal-dialogue-page-indicator">1 / 1</span>' +
@@ -11780,7 +11874,14 @@ function buildShellDOM() {
              越靠左越“往回退得更狠”，跟直觉一致。 */
           '<button type="button" class="th-gal-dialogue-btn th-gal-dialogue-top" title="回到第一页" hidden>⤒ 回顶</button>' +
           '<button type="button" class="th-gal-dialogue-btn th-gal-dialogue-prev" title="返回上一页">⬅ 上页</button>' +
-          '<button type="button" class="th-gal-dialogue-btn th-gal-dialogue-close" title="关闭对话框">✕</button>' +
+          /* ★ v165X：自动播放（循环 / 播完关 两档）。
+             放在「上页」和「关闭」中间 —— 三颗都是「推进台词」这一族，
+             关闭单独归右边，玩家拇指扫过去不会点错。 */
+          '<button type="button" class="th-gal-dialogue-btn th-gal-dialogue-auto" title="自动播放：每 2 秒切一页">⏸ 自动</button>' +
+          /* ★ v165X：✕ 改名「关闭」——玩家原话「对话框的x按钮改名为关闭」。
+             图标保留（✕ 比「关闭」两个字识别更快），文字跟着写出来，
+             这样窄屏时也不会只剩一个看不懂的叉。 */
+          '<button type="button" class="th-gal-dialogue-btn th-gal-dialogue-close" title="关闭对话框">✕ 关闭</button>' +
         '</div>' +
         '<div class="th-gal-dialogue-body"></div>' +
       '</div>' +
@@ -14924,6 +15025,38 @@ function v165wStripThinkBlock(txt) {
   return out;
 }
 
+/* ★ v165X：给「所有标签解析器」用的统一入口 —— 先把思维链整块剥掉。
+   ── 为什么必须给每一个解析器都加 ──────────────────────────────────────
+   v165W 只堵了 <content> 那一条路（parseContentWithLayer），可是「思维链里会写出
+   标签示范」这件事对**每一个**解析器都成立：
+
+     <thinking>
+     ④ 被邀请连携：如果她要带我去，就该写
+        <连携移动-被邀请>神谷奈绪/(神谷奈绪)|(西村太郎家·厨房)<连携移动-被邀请>，但本轮没开口。
+     ⑤ 地点在 <地点>地点:201室-客厅</地点>。
+     ⑥ 有 NSFW 就写 <插图>神谷奈绪｜口交</插图>。
+     </thinking>
+     <content>正文（什么都没触发）</content>
+
+   实测（改之前）：checkLinkMove 从思维链里抠出了那条**假设的**被邀请 → 弹窗问玩家
+   跟不跟着去一个剧情里根本没发生的地方；checkPageLocationTag 把「201室-客厅」
+   当成正文地点标签把人挪走；parseIllustrationTag 凭空放出一张 NSFW 图。
+
+   ⇒ 凡是从**原始回复**（不是已分页的正文）里读标签的地方，都必须先过这里。
+   ⚠ 不要只改一个新的解析器就以为够了 —— 现在有 5 个：正文 / 地点 / 插图 / 图床 / 推演 / 连携。 */
+function v165wStripThinkForTags(txt) {
+  var out = v165wStripThinkBlock(decodeEntities(txt));
+  /* 流式中 / 模型忘了收尾：只剩开标签、还没等到 `</thinking>` 的时候也要砍。
+     思维链的契约是「一定写在正文之前」，所以这一刻开标签之后的字都还算思维链。
+     不砍的后果很具体：每 700ms 轮询一次，思维链里的标签示范会在生成途中
+     就把连携弹窗弹出来、把人搬走、把 NSFW 图放出来。 */
+  for (var i = 0; i < V165W_THINK_TAGS.length; i++) {
+    var t = V165W_THINK_TAGS[i];
+    out = out.replace(new RegExp('<' + t + '(?=[\\s>])[^>]*>[\\s\\S]*$', 'i'), '');
+  }
+  return out;
+}
+
 /* ★ v103：思维链标签**连里面的内容一起剥掉**。
    旧版只取「思维链收尾标签**之后**」的部分 —— 意味着思维链本身不进对话框，
    但模型如果把思维链放在正文后面就会被收进去。新契约下思维链一律不进。 */
@@ -15270,9 +15403,53 @@ function cleanLinkPlace(txt) {
      因为被邀请需要玩家同意，漏掉它会让玩家觉得「我明明被邀请了却没反应」；
      反之丢掉一个「邀请」最多是这一轮没瞬移，下轮还能补。
    ══════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   ★ v165X：连携标签的「闭合」两种写法都要认
+   ──────────────────────────────────────────────────────────────────────
+   玩家原话给的模板是**同名闭合**（不收斜杠）：
+
+     <连携移动-被邀请>(角色名)/(角色名)|(某地)<连携移动-被邀请>
+     <连携移动-邀请>...<连携移动-邀请>
+
+   而 v165W 的解析只写了 `<\/连携移动-邀请>` 这一种（带斜杠的 HTML 写法）。
+   实测（改之前）：同名闭合的标签 checkLinkMove 一律返回 null —— 模型照玩家
+   给的模板写，脚本一个字都不认，整个连携功能等于没上线。
+
+   ⇒ 这里两种都吃：`</连携移动-邀请>` 和 `<连携移动-邀请>` 都算闭合。
+   注意顺序：先试「带斜杠」，再试「同名」，最后试「流式中没有闭合」——
+   因为同名闭合的正则会把 self 当成闭合，如果先试它，
+   `<连携移动-邀请>X</连携移动-邀请>` 会先匹配到 `X<` 里那个 `<`……不会，但
+   `<连携移动-邀请>A<连携移动-邀请>` 这种（模型手滑写了两次开标签）也要能兜住。
+   ══════════════════════════════════════════════════════════════════════ */
+function v165xMatchLinkTag(text, tag) {
+  var t = String(text || '');
+  if (!t) return null;
+  var tagEsc = String(tag).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  /* ① 标准 HTML 闭合：<tag>body</tag> */
+  var m = t.match(new RegExp('<' + tagEsc + '(?=[\\s>])[^>]*>([\\s\\S]*?)<\\s*\\/\\s*' + tagEsc + '\\s*>', 'i'));
+  if (m) return m;
+
+  /* ② 同名闭合：<tag>body<tag>（玩家模板的写法）。
+     要求「第二个开标签之后跟着换行 / 结尾 / 另一个标签」，免得把
+     `<tag>A<tag>B` 这种真的写重了的情况切错位置。 */
+  var re2 = new RegExp('<' + tagEsc + '(?=[\\s>])[^>]*>([\\s\\S]*?)<' + tagEsc + '(?=[\\s>]|$)', 'i');
+  var m2 = t.match(re2);
+  if (m2) return m2;
+
+  /* ③ 流式半截 / 模型彻底忘了闭合：取开标签到行尾（不跨行，宁可少认不认错）。 */
+  var m3 = t.match(new RegExp('<' + tagEsc + '(?=[\\s>])[^>]*>([^\\n]*)', 'i'));
+  if (m3) return m3;
+
+  return null;
+}
+
 function checkLinkMove(rawText) {
   if (!rawText) return null;
-  var text = String(rawText);
+  /* ★ v165X：先剥思维链 —— 否则思维链里那句「如果她要带我去，就该写
+     <连携移动-被邀请>…」会被当成真的触发，弹窗问玩家跟不跟着去一个
+     剧情里根本没发生的地方。实测过，确实会弹。 */
+  var text = v165wStripThinkForTags(rawText);
 
   /* 先扫被邀请，再扫邀请 */
   var order = [
@@ -15281,8 +15458,7 @@ function checkLinkMove(rawText) {
   ];
   for (var i = 0; i < order.length; i++) {
     var t = order[i];
-    var re = new RegExp('<\\s*' + t.tag + '[^>]*>([\\s\\S]*?)<\\s*\\/\\s*' + t.tag + '\\s*>', 'i');
-    var m = text.match(re);
+    var m = v165xMatchLinkTag(text, t.tag);
     if (!m) continue;
     var parsed = parseLinkMoveBody(m[1]);
     if (!parsed.dest) continue;
@@ -15497,7 +15673,9 @@ function applyLinkTag(info) {
 
 function checkPageLocationTag(pageText) {
   if (!pageText) return null;
-  var text = String(pageText);
+  /* ★ v165X：思维链里会写「场景在 <地点>地点:201室-客厅</地点>」这种示范，
+     不剥就会把人凭空挪到思维链里那个地方。 */
+  var text = v165wStripThinkForTags(pageText);
   var m = text.match(/<\s*地点[^>]*>\s*地点\s*[:：]\s*([^<]+)<\s*\/\s*地点\s*>/i);
   if (m && m[1]) return m[1].trim();
   var legacy = text.match(/<\s*大位置[^>]*>\s*大位置\s*[:：]\s*([^<]+)<\s*\/\s*大位置\s*>/i);
@@ -16126,7 +16304,8 @@ function renderStandingChar(c, fitStyle) {
 /* 从正文里抓「直接给 URL」的图标签 */
 function parseImageUrlTags(rawText) {
   var out = { bg: '', standing: {} };
-  var t = decodeEntities(String(rawText || ''));
+  /* ★ v165X：思维链里提到「图床:URL」会让人手一抖把背景换成那张图 */
+  var t = v165wStripThinkForTags(rawText);
   if (!t) return out;
   var m;
   var reBg = /<\s*(图床|背景|场景图|场景)\s*>([\s\S]*?)(?:<\s*\/\s*\1\s*>|$)/gi;
@@ -16146,7 +16325,9 @@ function parseImageUrlTags(rawText) {
 }
 
 function parseIllustrationTag(rawText) {
-  var decoded = decodeEntities(rawText);
+  /* ★ v165X：思维链里的「有 NSFW 就写 <插图>神谷奈绪｜口交</插图>」这种示范
+     会让脚本凭空放一张 NSFW 图。实测过：正文一个字没写，图也出来了。 */
+  var decoded = v165wStripThinkForTags(rawText);
   if (!decoded) return null;
   var m = decoded.match(/<\s*插图[^>]*>([\s\S]*?)(?:<\s*\/\s*插图\s*>|$)/i);
   if (!m || !m[1]) return null;
@@ -16319,6 +16500,30 @@ function galNoteFit() {
   if (_galOverflowPenalty > 0) _galOverflowPenalty = Math.max(0, _galOverflowPenalty - 0.03);
   return _galOverflowPenalty;
 }
+/* ══ ★ v165Y：这一把尺子现在只回答**一个问题**：正文里能排多少字 ══════════
+   返回值 = 纯文字可用高度（px），不包含正文区自己的上下内边距。
+
+   ── 为什么必须写清楚这件事 ────────────────────────────────────────────
+   这个数有两个用途，而它们要的口径**不一样**：
+     ① fitDialogueStage：写进 body 的 max-height（border-box 高度，含 padding）
+     ② 分页算法（measureGalHeight / computeGalAvailH 的比较）：能装多少行文字
+   v165X 给正文加了 padding-top:18px（手机 17px）去给顶部工具条让位，
+   但它只加在 CSS 里，没进这个函数 —— 于是第 ① 个用途按「含 padding 的高度」
+   设了 max-height，而分页仍按「全部高度都用来排字」算，
+   每页多排一整行，那行字实际落在 padding 下面被 overflow 切掉。
+   玩家看到的就是「最后一行只露半个头」/「内容只显示了一部分」。
+   ⇒ 现在这里统一返回「纯文字高度」（已扣掉 body 的 padding 与 border），
+     两个用途各自按需换算：分页直接用；fitDialogueStage 再加回 padding。
+   ─────────────────────────────────────────────────────────────────── */
+function galBodyBoxExtra(bodyEl) {
+  /* 正文区自己的上下 padding + border（px）。量不到就当 0，不猜。 */
+  try {
+    if (!bodyEl) return 0;
+    var bcs = window.getComputedStyle(bodyEl);
+    return (parseFloat(bcs.paddingTop) || 0) + (parseFloat(bcs.paddingBottom) || 0)
+         + (parseFloat(bcs.borderTopWidth) || 0) + (parseFloat(bcs.borderBottomWidth) || 0);
+  } catch (eBX) { return 0; }
+}
 function computeGalAvailH(bodyEl) {
   var stageH = dialogueHeightPx(bodyEl) || 0;
   var fallback = Math.max(60, Math.round((stageH || 160) * 0.78));
@@ -16342,8 +16547,11 @@ function computeGalAvailH(bodyEl) {
               + (parseFloat(ncs.marginBottom) || 0);
       }
     } catch (en) {}
+    /* ★ v165Y：把正文区自己的 padding 也扣掉 —— 那 17~18px 是给顶部工具条
+       让位用的，落差就是这一整行（见函数头注释）。漏掉它 = 每页多排一行 = 被切。 */
+    var bodyExtra = galBodyBoxExtra(bodyEl);
     /* 再留 3px：贴着底边的那一撇一捺不算被切 */
-    var avail = h - pt - pb - bt - bb - nameH - 3;
+    var avail = h - pt - pb - bt - bb - nameH - bodyExtra - 3;
     if (!(avail > 40)) return fallback;
     avail = avail * (1 - _galOverflowPenalty);
     return Math.max(40, Math.floor(avail));
@@ -16367,9 +16575,13 @@ function fitDialogueStage(shell) {
     stage.style.setProperty('height', h + 'px', 'important');
     stage.style.setProperty('max-height', cap + 'px', 'important');
     stage.style.setProperty('min-height', Math.max(46, Math.round(h * 0.6)) + 'px', 'important');
-    /* ★ v90：正文区高度用真实可用高度，不再拍脑袋减 22（那 22 不够，正好差半行）。 */
+    /* ★ v90：正文区高度用真实可用高度，不再拍脑袋减 22（那 22 不够，正好差半行）。
+       ★ v165Y：computeGalAvailH 现在返回的是**纯文字高度**（已扣 body 自己的
+       padding/border），而 max-height 是 border-box 口径 —— 必须把 padding 加回去，
+       否则框会比文字区矮 17~18px，最后一行被裁掉一半。 */
     var avail = computeGalAvailH(body);
-    body.style.setProperty('max-height', avail + 'px', 'important');
+    var boxH = avail + galBodyBoxExtra(body);
+    body.style.setProperty('max-height', boxH + 'px', 'important');
     body.style.setProperty('overflow-y', 'auto', 'important');
     return h;
   } catch (e) { return 0; }
@@ -16443,8 +16655,24 @@ function galBodyAvailW(bodyEl) {
   } catch (e) {}
   try {
     var m = dialogueViewportMetrics(bodyEl);
-    /* stage 左右内边距共 20 + body 右内边距 46 + 滚动条 10 */
-    return Math.max(80, (m.vpW || 320) - 76);
+    /* ★ v165Y：这里原来是写死的 76（stage 左右内边距 20 + body 右内边距 **46** + 滚动条 10）。
+       46 是 v165X 之前「给浮动按钮让出整条右边」的旧值，现在 CSS 已经缩到 8（手机 6），
+       这个兜底值跟着错，会把可用宽少算 38px —— 一行少排两三个字，页数就多出来。
+       只在量不到活 DOM 时才走这条路，但值必须跟现在的 CSS 对上：
+         stage 左右各 10（padding: 6px 10px）→ 20
+         body 右内边距 → 取 CSS 实际值，量不到按 8
+         滚动条 → 10 */
+    var stagePad = 20;
+    var bodyPadR = 8;
+    try {
+      var stEl = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-dialogue-stage') : null;
+      if (stEl) {
+        var scs = window.getComputedStyle(stEl);
+        stagePad = (parseFloat(scs.paddingLeft) || 0) + (parseFloat(scs.paddingRight) || 0);
+      }
+      if (bodyEl) bodyPadR = parseFloat(window.getComputedStyle(bodyEl).paddingRight) || 0;
+    } catch (eP) {}
+    return Math.max(80, (m.vpW || 320) - stagePad - bodyPadR - 10);
   } catch (e2) {}
   return 200;
 }
@@ -16943,15 +17171,48 @@ function splitPagesByDOMFitting(text, bodyEl) {
   var vpH = m.vpH;
   var vpW = m.vpW;
   var targetH = vpH ? Math.max(60, Math.floor(dialogueHeightPx(bodyEl) || (vpH * dlgHRatio())) - 22) : (bodyEl.clientHeight || 160);
-  var targetW = vpW ? Math.max(140, vpW - 36) : (bodyEl.clientWidth || 300);
+  /* ══ ★ v165X：手机端「只显示一半宽度」的真因就在这里 ══════════════════
+     旧代码这两行是：
+
+       var targetW = vpW ? Math.max(140, vpW - 36) : (bodyEl.clientWidth || 300);
+       ghost.style.cssText = '...width:' + targetW + 'px;...padding-right:46px;';
+
+     ghost 的宽度 = targetW，而 targetW 已经是「视口宽 - 36」，
+     再在里面加 46px 右内边距 —— 实际能排字的宽度变成 vpW - 36 - 46。
+     桌面 vpW=978 时是 896px，看不出问题；
+     手机 vpW=373 时只剩 291px，占视口的 78%，
+     而真正显示正文的 .th-gal-dialogue-body 可用宽是 289px（见 _diag_dlgw 实测）——
+     两边刚好都「窄」，所以分页本身没算错，是**它照着窄的地方在算**。
+
+     但玩家看到的是「只有一半宽度」，这就对不上了 —— 真正的原因在下一层：
+     ghost 用 `word-break:break-all` 而正文用 `word-break:normal`，
+     两者对同一段中文的断行结果不同，ghost 排得下、正文排不下，
+     于是正文一页装太多行 → overflow-y 出滚动条 → 滚动条再吃掉 15px →
+     真正能看见的字只有前面一部分，剩下的要靠滚。
+
+     ── 两处一起修 ──
+     ① targetW 直接取「视口宽 - 左右各 8px 的 stage 外边距」，
+        不再先减 36 又在 ghost 里加 46（双重扣减）；
+     ② ghost 的 padding-right 与正文的真实 padding 保持一致（46px），
+        但**用 border-box 从同一个 targetW 里扣**，不要两次都减。
+     这样「ghost 排得下」与「正文看得见」就完全对齐了。 */
+  var STAGE_SIDE = 8;                        /* .th-gal-dialogue-stage 的 left/right */
+  var BODY_PAD_R = 46;                       /* .th-gal-dialogue-body 的 padding-right */
+  var targetW = vpW
+    ? Math.max(140, Math.round(vpW - STAGE_SIDE * 2 - 20))   /* 20 = stage 左右内边距 */
+    : (bodyEl.clientWidth || 300);
   var currentFontSize = window.getComputedStyle(bodyEl).fontSize || '11px';
   var currentLineHeight = window.getComputedStyle(bodyEl).lineHeight || '1.42';
 
   var doc = getDoc();
   var ghost = doc.createElement('div');
+  /* ⚠ box-sizing:border-box + width 已经含 padding，所以这里只写 padding-right，
+     不会再和 targetW 外的扣减叠加。word-break 必须跟正文一致（normal），
+     否则中文断行位置不同，ghost 觉得装得下、正文实际更耗行。 */
   ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;visibility:hidden;pointer-events:none;' +
     'width:' + targetW + 'px;font-size:' + currentFontSize + ';line-height:' + currentLineHeight + ';' +
-    'white-space:normal;word-break:break-all;text-align:justify;box-sizing:border-box;padding-right:46px;';
+    'white-space:normal;word-break:normal;overflow-wrap:break-word;text-align:justify;box-sizing:border-box;' +
+    'padding-right:' + BODY_PAD_R + 'px;';
   doc.body.appendChild(ghost);
 
   var pages = [];
@@ -17516,7 +17777,9 @@ function buildRoster(sd, deductions) {
 }
 
 function parseDeductions(rawText, isGenerating) {
-  var decoded = decodeEntities(rawText);
+  /* ★ v165X：思维链第 ① 步就会写「如果 <后台推演> 里给了场外 NPC 的动向…」，
+     不剥的话这一句会被当成推演块的开头，把思维链剩余内容当成推演行解出来。 */
+  var decoded = v165wStripThinkForTags(rawText);
   if (!decoded) return _lastCompleteDeductions;
   
   var hasClosedTag = /<\s*\/\s*后台推演\s*>/i.test(decoded);
@@ -17923,9 +18186,10 @@ function setGeneratingState(isGen) {
    弹层之下，不挡任何可点区域（pointer-events:none）。
    ══════════════════════════════════════════════════════════════════════ */
 var _thGenToastEl = null;
-var _thGenToastHideTimer = null;
+var _thGenToastHideTimer = null;     /* 已废弃：改用时间戳判定，见 thGenToast 注释 */
 var _thGenToastEverOn = false;       /* 本次会话推进过没有 */
 var _thGenToastOn = false;           /* 上一次画的是不是在推进中 */
+var _thGenToastDoneAt = 0;           /* ★ v165X：「推进结束」是从哪一刻开始显示的（0 = 没在结束态） */
 
 function thGenToastEnsure(shell) {
   if (!shell) return null;
@@ -17954,32 +18218,63 @@ function thGenToast(isGen) {
   if (isGen) _thGenToastEverOn = true;
   else if (!_thGenToastEverOn) { el.classList.remove('is-on', 'is-done'); return; }
 
-  try { if (_thGenToastHideTimer) { clearTimeout(_thGenToastHideTimer); _thGenToastHideTimer = null; } } catch (eT) {}
-
   var txt = el.querySelector('.th-gen-text');
 
   if (isGen) {
+    /* ★ v165X：推进中要**无条件清掉那个隐藏计时器**。
+       旧代码把「清计时器」写在函数最上面（在 isGen 判断之前），
+       看起来是对的，但下面那句 `if (_thGenToastOn) return;` 会在
+       第二次及以后的 isGen=true 时提前返回 —— 计时器清是清了，
+       可是紧接着的「推进结束」流程**永远走不到**。
+       （真正卡住的是下面那一段，见 isGen===false 分支的注释。） */
+    try { if (_thGenToastHideTimer) { clearTimeout(_thGenToastHideTimer); _thGenToastHideTimer = null; } } catch (eT1) {}
     if (_thGenToastOn) return;        /* 已经在推进中：不重复重置动画 */
     _thGenToastOn = true;
+    _thGenToastDoneAt = 0;
     if (txt) txt.textContent = '正在推进中';
     el.classList.remove('is-done');
     el.classList.add('is-on');
     return;
   }
 
-  /* isGen === false 且之前确实在推进 → 显示「推进结束」2 秒后消失 */
-  if (!_thGenToastOn) return;
-  _thGenToastOn = false;
-  if (txt) txt.textContent = '推进结束';
-  el.classList.add('is-on', 'is-done');
-  _thGenToastHideTimer = setTimeout(function () {
+  /* ══ ★ v165X：「推进结束」卡着不消失的真因 ══════════════════════════
+     旧代码在这里是：
+       if (!_thGenToastOn) return;
+       ... 显示「推进结束」+ setTimeout(2000, 收掉)
+     问题在于 setGeneratingState(false) 不是「推进结束那一瞬间调一次」，
+     而是**心跳每 700ms 调一次**（syncGenerationState → setGeneratingState）。
+     于是：
+       · 第 1 拍：_thGenToastOn=true → 显示「推进结束」，起一个 2 秒计时器；
+       · 第 2 拍（700ms 后）：函数**开头**那句 clearTimeout 把计时器清了，
+         然后 `if (!_thGenToastOn) return` —— 此时 _thGenToastOn 已经是 false，
+         直接返回，**没有重新起计时器**；
+       · 第 3、4…拍：同上，一直返回。
+     ⇒ 计时器永远只活 700ms，永远等不到那 2 秒，药丸就永远挂在屏幕顶上。
+     实测：不点任何东西，它就一直是「推进结束」。
+
+     ── 修法：把「什么时候该收」和「被调了多少次」解耦 ──
+     记一个「显示结束态的起始时刻」，之后每个心跳只做一件事：
+     到了 2 秒就收。重复调用不再重置时间，也不再清计时器。 */
+  if (!_thGenToastOn && !_thGenToastDoneAt) return;   /* 从没推进过 / 已经收完了 */
+
+  if (_thGenToastOn) {
+    /* 第一次从「推进中」翻成「结束」 */
+    _thGenToastOn = false;
+    _thGenToastDoneAt = Date.now();
+    if (txt) txt.textContent = '推进结束';
+    el.classList.add('is-on', 'is-done');
+    return;
+  }
+
+  /* 已经在「结束」态：只看时间够不够，不再重置 */
+  if (Date.now() - _thGenToastDoneAt >= 2000) {
     try {
       el.classList.remove('is-on', 'is-done');
       _thGenToastEverOn = false;      /* 收完之后回到「没推进过」的静默态 */
+      _thGenToastDoneAt = 0;
       if (txt) txt.textContent = '正在推进中';
     } catch (eH) {}
-    _thGenToastHideTimer = null;
-  }, 2000);                            /* 玩家指定的 2 秒 */
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -18898,6 +19193,117 @@ function syncDialogueStanding(shell) {
   return true;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   ★ v165X：对话框自动播放（玩家原话）
+   「新增一个自动播放的按钮，每2秒切一页，可以改成循环播放，
+     也可以改成播放完就关闭对话框。」
+   ──────────────────────────────────────────────────────────────────────
+   三种模式（点按钮循环切，记在 localStorage）：
+     off    不自动（默认）
+     loop   每 2 秒翻一页，翻到最后一页再回到第一页，**永远不停**
+     once   每 2 秒翻一页，最后一页停 2 秒后**关掉对话框**
+
+   ── 几个必须守住的点 ──
+   ① 定时器只有一份，挂在 HOST 上（脚本热更 / 重复调用都不会叠出一堆）。
+   ② 只有「框开着 + 页数 > 1」才真的推进；否则空转不做事。
+   ③ 玩家任何一次手动干预（点舞台 / 上页 / 回顶 / 关闭 / 重新打开）
+      都要停掉自动播放 —— 否则玩家想自己看，两秒后又被抢走。
+   ④ 最后一页在 loop 模式要「停满 2 秒」再回第一页：
+      如果到最后一页立刻 wrap，玩家根本没看清最后一句。
+   ══════════════════════════════════════════════════════════════════════ */
+var DLG_AUTO_KEY = 'thGalDlgAutoMode';
+var DLG_AUTO_MS = 2000;              /* 玩家指定：每 2 秒切一页 */
+var _dlgAutoMode = null;             /* 懒读，见 dlgAutoMode() */
+
+function dlgAutoMode() {
+  if (_dlgAutoMode === 'off' || _dlgAutoMode === 'loop' || _dlgAutoMode === 'once') return _dlgAutoMode;
+  var v = '';
+  try { v = localStorage.getItem(DLG_AUTO_KEY) || ''; } catch (e) {}
+  _dlgAutoMode = (v === 'loop' || v === 'once') ? v : 'off';
+  return _dlgAutoMode;
+}
+function dlgAutoLabel(mode) {
+  if (mode === 'loop') return '🔁 循环';
+  if (mode === 'once') return '▶ 播完关';
+  return '⏸ 自动';
+}
+function dlgAutoNextMode(mode) {
+  if (mode === 'off') return 'loop';
+  if (mode === 'loop') return 'once';
+  return 'off';
+}
+function saveDlgAutoMode(mode) {
+  _dlgAutoMode = mode;
+  try { localStorage.setItem(DLG_AUTO_KEY, mode); } catch (e) {}
+}
+function stopDlgAuto() {
+  try {
+    if (HOST.__thDlgAutoTimer) { clearInterval(HOST.__thDlgAutoTimer); HOST.__thDlgAutoTimer = null; }
+  } catch (e) {}
+}
+function paintDlgAutoBtn(shell) {
+  var sh = shell || getDoc().querySelector('#th-gal-shell-root');
+  if (!sh) return;
+  var b = sh.querySelector('.th-gal-dialogue-auto');
+  if (!b) return;
+  var mode = dlgAutoMode();
+  b.textContent = dlgAutoLabel(mode);
+  if (mode === 'off') b.classList.remove('is-auto-on');
+  else b.classList.add('is-auto-on');
+  /* 只有一页的时候自动播放没意义，压暗但不清空（让玩家看见这个功能存在） */
+  if (DialogueReader && DialogueReader.pages && DialogueReader.pages.length <= 1) {
+    b.classList.add('is-auto-mute');
+  } else {
+    b.classList.remove('is-auto-mute');
+  }
+}
+function startDlgAuto() {
+  stopDlgAuto();
+  var mode = dlgAutoMode();
+  if (mode === 'off') return;
+  HOST.__thDlgAutoTimer = setInterval(function () {
+    try {
+      if (!DialogueReader || !DialogueReader.isOpen) { stopDlgAuto(); return; }
+      var pages = DialogueReader.pages || [];
+      if (pages.length <= 1) return;          /* 只有一页：空转，不做事 */
+      var idx = DialogueReader.currentIndex || 0;
+      if (idx < pages.length - 1) {
+        DialogueReader.currentIndex = idx + 1;
+        DialogueReader.render();
+        return;
+      }
+      /* 已经在最后一页：等满这 2 秒再决定 */
+      if (dlgAutoMode() === 'once') {
+        stopDlgAuto();
+        DialogueReader.isOpen = false;
+        DialogueReader.currentIndex = 0;
+        DialogueReader.render();
+        try { popToast('📖 这一楼播完了'); } catch (eT) {}
+      } else {
+        DialogueReader.currentIndex = 0;
+        DialogueReader.render();
+      }
+    } catch (eTick) {}
+  }, DLG_AUTO_MS);
+}
+/* 切模式 + 立刻生效 */
+function cycleDlgAuto(shell) {
+  var next = dlgAutoNextMode(dlgAutoMode());
+  saveDlgAutoMode(next);
+  paintDlgAutoBtn(shell);
+  if (next === 'off') {
+    stopDlgAuto();
+    try { popToast('⏸ 自动播放：已关闭'); } catch (e1) {}
+  } else {
+    startDlgAuto();
+    try {
+      popToast(next === 'loop'
+        ? '🔁 自动播放：每 2 秒一页，播完回到第一页'
+        : '▶ 自动播放：每 2 秒一页，播完关闭对话框');
+    } catch (e2) {}
+  }
+}
+
 var DialogueReader = {
   pages: [],
   speakers: [],
@@ -19096,9 +19502,14 @@ var DialogueReader = {
     }
     if (this.pages.length > 0) {
       PixelAudio.playPageBlip();
+      /* ★ v165X：手动打开一律从第一页开始（玩家原话见 next() 的注释）。
+         这里是「关闭后手动打开」的唯一入口之一，必须归零。 */
       this.currentIndex = 0;
       this.isOpen = true;
       this.render();
+      /* ★ v165X：手动打开后，如果玩家之前设了自动播放，就接着自动走
+         （模式是持久化的，不该因为关了一次就失效）。 */
+      try { if (dlgAutoMode() !== 'off') startDlgAuto(); } catch (eAutoRe) {}
     } else {
       openDialogueHealPanel('这一楼没有可读的正文，点「对话框不显示点我」让 AI 重新补一遍');
     }
@@ -19109,7 +19520,20 @@ var DialogueReader = {
       this.currentIndex++;
       this.render();
     } else {
+      /* ══ ★ v165X：在最后一页点击 = 「这一楼读完了」══════════════════════
+         玩家原话：「默认改为如果在对话框最后一页点击，ok 关闭了，就视为重新开始。
+                   也就是，只要你关闭后手动打开，那就从第一页开始。」
+
+         旧代码只把 isOpen 设成 false，**currentIndex 留在最后一页**。
+         于是再点「📜 对话框」→ reopen() 里虽然有 `this.currentIndex = 0`，
+         但玩家点的是底部那颗按钮（走 toggle 分支 → reopen），
+         另一条路是点舞台本身（走 next）；两条路不一致，
+         而且「关掉之后再打开」这个动作里，只要有任何一条路没归零，
+         玩家看到的就是「还停在我上次看的那一页」。
+         ⇒ 这里当场归零：关框的同时把阅读位置复位。 */
+      this.currentIndex = 0;
       this.isOpen = false;
+      try { stopDlgAuto(); } catch (eAP) {}
       this.render();
     }
   },
@@ -20144,33 +20568,54 @@ function setupInteractions(shell) {
   var diagPrev = shell.querySelector('.th-gal-dialogue-prev');
   var diagTop = shell.querySelector('.th-gal-dialogue-top');
   var diagClose = shell.querySelector('.th-gal-dialogue-close');
+  var diagAuto = shell.querySelector('.th-gal-dialogue-auto');
 
   if (diagStage) {
     diagStage.onclick = function(e) {
       if (e.target.closest('.th-gal-dialogue-btn')) return;
       e.stopPropagation();
+      /* ★ v165X：玩家自己点了一下 → 说明他想自己掌控节奏，自动播放立刻停。
+         不停的话两秒后又被翻走，玩家会以为「点击没生效」。 */
+      try { stopDlgAuto(); } catch (eSA) {}
+      try { if (dlgAutoMode() !== 'off') { saveDlgAutoMode('off'); paintDlgAutoBtn(shell); } } catch (eSA2) {}
       DialogueReader.next();
     };
   }
   if (diagPrev) {
     diagPrev.onclick = function(e) {
       e.stopPropagation();
+      try { stopDlgAuto(); } catch (eSB) {}
+      try { if (dlgAutoMode() !== 'off') { saveDlgAutoMode('off'); paintDlgAutoBtn(shell); } } catch (eSB2) {}
       DialogueReader.prev();
     };
   }
   if (diagTop) {
     diagTop.onclick = function(e) {
       e.stopPropagation();
+      try { stopDlgAuto(); } catch (eSC) {}
+      try { if (dlgAutoMode() !== 'off') { saveDlgAutoMode('off'); paintDlgAutoBtn(shell); } } catch (eSC2) {}
       DialogueReader.top();
+    };
+  }
+  if (diagAuto) {
+    diagAuto.onclick = function(e) {
+      e.stopPropagation();
+      try { PixelAudio.playSelect(); } catch (e1) {}
+      cycleDlgAuto(shell);
     };
   }
   if (diagClose) {
     diagClose.onclick = function(e) {
       e.stopPropagation();
+      try { stopDlgAuto(); } catch (eSD) {}
       DialogueReader.isOpen = false;
+      /* ★ v165X：关闭即「这一楼读完了」，阅读位置复位（见 next() 的注释）。 */
+      DialogueReader.currentIndex = 0;
       DialogueReader.render();
     };
   }
+  /* 首帧把自动播放按钮画对（模式存在 localStorage 里，刷新后要还是那个样子） */
+  try { paintDlgAutoBtn(shell); if (dlgAutoMode() !== 'off' && DialogueReader.isOpen) startDlgAuto(); } catch (eAutoInit) {}
 
   /* ★ v30：这个按钮以前因为重复写了两个 class 属性，第二个被浏览器丢掉，
      结果它没绑上「重开对话框」，反而落到下面的通用 data-quick 处理里去发了一句「📜 对话」。
