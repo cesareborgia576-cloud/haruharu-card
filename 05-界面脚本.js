@@ -48,7 +48,13 @@
   var NEXT_BTN_ID = 'gal-cg-next-btn';
   /* ★ v125：自动循环开关按钮 + 周期 + 玩家偏好的存档键 */
   var AUTO_BTN_ID = 'gal-cg-auto-btn';
-  var AUTO_MS = 1000;                    /* 默认 1 秒一张（Administrator 定的） */
+  /* ══ ★ v165V：轮播间隔 1 秒 → 2 秒 ══════════════════════════════════
+     玩家原话：「插图播放的按钮在游戏屏幕外，这是极度严重的bug，
+               而且轮播太快，改为2秒。」
+     1 秒一张等于图刚看清就翻走了（尤其是做爱那种一连十几张的组），
+     现在按玩家要求固定 2 秒。文案里的秒数也从常量推出来，不再写死。 */
+  var AUTO_MS = 2000;                    /* 自动轮播间隔（玩家指定 2 秒） */
+  var AUTO_SEC = Math.round(AUTO_MS / 100);   /* 文案用：2 → 「自动 2 秒」 */
   var LS_FIXED = 'gal_cg_fixed';         /* localStorage：'1' = 固定不自动 */
 
   var HOST = (function () {
@@ -1309,7 +1315,7 @@
     if (!doc.getElementById(AUTO_BTN_ID)) {
       var abtn = doc.createElement('div');
       abtn.id = AUTO_BTN_ID;
-      abtn.innerHTML = '<span class="dot">●</span><span class="label">自动 1 秒</span>';
+      abtn.innerHTML = '<span class="dot">●</span><span class="label">自动 ' + AUTO_SEC + ' 秒</span>';
       abtn.onclick = function (e) {
         e.stopPropagation();
         state.autoFixed = !state.autoFixed;
@@ -1335,7 +1341,7 @@
       if (dot) dot.textContent = '■';
     } else {
       if (b.classList) b.classList.remove('is-fixed');
-      if (lab) lab.textContent = '自动 1 秒';
+      if (lab) lab.textContent = '自动 ' + AUTO_SEC + ' 秒';
       if (dot) dot.textContent = '●';
     }
   }
@@ -1526,7 +1532,66 @@
     var abtn = doc.getElementById(AUTO_BTN_ID);
     if (abtn) abtn.classList.add('is-shown');
     paintAutoBtn();
+    /* ★ v165V：两个按钮都在 fixed 坐标系里，靠 left 硬定位 ——
+       桌面宽屏没事，手机窄屏 / 半屏窗口时 left:190px 会直接把「自动」
+       顶到屏幕右边界之外（玩家原话「插图播放的按钮在游戏屏幕外」）。
+       每次显示都按实际可用宽度夹一次，保证两颗键都在画面内。 */
+    try { clampGalleryBtns(); } catch (eClamp) {}
   }
+
+  /* ══ ★ v165V：把「下一张」与「自动」两颗键夹进可视区 ══════════════════
+     为什么要夹而不是改 CSS 的 left：
+       · 这两个按钮挂在 body 上（fixed），不是挂在游戏壳里 ——
+         它们要跟着**浏览器视口**走，玩家滚聊天记录时也不能飘走；
+       · 但游戏舞台在页面里是居中的一块 16:9 区域，宽屏时左边有大片空白，
+         `left:36px` 正好落在空白里，看着不难受；
+       · 真正的问题只在**窄屏**：可用宽度不够 190px + 按钮宽，
+         「自动」就被顶出去了。手机竖屏只有 375px，这是必现的。
+
+     做法：算一次每颗键的宽度，按「可视宽度 - 自己宽度 - 8」夹住 left。
+     不碰 bottom（底部 84px 是相对整窗算的，任何宽度都安全）。 */
+  function clampGalleryBtns() {
+    var doc = getDoc();
+    var vw = 0;
+    try { vw = window.innerWidth || (doc.documentElement && doc.documentElement.clientWidth) || 0; } catch (eV) {}
+    if (!vw) return;
+
+    var next = doc.getElementById(NEXT_BTN_ID);
+    var auto = doc.getElementById(AUTO_BTN_ID);
+
+    /* 「下一张」贴左边，只要保证不被右边裁到就行（正常不会） */
+    if (next) {
+      var nw = next.offsetWidth || 96;
+      var nl = Math.max(8, Math.min(36, vw - nw - 8));
+      next.style.setProperty('left', nl + 'px', 'important');
+    }
+    /* 「自动」本来在 next 右侧 190px 处。窄屏时改成「紧挨着 next 右边」，
+       再夹一次右边界 —— 这样手机上两颗键挨在一起，都不会跑出去。 */
+    if (auto) {
+      var aw = auto.offsetWidth || 82;
+      var base = 190;
+      /* 放不下就回退到「next 宽度 + 左边距 + 8」 */
+      var nw2 = next ? (next.offsetWidth || 96) : 96;
+      var nl2 = next ? (parseFloat(next.style.left) || 36) : 36;
+      var fallback = nl2 + nw2 + 8;
+      var left = base;
+      if (left + aw + 8 > vw) left = fallback;
+      if (left + aw + 8 > vw) left = Math.max(8, vw - aw - 8);
+      auto.style.setProperty('left', left + 'px', 'important');
+    }
+  }
+  /* 视口尺寸变了（转屏 / 拉窗口）重新夹一次 */
+  try {
+    if (!HOST.__galClampBound) {
+      HOST.__galClampBound = true;
+      window.addEventListener('resize', function () {
+        try { clampGalleryBtns(); } catch (eC) {}
+      }, { passive: true });
+      window.addEventListener('orientationchange', function () {
+        setTimeout(function () { try { clampGalleryBtns(); } catch (eC) {} }, 180);
+      }, { passive: true });
+    }
+  } catch (eBind) {}
 
   /* 推进：step=+1 往后一张；wrap=true 时到最后一张再点回到第一张
      ★ v125：只有 1 张时直接不动 —— 翻页机制永远在，没页翻就翻不了，
