@@ -4333,38 +4333,77 @@ var STYLE = `<style id="th-gal-shell-style">
   }
   .th-gal-multi-swap button:hover { background: rgba(56, 189, 248, 0.46) !important; }
 
-  /* ★ v35：场景图左上角的地点标签，宽度随文字自适应 */
+  /* ══════════════════════════════════════════════════════════════════
+     ★ v165V：左上角的三块残留，一次清干净
+     ─────────────────────────────────────────────────────────────────
+     玩家原话：「左上角的主角面板背后有一个残留UI，请删掉。」
+
+     根子在**三代 UI 叠在同一个坐标**上，而且都没删掉：
+       · .th-gal-scene-label   z=45  top:8  left:8   ← v35 时代的「地点标签」
+       · .th-gal-mini-hud      z=44  top:32 left:8   ← v150 时代的「时间·精力」细条
+       · .th-gal-status-card   z=46  top:8  left:8   ← v160 的玩家状态卡（唯一该留的）
+     后两代都被状态卡盖住，但**都还在画**。状态卡是半透明毛玻璃，
+     于是底下那层黑底 + 白字的标签透出来，看着就是"面板背后有个残留 UI"，
+     在半透明的地方还会和面板文字糊在一起。
+
+     为什么不直接删 HTML 里的那两个节点：
+       ① .th-gal-scene-label 现在**也在状态卡里面用着**（ts-line2 里那个地点名），
+          它是个全局 class。删掉规则会把卡内那个也一起弄没；
+       ② .th-gal-mini-hud 还有 JS 在写它（syncMiniHud / thHudApply），
+          删节点会让那些调用打到 null 上。
+     所以做法是：**只让"卡外那一份"彻底不画**，卡内那份照旧。
+
+     判据用 :not() 精确排除状态卡内部 —— 这样卡内地点名一切正常，
+     卡外那两代残留彻底消失，JS 全部照旧不用改。 */
+  .th-gal-shell-viewport > .th-gal-scene-label,
+  .th-gal-shell-root > .th-gal-scene-label,
+  .th-gal-shell-viewport > .th-gal-mini-hud,
+  .th-gal-shell-root > .th-gal-mini-hud {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  /* ★ v165V：.th-gal-scene-label 不再是「屏幕左上角的悬浮标签」了。
+     ─────────────────────────────────────────────────────────────────
+     它从 v35 起是绝对定位（top:8 left:8 z:45），v160 加了状态卡
+     （top:8 left:8 z:46）之后，两者完全重合 —— 老标签被盖在里面继续画，
+     半透明毛玻璃下面透出来，就是玩家说的「面板背后有个残留 UI」。
+
+     现在这个类**只作为状态卡内部的地点名**存在（ts-line2 里那个 span），
+     所以绝对定位那一套全部拿掉：不定位、不带底色、不带边框、不裁字，
+     完全交给 .th-gal-status-card .th-gal-scene-label 那条规则去定外观。
+     这样即使别处（旧存档的 DOM、别的脚本）又造了一个 .th-gal-scene-label，
+     它也只是一段普通的行内文字，不会再在左上角画出一块黑底白字。 */
   .th-gal-scene-label {
-    position: absolute !important;
-    top: 8px !important;
-    left: 8px !important;
-    z-index: 45 !important;
-    display: inline-block !important;
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: auto !important;
+    display: inline !important;
     width: auto !important;
-    max-width: 72% !important;
-    padding: 3px 10px !important;
-    border-radius: 6px !important;
-    background: rgba(11, 12, 16, 0.62) !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
-    color: #f0f3f6 !important;
-    font-size: calc(9.5px * var(--ui-scale, 1)) !important;
+    max-width: none !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    color: inherit !important;
+    font-size: inherit !important;
     font-weight: 700 !important;
-    letter-spacing: 0.03em !important;
-    line-height: 1.35 !important;
+    letter-spacing: 0.02em !important;
+    line-height: inherit !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    backdrop-filter: blur(6px) !important;
-    -webkit-backdrop-filter: blur(6px) !important;
     pointer-events: none !important;
-    /* ★ v153：固定单行高度，让下面的状态块能稳稳贴着它的下沿（top:32px 就是算好的） */
-    height: calc(15px * var(--ui-scale, 1)) !important;
-    min-height: calc(15px * var(--ui-scale, 1)) !important;
-    max-height: calc(15px * var(--ui-scale, 1)) !important;
-    box-sizing: content-box !important;
-    line-height: calc(15px * var(--ui-scale, 1)) !important;
-    display: flex !important;
-    align-items: center !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
   }
 
   .th-gal-shell-viewport {
@@ -6760,6 +6799,80 @@ var STYLE = `<style id="th-gal-shell-style">
        折叠后是一枚圆形朱印，中间一个「地」字。
 
      ⚠ 字号守 8px 下限（v148 村历的教训：8px 以下肉眼看不清，玩家照样骂）。 */
+  /* ══ ★ v165V：小地图左侧的两颗常驻键（重新生成 / 对话框）════════════
+     玩家原话：「新增一个按钮在游戏界面内，在小地图的左边，点击后可一键重新生成…
+               再把对话框按钮复制出来在它的左边。」
+
+     位置靠 right 定位而不是 left —— 小地图折叠成 40px 朱印时，
+     这两颗键仍然贴着画面右缘，不会跟着缩进去。
+     小地图常态：right:12px 宽 128px ⇒ 左边缘在 right:140px。
+       [📜 对话框](right:190, 44宽) [🔄 重新生成](right:142, 44宽) [小地图]
+     两颗键都是 40×40 的圆形按钮，满足手指触控的最小尺寸，
+     在小屏手机上也不会误触（.th-gal-quickpair 整块不吃别处的点击）。 */
+  .th-gal-quickpair {
+    position: absolute !important;
+    top: 12px !important;
+    right: 142px !important;         /* 小地图 left 边 140 + 2px 间隙 */
+    z-index: 63 !important;          /* 略高于小地图(62)，同层靠右 */
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+  .th-gal-quickbtn {
+    flex: 0 0 auto !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    font-size: calc(16px * var(--ui-scale, 1)) !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    /* 与状态卡同一套暗玻璃语言，画面里不突兀 */
+    background: linear-gradient(160deg, rgba(26, 24, 20, 0.90), rgba(13, 12, 10, 0.94)) !important;
+    border: 1px solid rgba(252, 211, 77, 0.30) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 236, 180, 0.05) !important;
+    color: #f3e9d2 !important;
+    transition: transform .14s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important; -webkit-user-select: none !important;
+  }
+  .th-gal-quickbtn:hover {
+    border-color: rgba(252, 211, 77, 0.62) !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.58), 0 0 12px rgba(252, 211, 77, 0.22) !important;
+    transform: translateY(-1px) !important;
+  }
+  .th-gal-quickbtn:active {
+    transform: translateY(1px) scale(.95) !important;
+    background: linear-gradient(160deg, rgba(44, 38, 26, 0.95), rgba(22, 19, 14, 0.97)) !important;
+  }
+  /* 重新生成：转动一下，明确告诉玩家"这一下真的重来了" */
+  .th-gal-quickbtn-regen.is-spinning > span,
+  .th-gal-quickbtn-regen.is-spinning {
+    animation: thRegenSpin .7s linear infinite !important;
+  }
+  @keyframes thRegenSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  /* 对话框开着时亮一圈，玩家一眼知道再点就是收起 */
+  .th-gal-quickbtn-dlg.is-open {
+    border-color: rgba(96, 178, 255, 0.75) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 14px rgba(96, 178, 255, 0.42) !important;
+    color: #cfe6ff !important;
+  }
+  /* 窄屏（手机竖屏）：小地图 128px 太占地方时把它压一点，
+     两颗键跟着往回收，避免和左侧状态卡打架 */
+  @media (max-width: 520px) {
+    .th-gal-quickpair { right: 128px !important; }
+    .th-gal-quickbtn { width: 36px !important; height: 36px !important; font-size: calc(14px * var(--ui-scale, 1)) !important; }
+  }
+
   .th-gal-minimap {
     position: absolute !important; top: 12px !important; right: 12px !important;
     width: 128px !important; z-index: 62 !important;
@@ -8005,7 +8118,22 @@ var STYLE = `<style id="th-gal-shell-style">
   /* 右侧拉手：折叠时出现，鼠标碰到即展开按钮栏
      ★ v158：原来宽 7px / 高 64px / 顶端 alpha 只有 .5，在场景图上几乎看不见，
        玩家根本不知道那儿有颗按钮（用户原话「很他妈扁透明那个」「怕玩家看不到」）。
-       现在：16px 宽 / 96px 高 / 金色实心 + 深色箭头，hover 再加宽到 24px。 */
+       现在：16px 宽 / 96px 高 / 金色实心 + 深色箭头，hover 再加宽到 24px。
+
+     ★ v165V 手机端：玩家原话「手机端的这个拉手不好触发，得点好几下，很难点出来，
+       我要你改成点击就展开」。三个病根，一起治：
+         ① **热区太小** —— 视觉 16px 宽（在手机上约 4mm），远低于手指接触面
+            （苹果 HIG 要求 44×44，安卓建议 48dp）。手指要瞄着一条 4mm 的缝点。
+            → 用 ::after 把**触摸热区**撑到 44×120，视觉宽度不变，
+              热区向左（画面内）多探 28px，手指怎么按都算按中。
+         ② **300ms 点击延迟** —— 移动端为了判双击缩放，click 要等 300ms。
+            → touch-action: manipulation 关掉双击缩放判定，点击立刻生效。
+         ③ **触摸模拟鼠标事件导致自相残杀**（这才是"点好几下"的真凶）：
+            手指落下时浏览器会先补一个 mouseenter → 触发 thHudOpen() 展开，
+            紧接着补 click → 代码看到 panel 已 open，于是 thHudClose() 收起。
+            一按一放，等于什么都没干；玩家只能反复点，有时落在某次
+            "只展开还没收" 的缝隙里才成功 —— 这就是"得点好几下"。
+            → 事件层用 pointerType 区分，触摸走 pointerdown 独占，见 setupHudFold。 */
   .th-gal-hud-grip {
     position: absolute !important;
     top: 50% !important; right: 0 !important;
@@ -8020,14 +8148,33 @@ var STYLE = `<style id="th-gal-shell-style">
     align-items: center !important; justify-content: center !important;
     box-shadow: -3px 0 14px rgba(0, 0, 0, 0.55), inset 1px 0 0 rgba(255, 255, 255, 0.3) !important;
     transition: width .16s ease, background .16s ease, box-shadow .16s ease !important;
+    /* ★ v165V：触摸优化三件套（对鼠标无副作用） */
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-user-select: none !important; user-select: none !important;
   }
   .th-gal-hud-grip.is-on { display: flex !important; }
+  /* ★ v165V：不可见的触摸热区，44 宽 × 全部高度 + 上下各溢 12
+     只扩大"能按到"的范围，不改变外观。 */
+  .th-gal-hud-grip::after {
+    content: '' !important;
+    position: absolute !important;
+    top: -12px !important; bottom: -12px !important;
+    right: 0 !important; left: -30px !important;
+    background: transparent !important;
+  }
   .th-gal-hud-grip:hover {
     width: 24px !important;
     background: linear-gradient(180deg, rgba(255, 228, 138, 1), rgba(220, 168, 58, 1)) !important;
     box-shadow: -3px 0 18px rgba(0, 0, 0, 0.6), 0 0 16px rgba(252, 211, 77, 0.5),
                 inset 1px 0 0 rgba(255, 255, 255, 0.4) !important;
   }
+  /* 按下反馈：手机上点中有一颗明确的"按到了"信号 */
+  .th-gal-hud-grip:active {
+    background: linear-gradient(180deg, rgba(255, 240, 170, 1), rgba(180, 132, 30, 1)) !important;
+    box-shadow: -2px 0 22px rgba(252, 211, 77, 0.75), inset 1px 0 0 rgba(255, 255, 255, 0.55) !important;
+  }
+  .th-gal-hud-grip:active::before { transform: translateX(-2px) scale(1.18) !important; }
   /* 箭头：指向画面内（左），玩家一眼知道「按这里展开」 */
   .th-gal-hud-grip::before {
     content: '‹' !important; width: auto !important; height: auto !important;
@@ -8095,6 +8242,74 @@ var STYLE = `<style id="th-gal-shell-style">
   }
   .th-gal-mini-hud .mh-sep { display: none !important; }
   .th-gal-mini-hud .mh-place { display: none !important; }
+
+  /* ══ ★ v165V：顶部居中「正在推进中 / 推进结束」提示 ══════════════════
+     玩家原话：「加入一个正在推进中的美化提示在游戏界面的居中最顶部，
+               推进时就会显示"正在推进中"，没有推进了就显示推进结束，
+               然后两秒后消失。」
+
+     · 定位在壳内顶部居中（left:50% + translateX(-50%)），不依赖壳宽
+     · z-index 94：压在对话框（90 段）之上、弹层与全屏（95+）之下
+     · pointer-events:none —— 它只是一条状态，绝不吃玩家的点击
+     · 默认 opacity:0 + 上浮 10px，加 .is-on 才落到位，
+       所以"从没推进过"的时候它在视觉上完全不存在，不会开局闪一下
+     · .is-done 变绿，与"推进中"的青蓝区分，玩家一眼知道这轮完了 */
+  .th-gen-toast {
+    position: absolute !important;
+    top: 6px !important;
+    left: 50% !important;
+    transform: translate(-50%, -10px) !important;
+    z-index: 94 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: calc(6px * var(--ui-scale, 1)) !important;
+    padding: calc(4px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1)) !important;
+    border-radius: 999px !important;
+    background: linear-gradient(135deg, rgba(14, 26, 40, 0.94), rgba(8, 16, 26, 0.90)) !important;
+    border: 1px solid rgba(96, 178, 255, 0.52) !important;
+    box-shadow: 0 3px 16px rgba(0, 0, 0, 0.55), 0 0 14px rgba(56, 148, 255, 0.22) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    color: #dceaff !important;
+    font-size: calc(10.5px * var(--ui-scale, 1)) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.06em !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity .22s ease, transform .22s ease, visibility .22s !important;
+  }
+  .th-gen-toast.is-on {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translate(-50%, 0) !important;
+  }
+  /* 呼吸小圆点：一眼看出"还在动"，不用读字 */
+  .th-gen-toast .th-gen-dot {
+    flex: 0 0 auto !important;
+    width: calc(6px * var(--ui-scale, 1)) !important;
+    height: calc(6px * var(--ui-scale, 1)) !important;
+    border-radius: 50% !important;
+    background: #5eb0ff !important;
+    box-shadow: 0 0 8px rgba(94, 176, 255, 0.9) !important;
+    animation: thGenPulse 1.15s ease-in-out infinite !important;
+  }
+  .th-gen-toast.is-done {
+    border-color: rgba(110, 231, 160, 0.55) !important;
+    box-shadow: 0 3px 16px rgba(0, 0, 0, 0.55), 0 0 14px rgba(52, 211, 126, 0.22) !important;
+    color: #d8ffe8 !important;
+  }
+  .th-gen-toast.is-done .th-gen-dot {
+    background: #4ade80 !important;
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.9) !important;
+    animation: none !important;
+  }
+  @keyframes thGenPulse {
+    0%, 100% { opacity: .35; transform: scale(.82); }
+    50%      { opacity: 1;   transform: scale(1.12); }
+  }
 
   /* 功能面板：快捷栏全部按钮搬进这里 */
   .th-gal-hud-panel {
@@ -11002,14 +11217,13 @@ function buildShellDOM() {
 
     /* 2844 / 1600 原版比例舞台 */
     '<div class="th-gal-shell-viewport">' +
-      /* ★ v153：这一块搬到左上角地点名（.th-gal-scene-label）**下面**去了，
-         而且**删掉了地点** —— 地点在左上角已经有一个，这里再来一个就是重复。
-         现在这里只剩「时间 · ⚡精力」两条信息，做成小竖排贴在场景名下方。
-         DOM 顺序保留在这里（位置由 CSS 决定），不影响任何 JS 取值。 */
-      '<div class="th-gal-mini-hud is-on">' +
-        '<span class="mh-time">--:--</span>' +
-        '<span class="mh-energy-wrap"><span class="mh-bolt">⚡</span><span class="mh-energy">100</span></span>' +
-      '</div>' +
+      /* ★ v165V：这里原本挂着一个 .th-gal-mini-hud（时间·精力细条，v150 的产物）。
+         玩家原话：「左上角的主角面板背后有一个残留UI，请删掉。」
+         它和 .th-gal-scene-label 一起被 v160 的状态卡盖在同一个左上角，
+         半透明毛玻璃下面透出黑底白字，就是玩家看到的那块残留。
+         节点本身已删 —— CSS 里那条 display:none 留作双保险
+         （万一旧存档的 DOM 里还挂着，也不会画出来）。
+         数据来源不受影响：状态卡 syncStatusCard 是自己读变量的，不依赖这个节点。 */
       /* ★ v148：右侧拉手。折叠时贴在画面右缘，移上去 / 点一下就展开三栏 */
       '<div class="th-gal-hud-grip is-on" data-th-hudgrip="1" title="展开顶栏与功能面板"></div>' +
       /* ══ Galgame 标题首页 (春日狂想曲) ══ */
@@ -11258,6 +11472,28 @@ function buildShellDOM() {
             '<span class="ts-energy" data-ts-energy>⚡ 100 / 100</span>' +
           '</div>' +
         '</div>' +
+      '</div>' +
+      /* ══ ★ v165V：小地图左侧的两颗常驻键 ═══════════════════════════════
+         玩家原话：「新增一个按钮在游戏界面内，在小地图的左边，点击后可一键重新生成，
+                   也就是当截断或不满意内容要重ROLL的时候就点，调用酒馆原生的重新生成功能。
+                   再把对话框按钮复制出来在它的左边。」
+
+         位置关系：小地图 right:12px 宽 128px → 它左边缘在 right:140px。
+            [📜 对话框] [🔄 重新生成] [小地图 128px]
+             right:188    right:144      right:12
+         用 right 定位（不用 left）—— 这样小地图折叠成 40px 朱印时，
+         这两颗键也不会跟着乱跑，它们贴的是画面右缘。
+         常驻显示，不跟折叠态走：它们是高频操作，藏起来就没意义了。 */
+      '<div class="th-gal-quickpair">' +
+        /* ★ 对话框：把功能面板里那颗 .th-gal-btn-reopen-dialogue 复制一份到画面上。
+           没有另写逻辑 —— data-th-mirror 记着原键的 class，点击时转发给原键，
+           保证「面板里那颗」和「画面上这颗」永远是同一套行为，不会各走一路。 */
+        '<button type="button" class="th-gal-quickbtn th-gal-quickbtn-dlg" ' +
+          'data-th-mirror="th-gal-btn-reopen-dialogue" title="打开或收起剧情对话框">📜</button>' +
+        /* ★ 一键重新生成：调酒馆**原生**的重新生成，不是脚本自己再造一套生成。
+           两条路都留着：酒馆有 regenerate 接口就用接口，没有就点它自己的按钮。 */
+        '<button type="button" class="th-gal-quickbtn th-gal-quickbtn-regen" ' +
+          'data-th-regen="1" title="重新生成这一楼（ROLL 掉不满意的内容 / 修复截断）">🔄</button>' +
       '</div>' +
       /* ★ v137：左上角经典小地图，整块可点开全图 */
       '<div class="th-gal-minimap" id="th-gal-minimap" data-th-mapopen="1" title="点头部折叠 · 点地点直达 · 点空处展开世界地图">' +
@@ -13280,9 +13516,47 @@ function thSetStartType(x) {
      梦幻开局的语义从 v139 起一直是「只改好感」，这里不改它。 */
 function thFavSeed(v, startType) {
   if (!v || typeof v !== 'object') return v;
-  var st = (startType === undefined || startType === null || startType === '')
-    ? thStartTypeOf()
-    : thNormStartType(startType);
+  /* ★ v165V：判定来源要「宁可真、不可是假」。
+     ─────────────────────────────────────────────────────────────────
+     玩家原话：「梦幻开局是摆设，根本没有一个女角色好感度为100。」
+
+     这里原来是：
+         var st = (startType 空) ? thStartTypeOf() : thNormStartType(startType);
+         if (st !== '梦幻开局') return v;
+     thStartTypeOf() → thReadGlobal('开局类型', ...) 依次读
+         ① stat_data.全局.开局类型
+         ② chat_metadata.variables.thStartType
+         ③ window.__thStartType
+     三条都可能**读不到或读到旧值**：
+       · 开局那一刻，arcInitPatch 拼出来的补丁还没被 MVU 落库，
+         stat_data 里根本还没有「开局类型」这个键；
+       · 壳被酒馆重画 → 脚本是新的 IIFE，window.__thStartType 是空的；
+       · 老存档里这个键压根不存在（v139 之前的档）。
+     于是 thRosterEnsure 在开局后第一次补人时判成「正常开局」，
+     照着种子给了 20 —— 这就是「梦幻开局是摆设、一个 100 都没有」。
+     而且它是**幂等**的：补进来的人已经在了，第二次不会再走这里，
+     20 就永远钉死在存档里。
+
+     ── 改法 ──
+     多认两条「明确写着梦幻」的证据，任一条成立就按梦幻处理：
+       ④ 本次开局向导选的 thPendingStartType（内存里那一刻的真值）
+       ⑤ localStorage 里记的待开局类型（换新聊天时写的那份）
+     仍然只有「明确是梦幻」才改数值 —— 读不到就是正常开局，
+     绝不会把正常开局的档无端拉满 100。 */
+  var st;
+  if (startType === undefined || startType === null || startType === '') {
+    st = thStartTypeOf();
+    if (st !== '梦幻开局') {
+      /* ④ 向导刚选的（内存真值） */
+      try { if (thPendingStartType === '梦幻开局') st = '梦幻开局'; } catch (eP) {}
+    }
+    if (st !== '梦幻开局') {
+      /* ⑤ 换新聊天时落的记号 */
+      try { if (localStorage.getItem('thGalPendingStartType') === '梦幻开局') st = '梦幻开局'; } catch (eL) {}
+    }
+  } else {
+    st = thNormStartType(startType);
+  }
   if (st !== '梦幻开局') return v;
   v.好感度 = 100;
   return v;
@@ -13881,11 +14155,19 @@ function thRosterEnsure(arc, opts) {
      「自愈」的语义是把漏掉的补上，不是把人家的进度按回去。
    ★ 为什么不去补「不在列表里的人」：补人归 thRosterEnsure 管，
      这里只处理「已经在列表里、但好感没满」这一种。两件事混在一起，
-     以后再排查「某个人怎么忽然出现了」就找不到边界了。 */
+     以后再排查「某个人怎么忽然出现了」就找不到边界了。
+
+   ★ v165V：把 thIsDreamStart 换成更宽松的判定（见 thFavSeed 的长注释）。
+     以前它只认 thStartTypeOf()，而这个值在开局瞬间还没落库 ——
+     梦幻开局的自愈在最该跑的那一刻判成「正常开局」，直接 return，
+     于是「自愈」从来没自愈过。现在只要 thFavSeed 那条链认为是梦幻，这里就跑。 */
 function thDreamFavHeal() {
   var res = { healed: 0, total: 0, dream: false };
   try {
-    if (!thIsDreamStart()) return res;
+    /* 用 thFavSeed 的同一套判定：对它喂一个空壳，看它会不会把好感改 100 */
+    var __probe = { 好感度: 0 };
+    thFavSeed(__probe);
+    if (Number(__probe.好感度) !== 100) return res;
     res.dream = true;
     var sd = getSD() || {};
     var list = sd.主要角色列表 || {};
@@ -17012,6 +17294,8 @@ function setGeneratingState(isGen) {
     if (isGen) shell.classList.add('th-gal-gen-on');
     else shell.classList.remove('th-gal-gen-on');
   } catch (eB) {}
+  /* ★ v165V：顶部居中「正在推进中 / 推进结束」提示 */
+  try { thGenToast(isGen); } catch (eGT) {}
   /* ★ v163：原写法只刷 shell.querySelector('.th-gal-shell-submit') —— 那拿到的是
      **控制舱里那颗**（display:none，玩家看不见）。面板里那颗真按钮永远显示「发送」，
      于是「酒馆在转」这件事在玩家眼里完全没发生（用户要的「酒馆原生推进再转，就转」也就看不出来）。
@@ -17028,6 +17312,89 @@ function setGeneratingState(isGen) {
       btn.innerHTML = '<span class="th-shell-submit-text">发送</span>';
     }
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ★ v165V：顶部居中「正在推进中」提示 —— thGenToast()
+   ─────────────────────────────────────────────────────────────────────
+   玩家原话：「我需要你加入一个正在推进中的美化提示在游戏界面的居中最顶部，
+             推进时就会显示"正在推进中"，没有推进了就显示推进结束，
+             然后两秒后消失。」
+
+   ── 状态从哪来 ──
+   setGeneratingState(isGen) 已经是全卡「生成中判定」的唯一出口
+   （三路证据：酒馆停止按钮 / 我方消息等待中 / 正文还在变长），
+   所以这里只做一件事：**跟着它的入参画**。不另立判据 ——
+   再写一套「是不是在推进」的推断，就必然和按钮上的「发送 / 打断」打架。
+
+   ── 三种表现 ──
+     isGen = true   → 药丸出现，写「正在推进中」，带一颗呼吸的圆点
+     isGen = false  → 同一个位置改成「推进结束」，变绿，2 秒后淡出
+     从未推进过     → 什么都不弹（页面刚加载、读档、切篇章都不该闪一下）
+
+   ── 为什么不用 toast / popToast ──
+   popToast 走的是屏幕中下方，而且会排队；玩家明确要「居中最顶部」。
+   这里自己造一颗绝对定位在壳内顶部居中的药丸，z-index 压在对话框之上、
+   弹层之下，不挡任何可点区域（pointer-events:none）。
+   ══════════════════════════════════════════════════════════════════════ */
+var _thGenToastEl = null;
+var _thGenToastHideTimer = null;
+var _thGenToastEverOn = false;       /* 本次会话推进过没有 */
+var _thGenToastOn = false;           /* 上一次画的是不是在推进中 */
+
+function thGenToastEnsure(shell) {
+  if (!shell) return null;
+  var el = shell.querySelector('.th-gen-toast');
+  if (el) { _thGenToastEl = el; return el; }
+  el = getDoc().createElement('div');
+  el.className = 'th-gen-toast';
+  el.setAttribute('aria-live', 'polite');
+  el.innerHTML = '<i class="th-gen-dot"></i><span class="th-gen-text">正在推进中</span>';
+  /* 挂在壳里（壳是全屏那层），不挂 viewport —— viewport 是按 aspect-ratio
+     缩过的舞台，顶部居中是相对舞台算的，窄屏上会跑到奇怪的位置。 */
+  try { shell.appendChild(el); } catch (eA) {
+    try { (shell.querySelector('.th-gal-shell-viewport') || shell).appendChild(el); } catch (eB) {}
+  }
+  _thGenToastEl = el;
+  return el;
+}
+
+function thGenToast(isGen) {
+  var shell = getDoc().querySelector('#th-gal-shell-root');
+  if (!shell) return;
+  var el = thGenToastEnsure(shell);
+  if (!el) return;
+
+  /* 从没推进过、现在也不是推进中 → 不画。（第一次进游戏时别闪） */
+  if (isGen) _thGenToastEverOn = true;
+  else if (!_thGenToastEverOn) { el.classList.remove('is-on', 'is-done'); return; }
+
+  try { if (_thGenToastHideTimer) { clearTimeout(_thGenToastHideTimer); _thGenToastHideTimer = null; } } catch (eT) {}
+
+  var txt = el.querySelector('.th-gen-text');
+
+  if (isGen) {
+    if (_thGenToastOn) return;        /* 已经在推进中：不重复重置动画 */
+    _thGenToastOn = true;
+    if (txt) txt.textContent = '正在推进中';
+    el.classList.remove('is-done');
+    el.classList.add('is-on');
+    return;
+  }
+
+  /* isGen === false 且之前确实在推进 → 显示「推进结束」2 秒后消失 */
+  if (!_thGenToastOn) return;
+  _thGenToastOn = false;
+  if (txt) txt.textContent = '推进结束';
+  el.classList.add('is-on', 'is-done');
+  _thGenToastHideTimer = setTimeout(function () {
+    try {
+      el.classList.remove('is-on', 'is-done');
+      _thGenToastEverOn = false;      /* 收完之后回到「没推进过」的静默态 */
+      if (txt) txt.textContent = '正在推进中';
+    } catch (eH) {}
+    _thGenToastHideTimer = null;
+  }, 2000);                            /* 玩家指定的 2 秒 */
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -18574,6 +18941,24 @@ function thHudIdleTick(shell) {
   var panel = shell.querySelector('.th-gal-hud-panel');
   if (!panel || !panel.classList.contains('is-open')) return false;
 
+  /* ★ v165V：玩家手指正按在拉手上（或刚按完的宽限期内）→ 绝不收。
+     玩家原话：「加入模拟手机触碰，可以让玩家触碰该处的时候就不会自动关上。」
+     这一条独立于下面的 _thHudLastAct 计时：即便 2.8 秒正好走完，
+     只要手指还搭在拉手上，这一轮就一律跳过。 */
+  try {
+    if (shell.classList.contains('th-grip-touching') || shell.__thGripTouch) {
+      thHudTouch();
+      return false;
+    }
+  } catch (eGT) {}
+
+  /* ★ v165V：屏幕上有手指按着（任何位置）→ 也不收。
+     手机上"按住屏幕在看"是很常见的状态，这时候把面板抽走等于打断玩家。
+     返回 0 = 没有触点。 */
+  try {
+    if (shell.__thTouchDown > 0) { thHudTouch(); return false; }
+  } catch (eTD) {}
+
   /* 有别的大弹层开着 → 不动面板（玩家在那边办事，回头还要用面板） */
   try {
     var blocking = doc.querySelector(
@@ -18898,12 +19283,73 @@ function setupHudFold(shell) {
     shell.addEventListener('mouseenter', function () { shell.__thHover = true; });
     shell.addEventListener('mouseleave', function () { shell.__thHover = false; });
 
-    /* 拉手：点一下 → 展开并开面板 */
+    /* 拉手：点一下 → 展开并开面板
+       ══════════════════════════════════════════════════════════════════
+       ★ v165V 手机端重写。玩家原话：
+         「手机端的这个拉手不好触发，得点好几下，很难点出来，
+           我要你改成点击就展开，其次是加入模拟手机触碰，
+           可以让玩家触碰该处的时候就不会自动关上。」
+
+       旧写法是 mouseenter + click 两条独立监听：
+         mouseenter → if (fold) thHudOpen()
+         click      → if (panel.open) close(); else open();
+       在桌面没问题（鼠标移进去先展开，之后 click 看到 open 就收起，符合预期）。
+       在手机上会**自相残杀**：手指落下时浏览器补发 mouseenter → 展开；
+       紧接着补发 click → 看到已 open → 收起。一次完整的"按下-抬起"
+       净效果是 0，所以玩家觉得"点不出来"，只能连点几下碰运气。
+
+       ── 新做法 ──
+       ① 用 pointerdown 作为唯一入口。pointerdown 只在真按下时触发一次，
+          pointerType 直接告诉我们这是 'touch' 还是 'mouse'。
+       ② 触摸路径（pointerType === 'touch'）：
+            · 不理会随后补发的 mouseenter / click（用 __thGripTouch 时间戳挡掉）
+            · 按下即切换，不做"先开后关"，一次点击 = 一次确定的状态翻转
+            · 同时把 _thHudTouch 顶到现在 → 自动折叠计时重来，
+              手指还按着/刚碰过就不收（这就是"触碰该处不会自动关上"）
+       ③ 鼠标路径完全保持原样（hover 展开 + click 切换），不改变桌面手感。
+       ④ 触摸期间给壳挂 th-grip-touching 类，thHudIdleTick 见到就跳过 —— 
+          双保险，防止 400ms 心跳正好撞上玩家手指。
+       ══════════════════════════════════════════════════════════════════ */
     if (grip) {
+      var _gripTouchAt = 0;          /* 最近一次触摸的时刻，用来吞掉模拟鼠标事件 */
+      var GRIP_TOUCH_GRACE = 700;    /* 700ms 内的模拟 mouseenter/click 一律忽略 */
+
+      /* 手指按下：立刻翻转，并锁住自动折叠 */
+      grip.addEventListener('pointerdown', function (e) {
+        if (!e || e.pointerType !== 'touch') return;   /* 鼠标走下面的老路 */
+        _gripTouchAt = Date.now();
+        try { shell.__thGripTouch = _gripTouchAt; shell.classList.add('th-grip-touching'); } catch (e0) {}
+        thHudTouch();                                  /* 重置 2.8 秒计时 */
+        e.preventDefault();
+        e.stopPropagation();
+        if (panel && panel.classList.contains('is-open')) thHudClose(shell, true);
+        else thHudOpen(shell);
+      }, { passive: false });
+
+      /* 手指抬起：解锁，但保留一点宽限期，让残留的模拟事件穿不过去 */
+      grip.addEventListener('pointerup', function (e) {
+        if (!e || e.pointerType !== 'touch') return;
+        thHudTouch();
+        setTimeout(function () {
+          try { shell.__thGripTouch = 0; shell.classList.remove('th-grip-touching'); } catch (e0) {}
+        }, GRIP_TOUCH_GRACE);
+      }, { passive: true });
+
+      grip.addEventListener('pointercancel', function () {
+        try { shell.__thGripTouch = 0; shell.classList.remove('th-grip-touching'); } catch (e0) {}
+      }, { passive: true });
+
+      /* 鼠标悬停展开（桌面手感，保持原样）。
+         触摸后会补发一次 mouseenter —— 用时间戳挡掉，否则刚展开又被它判一次。 */
       grip.addEventListener('mouseenter', function () {
+        if (Date.now() - _gripTouchAt < GRIP_TOUCH_GRACE) return;
         if (shell.classList.contains('is-hud-fold')) thHudOpen(shell);
       });
+
+      /* click 兜底：键盘 Enter / 辅助功能 / 极老的浏览器不走 pointer 事件。
+         触摸引起的 click 必须挡掉 —— 就是它在旧版里把刚展开的面板又收了。 */
       grip.addEventListener('click', function (e) {
+        if (Date.now() - _gripTouchAt < GRIP_TOUCH_GRACE) { e.preventDefault(); e.stopPropagation(); return; }
         e.preventDefault(); e.stopPropagation();
         if (panel && panel.classList.contains('is-open')) thHudClose(shell, true);
         else thHudOpen(shell);
@@ -18929,6 +19375,41 @@ function setupHudFold(shell) {
 
     /* 顶栏点一下也算「在用」，续命 */
     if (top) top.addEventListener('click', function () { thHudArmAutoClose(shell); });
+
+    /* ★ v165V：全屏触点计数 —— 手机上有手指按在屏幕上时，面板不自动收。
+       玩家原话：「加入模拟手机触碰，可以让玩家触碰该处的时候就不会自动关上。」
+       为什么数触点而不是只听拉手：手机上玩家一边看剧情一边用大拇指按着屏幕，
+       是很自然的状态；这时候把面板抽走等于强行打断。
+       只在触屏设备上计数（pointerType === 'touch'），鼠标不影响。
+       用 pointerdown/up/cancel 而不是 touchstart/touchend ——
+       后者在 pointer 时代会和合成事件重复计数。 */
+    if (!shell.__thTouchCountBound) {
+      shell.__thTouchCountBound = true;
+      shell.__thTouchDown = 0;
+      var touchAdd = function (e) {
+        if (!e || e.pointerType !== 'touch') return;
+        shell.__thTouchDown = Math.max(0, (shell.__thTouchDown || 0) + 1);
+        thHudTouch();
+      };
+      var touchSub = function (e) {
+        if (e && e.pointerType && e.pointerType !== 'touch') return;
+        shell.__thTouchDown = Math.max(0, (shell.__thTouchDown || 0) - 1);
+        thHudTouch();
+      };
+      shell.addEventListener('pointerdown', touchAdd, { passive: true });
+      shell.addEventListener('pointerup', touchSub, { passive: true });
+      shell.addEventListener('pointercancel', touchSub, { passive: true });
+      /* 页面切走 / 窗口失焦时触点计数可能永远归不了零，兜底清零 */
+      try {
+        var panel0 = shell.querySelector('.th-gal-hud-panel');
+        if (panel0) {
+          panel0.addEventListener('pointerdown', function (e) {
+            if (e && e.pointerType === 'touch') thHudTouch();
+          }, { passive: true });
+        }
+        window.addEventListener('blur', function () { shell.__thTouchDown = 0; });
+      } catch (eBl) {}
+    }
   }
 
   /* ★ v163：自动折叠心跳 —— 400ms 一次，永不递归断链 */
@@ -19033,7 +19514,10 @@ function setupInteractions(shell) {
         return !!t.closest(
           '.th-gal-dialogue-stage, .th-gal-dialogue-btn, .th-gal-choice-overlay, ' +
           '.th-gal-choice-item, .th-gal-choice-close, .th-gal-choice-recall, ' +
-          '.th-gal-control-deck, .th-gal-sheet, .th-gal-char-menu, button'
+          '.th-gal-control-deck, .th-gal-sheet, .th-gal-char-menu, button, ' +
+          /* ★ v165V：小地图左侧那两颗（重新生成 / 对话框）也要放行。
+             玩家重 ROLL 时习惯连点，被这条双击盾掐掉就等于"点一次不灵"。 */
+          '.th-gal-quickpair, .th-gal-quickbtn'
         );
       } catch (e) { return false; }
     };
@@ -19145,6 +19629,187 @@ function setupInteractions(shell) {
       syncDialogueBtn();
     };
   }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     ★ v165V：小地图左侧那两颗常驻键
+     ─────────────────────────────────────────────────────────────────────
+     玩家原话：「新增一个按钮在游戏界面内，在小地图的左边，点击后可一键重新生成，
+               也就是当截断或不满意内容要重ROLL的时候就点，调用酒馆原生的重新生成功能。
+               再把对话框按钮复制出来在它的左边。」
+
+     ── ① 对话框那颗：转发，不复制逻辑 ──
+     上面的 btnReopenDialogue 已经有一整套行为（无标签时给提示、开着就收、
+     关着就 reopen、还要同步高亮）。这里再写一遍就是第二套判据，
+     改一处忘一处必然出岔子。所以画面上这颗只做一件事：**点它 = 点原键**。
+     高亮也跟着原键走（syncDialogueBtn 加了一句同步，见下面）。
+
+     ── ② 重新生成那颗：必须是酒馆原生的 ──
+     玩家要的是「ROLL 掉不满意的内容」，不是"脚本自己再生成一遍"。
+     脚本自己生成会带来两个后果：上下文对不上、MVU 重复落库。
+     所以按可靠性从高到低试三条路，成功一条就停：
+       ⓐ TavernHelper.generate({ type: 'regenerate' })
+           —— 酒馆助手官方接口，最干净，走的就是原生的重生成
+       ⓑ window.parent.SillyTavern 的 Generate('regenerate')
+           —— 老版本酒馆的全局函数
+       ⓒ 点酒馆自己的「重新生成」按钮
+           —— 兜底：DOM 一找就行，不依赖任何 API 版本
+     三条都不通才提示玩家，绝不静默失败（静默失败 = 玩家以为点了没反应）。
+     ══════════════════════════════════════════════════════════════════════ */
+  (function setupQuickPair() {
+    var pair = shell.querySelector('.th-gal-quickpair');
+    if (!pair) return;
+
+    /* ── 对话框那颗 ── */
+    var qDlg = pair.querySelector('.th-gal-quickbtn-dlg');
+    if (qDlg) {
+      qDlg.onclick = function (e) {
+        e.preventDefault(); e.stopPropagation();
+        try { if (typeof PixelAudio !== 'undefined') PixelAudio.playSelect(); } catch (eA) {}
+        /* 转发给面板里那颗。它可能是 display:none 的，但 click() 不看可见性 */
+        if (btnReopenDialogue) { try { btnReopenDialogue.click(); } catch (eC) {} }
+        else {
+          /* 极端情况：原键没了。直接操作 DialogueReader，保证这颗键不哑 */
+          try {
+            if (DialogueReader.isOpen) { DialogueReader.isOpen = false; DialogueReader.render(); }
+            else DialogueReader.reopen();
+          } catch (eD) {}
+        }
+        setTimeout(function () { try { syncQuickDlgState(); } catch (eS) {} }, 40);
+      };
+    }
+
+    /* 画面上这颗的高亮跟着原键走 */
+    function syncQuickDlgState() {
+      var q = shell.querySelector('.th-gal-quickbtn-dlg');
+      if (!q) return;
+      var on = false;
+      try { on = !!DialogueReader.isOpen; } catch (e0) {}
+      if (btnReopenDialogue) {
+        /* 原键是唯一真相：它亮着，画面这颗才亮 */
+        try { on = btnReopenDialogue.classList.contains('is-open'); } catch (e1) {}
+      }
+      q.classList.toggle('is-open', !!on);
+    }
+    setupInteractions.syncQuickDlgState = syncQuickDlgState;
+    /* 原键的 syncDialogueBtn 每次跑完都顺手刷一下画面这颗 —— 用 monkey patch
+       而不是再挂一个定时器：定时器会一直在跑，这个只在真变化时跑。 */
+    try {
+      var _origSync = setupInteractions.syncDialogueBtn;
+      if (typeof _origSync === 'function' && !_origSync.__thPatched) {
+        var _patched = function () {
+          try { _origSync.apply(null, arguments); } catch (e2) {}
+          try { syncQuickDlgState(); } catch (e3) {}
+        };
+        _patched.__thPatched = true;
+        setupInteractions.syncDialogueBtn = _patched;
+      }
+    } catch (ePatch) {}
+
+    /* ── 重新生成那颗 ── */
+    var qRegen = pair.querySelector('.th-gal-quickbtn-regen');
+    if (!qRegen) return;
+
+    function regenViaHelper() {
+      var TH = null;
+      try { TH = (typeof window !== 'undefined' && window.TavernHelper) || null; } catch (e0) {}
+      if (!TH) { try { if (typeof HOST !== 'undefined' && HOST && HOST.TavernHelper) TH = HOST.TavernHelper; } catch (e1) {} }
+      if (!TH) { try { if (window.parent && window.parent.TavernHelper) TH = window.parent.TavernHelper; } catch (e2) {} }
+      if (TH && typeof TH.generate === 'function') {
+        try {
+          /* 酒馆助手：{ type: 'regenerate' } 就是原生重生成 */
+          var p = TH.generate({ type: 'regenerate' });
+          if (p && typeof p.catch === 'function') p.catch(function () {});
+          return true;
+        } catch (e3) {}
+      }
+      return false;
+    }
+
+    function regenViaStGlobal() {
+      var cands = [];
+      try { if (window.parent) cands.push(window.parent); } catch (e0) {}
+      try { if (window.top) cands.push(window.top); } catch (e1) {}
+      try { if (HOST) cands.push(HOST); } catch (e2) {}
+      cands.push(window);
+      for (var i = 0; i < cands.length; i++) {
+        var w = cands[i];
+        try {
+          if (w && typeof w.Generate === 'function') {
+            var r = w.Generate('regenerate');
+            if (r && typeof r.catch === 'function') r.catch(function () {});
+            return true;
+          }
+        } catch (eG) {}
+        try {
+          var st = w && w.SillyTavern;
+          if (st && typeof st.Generate === 'function') {
+            var r2 = st.Generate('regenerate');
+            if (r2 && typeof r2.catch === 'function') r2.catch(function () {});
+            return true;
+          }
+        } catch (eS) {}
+      }
+      return false;
+    }
+
+    function regenViaClick() {
+      /* 酒馆自己的重新生成按钮：不同版本 id 不一样，几个常见的都试一遍 */
+      var doc = getDoc();
+      var sels = ['#option_regenerate', '#regenerate_button', '.regenerate_button',
+                  '#rm_button_regenerate', '[data-i18n="Regenerate"]'];
+      for (var i = 0; i < sels.length; i++) {
+        try {
+          var b = doc.querySelector(sels[i]);
+          if (b) {
+            b.click();
+            return true;
+          }
+        } catch (eC) {}
+      }
+      /* 最后一条：按 title / 文字找。只在很短的一批按钮里找，不会误点 */
+      try {
+        var all = doc.querySelectorAll('#rightSendForm button, .mes_buttons button, #send_form button');
+        for (var k = 0; k < all.length; k++) {
+          var t = String(all[k].title || '') + ' ' + String(all[k].textContent || '');
+          if (/重新生成|重生成|regenerate|redo/i.test(t) && t.length < 30) {
+            all[k].click();
+            return true;
+          }
+        }
+      } catch (eT) {}
+      return false;
+    }
+
+    qRegen.onclick = function (e) {
+      e.preventDefault(); e.stopPropagation();
+      try { if (typeof PixelAudio !== 'undefined') PixelAudio.playSelect(); } catch (eA) {}
+
+      /* 正在生成中：先别重生成，提示一句就走开 —— 连点会把酒馆搞乱 */
+      var busy = false;
+      try { busy = (typeof _isGeneratingPersistentLock !== 'undefined' && _isGeneratingPersistentLock); } catch (eB) {}
+      if (busy) {
+        try { popToast('⏳ 还在推进中，等这一轮结束再点重新生成'); } catch (eT) {}
+        return;
+      }
+
+      qRegen.classList.add('is-spinning');
+      var done = false;
+      try { done = regenViaHelper(); } catch (e1) {}
+      if (!done) { try { done = regenViaStGlobal(); } catch (e2) {} }
+      if (!done) { try { done = regenViaClick(); } catch (e3) {} }
+
+      if (done) {
+        try { popToast('🔄 已调用酒馆原生的重新生成'); } catch (eT2) {}
+      } else {
+        try { popToast('❌ 没找到酒馆的重新生成入口，请手动点酒馆界面上的重生成'); } catch (eT3) {}
+      }
+      /* 转圈：3 秒后自己停。真正的结束由 setGeneratingState 那边的
+         「推进结束」提示告诉玩家，这里不抢它的活。 */
+      setTimeout(function () {
+        try { qRegen.classList.remove('is-spinning'); } catch (eS) {}
+      }, 3000);
+    };
+  })();
 
   var btnHero = shell.querySelector('.th-gal-btn-hero');
   if (btnHero) {
@@ -21468,6 +22133,83 @@ var MvuSelfHealing = (function() {
     }, 400);
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     ★ v165V：变量块「原位替换」—— 抓出 <UpdateVariable> 那一段单独换掉
+     ─────────────────────────────────────────────────────────────────
+     玩家原话：「我需要确认，正文标签之外的标签是隐藏了还是删除了，不能删除，
+                我怕影响更新变量，万一把更新变量删除怎么办。」
+     查完的结论：**是真删，不是隐藏。** 用户担心的是对的。
+
+     旧实现（v165U 及以前）是**整条消息重建**：
+         finalMes = preservedProse + '\n\n' + patchXml
+     而 preservedProse 来自 extractAndPreserveProse()，它内部只有一句
+         s.match(/<content\b[^>]*>[\s\S]*?<\/content>/i)
+     ⇒ 只留 <content>…</content>；
+     patchXml 来自 buildFullUpdateVariableBlock()，它只产
+         <UpdateVariable><Analysis>…</Analysis><JSONPatch>…</JSONPatch></UpdateVariable>
+     ⇒ 只产这两种块。
+     两个一拼，一条消息里**除 <content> 与 <UpdateVariable> 之外的一切都被抹掉**：
+        <后台推演>   → 08 外置推演的锚点没了，推演断供
+        <重要记忆>   → 08 的 scanMemories 收不到，记忆库停止增长
+        <插图>       → 05 的插图解析拿不到图号，图不换
+        <地点> / <在场人物> / <连携转移> → 场景与在场判定退回猜测
+     这些不是正则剥显示的副作用（那部分只影响 show 的副本，安全），
+     而是 writeBackPatch 落盘时真的把字删了。
+
+     ── 新做法 ──
+     只把原文里 <UpdateVariable>…</UpdateVariable> 这一段换掉，其余字节原样不动。
+     找不到 <UpdateVariable> 就退到 <JSONPatch>；再找不到才追加到末尾。
+     落盘结果与改之前**除变量块外逐字节相同**。
+     ══════════════════════════════════════════════════════════════════ */
+
+  /* 找 <UpdateVariable> 的起止区间（按同名标签配平，防模型套了两层） */
+  function cqFindVarBlockSpan(s) {
+    if (!s) return null;
+    var m = /<UpdateVariable(?=[\s>])[^>]*>/i.exec(s);
+    if (!m) return null;
+    var start = m.index;
+    var from = start + m[0].length;
+    var tokRe = /<UpdateVariable(?=[\s>])[^>]*>|<\/UpdateVariable\s*>/gi;
+    tokRe.lastIndex = from;
+    var depth = 1, mt, end = -1;
+    while ((mt = tokRe.exec(s)) !== null) {
+      if (mt[0].charAt(1) === '/') {
+        depth--;
+        if (depth === 0) { end = mt.index + mt[0].length; break; }
+      } else {
+        depth++;
+      }
+    }
+    /* 没闭合（流式截断）：一直换到结尾，正好把半截块清掉 */
+    return { start: start, end: (end < 0 ? s.length : end), closed: (end >= 0) };
+  }
+
+  /* 把新变量块塞回原文，其余原样保留 */
+  function cqSpliceVarBlock(raw, patchXml) {
+    var s = String(raw || '');
+    if (!s) return '';
+    if (!patchXml) return s;          /* 没有新块就不动，绝不把旧块删空 */
+
+    /* ① 首选：整段 <UpdateVariable> 换掉 */
+    var sp = cqFindVarBlockSpan(s);
+    if (sp) return s.slice(0, sp.start) + patchXml + s.slice(sp.end);
+
+    /* ② 次选：只有 <JSONPatch> 没有 <UpdateVariable>（模型偶尔这样写）。
+       若紧挨着前面还有一个裸 <Analysis>…</Analysis>，连它一起换，
+       免得留下「孤儿分析 + 新分析」两份。 */
+    var jm = /<JSONPatch(?=[\s>])[^>]*>[\s\S]*?<\/JSONPatch\s*>/i.exec(s);
+    if (jm) {
+      var jStart = jm.index;
+      var head = s.slice(0, jStart);
+      var am = /<Analysis(?=[\s>])[^>]*>[\s\S]*?<\/Analysis\s*>\s*$/i.exec(head);
+      if (am) jStart = am.index;
+      return s.slice(0, jStart) + patchXml + s.slice(jm.index + jm[0].length);
+    }
+
+    /* ③ 都没有：原文原样，变量块追加到末尾 */
+    return s.replace(/\s+$/, '') + '\n\n' + patchXml;
+  }
+
   /* ★ 核心替换与 MVU 驱动函数：严防回滚，确保剧情正文 100% 毫发无损地保留在最前方 */
   async function writeBackPatch(msgIndex, patchXml, opsArr, preservedProse) {
     var ctx = getStContext();
@@ -21476,13 +22218,22 @@ var MvuSelfHealing = (function() {
     var m = ctx.chat[msgIndex];
 
     // 如果未传入预存的 prose，严格提取并保全正文
+    var currentRaw = getMsgRawText(msgIndex);
     if (!preservedProse) {
-      var currentRaw = getMsgRawText(msgIndex);
       preservedProse = extractAndPreserveProse(currentRaw, m);
     }
 
-    // 严密拼接：正文必须在最前方，变量块追加在末尾！绝不发生正文被单独替换！
-    var finalMes = (preservedProse ? (preservedProse + '\n\n') : '') + patchXml;
+    /* ★ v165V：原位替换 —— 只动变量块，别的标签一个字都不碰 */
+    var finalMes = cqSpliceVarBlock(currentRaw, patchXml);
+
+    /* 自检：换完之后还得有正文。
+       若这楼早被旧版冲成了「只有变量、没有正文」，splice 也救不回来，
+       这时退回老策略用 preservedProse 重建 —— 至少保证正文不跟着丢。 */
+    var bodyNow = '';
+    try { bodyNow = (typeof parseContent === 'function') ? parseContent(finalMes) : ''; } catch (eBC) { bodyNow = ''; }
+    if (!bodyNow && preservedProse) {
+      finalMes = (preservedProse ? (preservedProse + '\n\n') : '') + patchXml;
+    }
 
     // 1. 同步内存中所有的可能存储点（包括 swipes 数组内的当前项）
     m.mes = finalMes;
@@ -22018,6 +22769,60 @@ function paintArcBtn(shell) {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   ★ v165V：开局向导的「待开局选项」搬到 updateContainer 之外
+   ─────────────────────────────────────────────────────────────────────
+   玩家原话：「开始游戏界面，最后那个确认信息的界面，是摆设，
+              填入了名字等不会显示，但确认开局后变量里确实是写入了。」
+
+   ── 病因 ──
+   标题首页交互 + 八屏向导 + 汇总确认那一整段（约 1800 行）原本写在
+   async function updateContainer(shell) 的**函数体里面**，而 updateContainer
+   是心跳函数，每 700ms 跑一次。于是这一段每个 tick 都执行一遍：
+
+       var thPendingArc = '';
+       var thPendingMode = '纯爱';
+       var thPendingSeason = '夏';
+       var thPendingArt = thNormArt('');
+       var thPendingStartType = '正常开局';
+       var thPendingPlayerInfo = thNormPlayerInfo({});   ← 全部清空
+
+   玩家在第 6 屏填完姓名 → 点「下一步」，thPendingPlayerInfo 被赋值；
+   最快 700ms 之后下一拍就把这六个变量全打回默认值。
+   然后点「梦幻开局」走到第 7 屏、renderConfirm() 读到的就是六个空值 ——
+   确认清单当然一片空白，这就是「摆设」的真相。
+
+   为什么「确认开局后变量里确实有写入」：beginGameConfirmed 在点击那一刻
+   才读，运气好的话正好落在两拍之间（没被冲掉），于是变量写进去了；
+   运气不好就是空的。玩家看到的「界面空、变量有」正是这种竞态的表现。
+
+   ── 改法 ──
+   把这六个状态提成外层变量，只在**换聊天**时给一次默认值，
+   之后无论心跳跑多少遍都原样保留。改动只涉及声明位置 + 六个赋值点的
+   归属，向导的业务逻辑一行没动 —— 不做大重构，避免引入新问题。
+   ══════════════════════════════════════════════════════════════════════ */
+var thPendingArc = '';
+var thPendingMode = '纯爱';
+var thPendingSeason = '夏';
+var thPendingArt = '';              /* 空串 → 用 thWizDefaultArt() 归一化 */
+var thPendingStartType = '正常开局';
+var thPendingPlayerInfo = {};
+var __thWizInitedChat = '';         /* 这几个默认值是给哪个聊天设的 */
+
+function thWizDefaultArt() {
+  var a = '';
+  try { a = thNormArt(''); } catch (eA) {}
+  return a || '新插图';             /* TH_ART_META 还没就绪时的兜底，绝不留空 */
+}
+function thWizReset() {
+  thPendingArc = '';
+  thPendingMode = '纯爱';
+  thPendingSeason = '夏';
+  thPendingArt = thWizDefaultArt();
+  thPendingStartType = '正常开局';
+  try { thPendingPlayerInfo = thNormPlayerInfo({}); } catch (eP) { thPendingPlayerInfo = {}; }
+}
+
 async function updateContainer(shell) {
   syncEnergyUI();
   /* ★ v137：小地图每轮跟着当前地点走；位置没变时函数内部会自己跳过重绘 */
@@ -22490,6 +23295,22 @@ async function updateContainer(shell) {
     if (titlePlayerBox) { if (st === 'playerinfo') titlePlayerBox.removeAttribute('hidden'); else titlePlayerBox.setAttribute('hidden', ''); }
     if (titleStartTypeBox) { if (st === 'starttype') titleStartTypeBox.removeAttribute('hidden'); else titleStartTypeBox.setAttribute('hidden', ''); }
     if (titleConfirmBox) { if (st === 'confirm') { renderConfirm(); titleConfirmBox.removeAttribute('hidden', ''); } else titleConfirmBox.setAttribute('hidden', ''); }
+    /* ★ v165V：输入框里一改就把值记进内存 —— 玩家填完不点「下一步」直接去汇总，
+       也不会是空的。用 input 事件（打字即触发），不吃 IME 的合成态。 */
+    try {
+      if (!shell.__thPiLiveBound) {
+        shell.__thPiLiveBound = true;
+        var _piSync = function () {
+          try { thPendingPlayerInfo = thPiCollect(); } catch (ePiS) {}
+        };
+        [piName, piBody, piAge, piMind].forEach(function (el) {
+          if (!el) return;
+          el.addEventListener('input', _piSync);
+          el.addEventListener('change', _piSync);
+          el.addEventListener('blur', _piSync);
+        });
+      }
+    } catch (ePiBind) {}
     try { thUpdateSeasonHud(); } catch (eHud) {}
   }
   function showTitleScreen() {
@@ -22885,6 +23706,32 @@ async function updateContainer(shell) {
         } catch (eTst) {}
       }
     } catch (eEns) {}
+
+    /* ══ ★ v165V：梦幻开局「落地即校正」════════════════════════════════
+       玩家原话：「梦幻开局是摆设，根本没有一个女角色好感度为100。」
+
+       为什么光靠 arcInitPatch + thRosterEnsure 还不够：
+         ① arcInitPatch 产出的补丁写进 MVU 是异步的，`全局.开局类型`
+            这一行本身也要等它落库；可 thRosterEnsure 紧接着就跑，
+            它内部 thFavSeed 读不到新值 → 补进来的人按 20 落库。
+         ② 补进来的人一旦落库，下一次 thRosterEnsure 见到「已存在」就跳过，
+            20 永远钉死。这就是玩家看到的「一个 100 都没有」。
+
+       这里在开局收尾（补完人之后）**强制**按本次 opts.startType 校正一次：
+       不看变量读不读得到，直接用手上这个值 —— 这一刻它一定是对的。
+       顺序放在 thRosterEnsure 之后，所以刚补进来的 20 会被一起抬到 100。 */
+    try {
+      if (thNormStartType(opts.startType) === '梦幻开局') {
+        var __healNow = thDreamFavHeal();
+        try {
+          console.log('🌙 梦幻开局校正：' + __healNow.healed + '/' + __healNow.total + ' 人好感拉到 100');
+        } catch (eLg2) {}
+        /* 变量落库有延迟，再补两拍 —— 只在确实是梦幻时挂，正常开局零开销 */
+        setTimeout(function () { try { thDreamFavHeal(); } catch (eH2) {} }, 900);
+        setTimeout(function () { try { thDreamFavHeal(); } catch (eH3) {} }, 2400);
+      }
+    } catch (eHeal) {}
+
     try { console.log('🎬 开局：' + arc + '｜变量补丁 ' + (patchOk ? 'OK' : '失败') + '｜开场白跳转 ' + (jumpOk ? 'OK' : '失败')); } catch (eLg) {}
     return { patchOk: patchOk, jumpOk: jumpOk };
   }
@@ -23072,23 +23919,43 @@ async function updateContainer(shell) {
 
   /* ══ ★ v139：八屏开局
      menu → branch → mode → season → art → playerinfo → starttype → confirm → playing
-     前面七步只记选择，最后一步「✅ 确认开局」才真正 startArc。 */
-  var thPendingArc = '';
-  var thPendingMode = '纯爱';
-  var thPendingSeason = '夏';
-  /* ★ v165g：这里原来是写死的 '旧插图'。
-     ────────────────────────────────────────────────────────────
-     为什么那一个字错了还没人发现：底层的 thNormArt() 早就把「空值」默认到
-     新插图了（v153 改的），读存档、顶栏、真正开局全都走 thNormArt，所以
-     **功能上确实是新插图**。但开局向导的默认高亮位读的是这个变量本身 ——
-     它写死 '旧插图'，于是玩家看到的默认选中卡永远是「旧插图」，
-     点「确认开局」时又把这个 '旧插图' 原样传下去，把底层默认盖掉。
-     玩家原话：「还有，默认新插图，而不是旧的。」
-     改法：初始值直接取 thNormArt('')，让向导默认值和底层默认值是**同一个来源**，
-     以后改默认只改 thNormArt 一处，不会再出现两边不一致。 */
-  var thPendingArt = thNormArt('');
-  var thPendingStartType = '正常开局';
-  var thPendingPlayerInfo = thNormPlayerInfo({});
+     前面七步只记选择，最后一步「✅ 确认开局」才真正 startArc。
+
+     ★ v165V：六个状态变量已提到 updateContainer 之外（见文件里那段长注释）。
+       这里只剩「每个聊天只初始化一次」的入口 —— 换聊天才给默认值，
+       本聊天内心跳跑一万遍也不动它们。 */
+  try {
+    var __wizChat = currentChatId();
+    if (__thWizInitedChat !== __wizChat) {
+      __thWizInitedChat = __wizChat;
+      thWizReset();
+      /* 上一次填过、还没开局的，把内容接着用（壳重建 / 刷新页面都不丢） */
+      try {
+        var __savedPI = sessionStorage.getItem('thGalPendingPlayerInfo');
+        if (__savedPI) thPendingPlayerInfo = thNormPlayerInfo(JSON.parse(__savedPI));
+      } catch (eSp) {}
+      try {
+        var __savedST = sessionStorage.getItem('thGalPendingStartType');
+        if (__savedST) thPendingStartType = thNormStartType(__savedST);
+      } catch (eSst) {}
+      try {
+        var __savedArc = sessionStorage.getItem('thGalPendingArcChoice');
+        if (__savedArc) thPendingArc = normArc(__savedArc);
+      } catch (eSa) {}
+      try {
+        var __savedMode = sessionStorage.getItem('thGalPendingModeChoice');
+        if (__savedMode) thPendingMode = thNormGameMode(__savedMode);
+      } catch (eSm) {}
+      try {
+        var __savedSe = sessionStorage.getItem('thGalPendingSeasonChoice');
+        if (__savedSe) thPendingSeason = thNormSeason(__savedSe);
+      } catch (eSs) {}
+      try {
+        var __savedAr = sessionStorage.getItem('thGalPendingArtChoice');
+        if (__savedAr) thPendingArt = thNormArt(__savedAr);
+      } catch (eSar) {}
+    }
+  } catch (eWizInit) {}
 
   function thConfirmEsc(x) {
     return String(x == null ? '' : x)
@@ -23119,7 +23986,43 @@ async function updateContainer(shell) {
   }
   function renderConfirm() {
     if (!confirmList) return;
-    var pi = thNormPlayerInfo(thPendingPlayerInfo);
+
+    /* ★ v165V：三路取信，谁有值用谁 —— 这是「确认界面必须是真回显」的保险。
+       ────────────────────────────────────────────────────────────
+       ① thPendingPlayerInfo：正常路径（点了「下一步」）一定有
+       ② 输入框现值：玩家填完直接点别的按钮、或状态被冲掉时的现场真值
+       ③ sessionStorage：壳重建 / 页面刷新后仍在
+       以前只认 ①，而 ① 每 700ms 被 updateContainer 冲成空 —— 于是整屏空白。 */
+    var piLive = null;
+    try {
+      if (piName || piBody || piAge || piMind) piLive = thPiCollect();
+    } catch (eLive) { piLive = null; }
+    function pick(k) {
+      var v = '';
+      var a = thNormPlayerInfo(thPendingPlayerInfo)[k];
+      var b = piLive ? piLive[k] : '';
+      var c = '';
+      try {
+        var s = sessionStorage.getItem('thGalPendingPlayerInfo');
+        if (s) c = thNormPlayerInfo(JSON.parse(s))[k] || '';
+      } catch (eC) {}
+      /* 优先级：现场输入框 > 内存状态 > 会话存储。
+         现场最可信 —— 玩家改完字号大、还没点下一步就想看汇总的情况也照顾到。 */
+      v = b || a || c || '';
+      return v;
+    }
+    var pi = thNormPlayerInfo({
+      '玩家姓名': pick('玩家姓名'),
+      '玩家外貌身材': pick('玩家外貌身材'),
+      '玩家年龄': pick('玩家年龄'),
+      '玩家性格': pick('玩家性格')
+    });
+
+    /* 开局类型同样三路兜底 */
+    var stNow = thPendingStartType;
+    if (!stNow) { try { stNow = sessionStorage.getItem('thGalPendingStartType') || ''; } catch (eSn) {} }
+    try { stNow = thNormStartType(stNow); } catch (eSt) { stNow = '正常开局'; }
+
     var rows = [
       ['起始篇章', arcDisplayName(thPendingArc) + '篇', false],
       ['游戏模式', thPendingMode + '模式', false],
@@ -23129,7 +24032,7 @@ async function updateContainer(shell) {
       ['外貌身材', pi['玩家外貌身材'] || '（未填写 → 不描写 u 的外貌）', !pi['玩家外貌身材']],
       ['玩家年龄', pi['玩家年龄'] || '（未填写 → 不暗示年纪）', !pi['玩家年龄']],
       ['玩家性格', pi['玩家性格'] || '（未填写 → 不替 u 定性格）', !pi['玩家性格']],
-      ['开局类型', thPendingStartType === '梦幻开局' ? '🌙 梦幻开局 · 所有女角色好感 100' : '🌤 正常开局 · 原始好感起步', false]
+      ['开局类型', stNow === '梦幻开局' ? '🌙 梦幻开局 · 所有女角色好感 100' : '🌤 正常开局 · 原始好感起步', false]
     ];
     var h = '';
     rows.forEach(function (r) {
@@ -23167,11 +24070,14 @@ async function updateContainer(shell) {
   }
   function choosePlayerInfo() {
     thPendingPlayerInfo = thPiCollect();
+    /* ★ v165V：填完就落 sessionStorage —— 壳被酒馆重画时状态不丢 */
+    try { sessionStorage.setItem('thGalPendingPlayerInfo', JSON.stringify(thPendingPlayerInfo)); } catch (ePP) {}
     writeTitleState('starttype');
     applyTitleState();
   }
   function chooseStartType(st) {
     thPendingStartType = thNormStartType(st);
+    try { sessionStorage.setItem('thGalPendingStartType', thPendingStartType); } catch (eST) {}
     renderConfirm();
     writeTitleState('confirm');
     applyTitleState();
