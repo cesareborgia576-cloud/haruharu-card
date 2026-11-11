@@ -58,9 +58,63 @@
     try { if (window.SillyTavern && typeof window.SillyTavern.getContext === 'function') return window.SillyTavern.getContext(); } catch (e) {}
     return null;
   }
+  /* ══ ★ v165X：找 TavernHelper —— 原来只查两处，这就是「格式补全用不了酒馆主 API」的真因 ══
+     旧实现：
+       try { if (HOST && HOST.TavernHelper) return HOST.TavernHelper; } catch (e) {}
+       try { if (window.TavernHelper) return window.TavernHelper; } catch (e) {}
+     但酒馆助手给**每个脚本槽开一个独立 iframe**，TavernHelper 挂在
+     **主窗口**（或另一个 iframe）上，不在本 iframe 里，也不在 HOST 上。
+     于是：
+       · 09 拿不到 generateRaw → 落到「自己填的 API」那条路
+       · 玩家没填过 key → reject('拿不到酒馆的 generateRaw…')
+       · 玩家原话：「格式补全疑似用不了酒馆主 api 推演，这是个早期的 bug」← 就是这里
+     08（变量补全）一直好用，是因为它写了 findTH()：window → parent → top →
+     所有 iframe → 裸 TavernHelper，六路兜底。
+     ⇒ 这里把 08 那套搬过来，两个脚本用同一套找法，不会再一个能用一个不能用。 */
+  function thWindowList() {
+    var out = [];
+    function push(w) { try { if (w && out.indexOf(w) < 0) out.push(w); } catch (e) {} }
+    try { push(window); } catch (e0) {}
+    try { push(window.parent); } catch (e1) {}
+    try { push(window.top); } catch (e2) {}
+    /* 主窗口里的所有 iframe（酒馆助手navigate 出来的那些） */
+    try {
+      var topDoc = (window.top && window.top.document) || null;
+      if (topDoc && topDoc.querySelectorAll) {
+        var ifr = topDoc.querySelectorAll('iframe');
+        for (var i = 0; i < ifr.length; i++) {
+          try { if (ifr[i].contentWindow) push(ifr[i].contentWindow); } catch (eI) {}
+        }
+      }
+    } catch (e3) {}
+    /* 本窗口里的 iframe 也扫一遍（有的版本是嵌在本层） */
+    try {
+      var myDoc = document;
+      if (myDoc && myDoc.querySelectorAll) {
+        var ifr2 = myDoc.querySelectorAll('iframe');
+        for (var j = 0; j < ifr2.length; j++) {
+          try { if (ifr2[j].contentWindow) push(ifr2[j].contentWindow); } catch (eJ) {}
+        }
+      }
+    } catch (e4) {}
+    return out;
+  }
   function TavernHelperRef() {
-    try { if (HOST && HOST.TavernHelper) return HOST.TavernHelper; } catch (e) {}
-    try { if (typeof window !== 'undefined' && window.TavernHelper) return window.TavernHelper; } catch (e) {}
+    var wins = thWindowList();
+    for (var i = 0; i < wins.length; i++) {
+      try { if (wins[i].TavernHelper) return wins[i].TavernHelper; } catch (e) {}
+    }
+    try { if (HOST && HOST.TavernHelper) return HOST.TavernHelper; } catch (e2) {}
+    try { if (typeof TavernHelper !== 'undefined' && TavernHelper) return TavernHelper; } catch (e3) {}
+    /* 有的版本把它挂在 MVU 同级的命名空间里 */
+    try {
+      for (var k = 0; k < wins.length; k++) {
+        var th = wins[k];
+        try {
+          if (th.MVU && typeof th.MVU.generateRaw === 'function') return th.MVU;
+        } catch (e4) {}
+      }
+    } catch (e5) {}
     return null;
   }
 
