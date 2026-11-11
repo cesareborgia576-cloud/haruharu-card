@@ -4249,6 +4249,32 @@ var STYLE = `<style id="th-gal-shell-style">
     50% { box-shadow: 0 0 12px rgba(34, 211, 238, 0.9); }
   }
 
+  /* 版本状态按钮（紫罗兰系 —— 与「修复」组那两颗橙/青区分开，一眼认得出） */
+  .th-gal-btn-version {
+    background: rgba(167, 139, 250, 0.16) !important;
+    border: 1px solid rgba(167, 139, 250, 0.5) !important;
+    color: #c4b5fd !important;
+    border-radius: 4px !important;
+    padding: 2px 7px !important;
+    font-size: calc(9px * var(--ui-scale, 1)) !important;
+    cursor: pointer !important;
+    font-weight: 700 !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    transition: all 0.2s ease !important;
+  }
+  .th-gal-btn-version:hover {
+    background: rgba(167, 139, 250, 0.34) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 8px rgba(167, 139, 250, 0.45) !important;
+  }
+  /* 有新版本时轻微呼吸 —— 只在这一种情况下闪，不当常驻装饰用 */
+  .th-gal-btn-version.is-new { animation: thVerBtnPulse 1.6s ease-in-out infinite !important; }
+  @keyframes thVerBtnPulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(253, 230, 138, 0); }
+    50% { box-shadow: 0 0 10px rgba(253, 230, 138, 0.85); }
+  }
+
   /* ★ v116：篇章扁框 —— 原来那个 position:fixed 的紫色悬浮胶囊，内置到顶栏右侧。
      三篇章各有自己的配色，一眼看出现在在哪一篇（和原来那套配色保持一致，玩家不用重新认）。 */
   .th-gal-btn-arc {
@@ -7856,6 +7882,7 @@ var STYLE = `<style id="th-gal-shell-style">
   body.th-stage-portal-on .th-gal-char-menu,
   body.th-stage-portal-on .th-gal-mapmodal,
   body.th-stage-portal-on .th-gal-calmodal,
+  body.th-stage-portal-on .th-gal-vermodal,
   body.th-stage-portal-on .th-gal-choice-overlay,
   body.th-stage-portal-on .th-gal-multi-panel,
   body.th-stage-portal-on .th-gal-font-pop,
@@ -8090,6 +8117,101 @@ var STYLE = `<style id="th-gal-shell-style">
     .th-cal-sub { display: none !important; }
   }
 
+
+  /* ══════════ 版本状态弹层（照《天元录》的版本页，压缩成一个弹层） ══════════
+     为什么是一个「弹层」而不是天元录那种「分页」：本卡的壳是全屏 galgame，
+     没有左侧页签那套导航；玩家能点到东西的地方只有右侧功能面板。
+     ⇒ 面板里一颗按钮 → 弹层，是这个壳里唯一成立的形态。
+     视觉跟村历（.th-gal-calmodal）同构：同一个遮罩、同一个头、同一套小按钮，
+     玩家不用为这一个弹层再认一种风格。 */
+  .th-gal-vermodal {
+    position: absolute !important; inset: 0 !important; z-index: 901 !important;
+    background: rgba(4, 6, 12, 0.92) !important; display: flex !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif !important;
+  }
+  .th-gal-vermodal[hidden] { display: none !important; }
+  .th-ver-box {
+    display: flex !important; flex-direction: column !important;
+    width: 100% !important; height: 100% !important; min-height: 0 !important;
+  }
+  .th-ver-head {
+    display: flex !important; align-items: center !important; gap: 8px !important; flex-wrap: wrap !important;
+    padding: 8px 12px !important; flex: 0 0 auto !important;
+    border-bottom: 1px solid rgba(252,211,77,.22) !important;
+    background: linear-gradient(90deg, rgba(58,44,18,.9), rgba(15,17,28,.95)) !important;
+  }
+  .th-ver-title { font-size: calc(13px * var(--ui-scale,1)) !important; font-weight: 900 !important; color: #fde68a !important; letter-spacing: .6px !important; }
+  .th-ver-head-acts { margin-left: auto !important; display: flex !important; align-items: center !important; gap: 5px !important; }
+  .th-ver-tbtn {
+    border: 1px solid rgba(148,163,184,.38) !important; background: rgba(30,34,48,.9) !important;
+    color: #e2e8f0 !important; border-radius: 7px !important; padding: 3px 9px !important;
+    font-size: calc(10px * var(--ui-scale,1)) !important; cursor: pointer !important; font-weight: 700 !important;
+  }
+  .th-ver-tbtn:hover { background: #334155 !important; color: #fff !important; }
+  .th-ver-body {
+    flex: 1 1 auto !important; min-height: 0 !important;
+    overflow-y: auto !important; overscroll-behavior: contain !important;
+    padding: 14px 14px 20px !important;
+    display: flex !important; flex-direction: column !important; gap: 10px !important;
+  }
+  /* 状态胶囊：颜色就是结论（绿=最新 / 金=有新版本 / 灰=检查失败） */
+  .th-ver-pill {
+    display: block !important; box-sizing: border-box !important;
+    padding: 9px 12px !important; border-radius: 10px !important;
+    font-size: calc(12px * var(--ui-scale,1)) !important; line-height: 1.6 !important;
+    font-weight: 800 !important; letter-spacing: .02em !important;
+    white-space: normal !important; word-break: break-word !important; text-align: center !important;
+  }
+  .th-ver-pill.is-latest { color: #7ddc9a !important; border: 1px solid rgba(125,220,154,.45) !important; background: rgba(125,220,154,.10) !important; }
+  .th-ver-pill.is-new { color: #fde68a !important; border: 1px solid rgba(212,175,55,.6) !important; background: rgba(212,175,55,.12) !important; }
+  .th-ver-pill.is-err { color: #9aa0a6 !important; border: 1px solid rgba(154,160,166,.45) !important; background: rgba(154,160,166,.09) !important; }
+  .th-ver-pill.is-loading { color: #9aa0a6 !important; border: 1px solid rgba(154,160,166,.35) !important; background: rgba(154,160,166,.07) !important; }
+  /* 一句话更新说明（远端 version.json 的 note / devNote） */
+  .th-ver-note {
+    font-size: calc(10.5px * var(--ui-scale,1)) !important; line-height: 1.7 !important;
+    color: #a8b3c4 !important; text-align: center !important; word-break: break-word !important;
+    padding: 0 4px !important;
+  }
+  .th-ver-note b { color: #fde68a !important; }
+  /* 诊断表：卡版本 / 实际运行 / 通道 / 来源 ref / 线上号 / 上次检查 */
+  .th-ver-diag {
+    margin-top: 4px !important; padding: 10px 12px !important;
+    border: 1px solid rgba(148,163,184,.26) !important; border-radius: 8px !important;
+    background: rgba(20,24,36,.55) !important;
+    font-size: calc(10.5px * var(--ui-scale,1)) !important; line-height: 1.95 !important;
+    color: rgba(203,213,225,.92) !important;
+  }
+  .th-ver-diag-t {
+    font-size: calc(9px * var(--ui-scale,1)) !important; letter-spacing: 1.2px !important;
+    color: rgba(148,163,184,.9) !important; font-weight: 800 !important; margin-bottom: 5px !important;
+  }
+  .th-ver-diag .k { color: rgba(148,163,184,.95) !important; }
+  .th-ver-diag b { color: #fde68a !important; font-weight: 800 !important; word-break: break-all !important; }
+  .th-ver-diag b.is-ok { color: #7ddc9a !important; }
+  .th-ver-diag b.is-bad { color: #f87171 !important; }
+  .th-ver-acts { display: flex !important; gap: 8px !important; flex-wrap: wrap !important; margin-top: 4px !important; }
+  .th-ver-btn {
+    flex: 1 1 auto !important; min-width: 96px !important;
+    padding: 7px 10px !important; border-radius: 8px !important; cursor: pointer !important;
+    font-size: calc(10.5px * var(--ui-scale,1)) !important; font-weight: 800 !important;
+    border: 1px solid rgba(148,163,184,.38) !important; background: rgba(30,34,48,.9) !important;
+    color: #e2e8f0 !important;
+  }
+  .th-ver-btn:hover { background: #334155 !important; color: #fff !important; }
+  .th-ver-btn.is-primary { border-color: rgba(252,211,77,.6) !important; color: #fde68a !important; background: rgba(202,160,52,.16) !important; }
+  .th-ver-btn.is-primary:hover { background: rgba(202,160,52,.32) !important; color: #fff !important; }
+  .th-ver-btn[disabled] { opacity: .45 !important; cursor: default !important; }
+  /* 说明段：写「下一步做什么」，不只报错 */
+  .th-ver-hint {
+    font-size: calc(10px * var(--ui-scale,1)) !important; line-height: 1.85 !important;
+    color: rgba(148,163,184,.9) !important; word-break: break-word !important;
+  }
+  .th-ver-hint code {
+    background: rgba(56,189,248,.10) !important; border: 1px solid rgba(56,189,248,.24) !important;
+    border-radius: 4px !important; padding: 0 4px !important;
+    font-family: ui-monospace, Menlo, Consolas, monospace !important;
+    font-size: calc(9.5px * var(--ui-scale,1)) !important; color: #7dd3fc !important;
+  }
 
   /* ══════════ ★ v143：图片加载层 + 重载按钮 ══════════ */
   .th-img-gate {
@@ -9825,6 +9947,378 @@ try {
 } catch (eExp) {}
 
 
+/* ══════════════════════════════════════════════════════════════════════════
+   版本状态（照《天元录》的版本页搬过来，形态改成弹层）
+
+   ── 为什么要有这一块 ─────────────────────────────────────────────────────
+     本卡的脚本是从 CDN 拉的，热更新是**静默**的：推上去玩家直接用新脚本，
+     但**卡上印的版本号不会变**。于是"我到底在跑哪一版"这个问题，
+     在界面上根本没有答案 —— 作者推完新版没法确认线上生效没，
+     玩家遇到怪现象也没法说清自己跑的是哪份。
+     天元录用一整页解决它（版本分页 + 常驻徽章 + 20 秒轮询）。
+     本卡没有左侧页签，也不该挂常驻元素（壳是全屏 galgame，见 loader 末尾
+     「没抄什么」一节），⇒ 压缩成**一颗按钮 + 一个弹层**，按需打开。
+
+   ── 三个数必须分开印，别合并成一个"版本号" ───────────────────────────────
+     ① 卡版本    卡里钉的 `@@CQ_VER@@`（= 这份卡导入时的版本）
+     ② 实际运行  loader **真正使用的 ref**（热更新后可能是更新的版本 tag）
+     ③ 线上版本  version.json 里当前通道报的号
+     热更新之后 ①②③ 会互不相同，把三个印在同一行、只留一个数字，
+     就会出现天元录 v1.173 记的那个死循环：拿卡上的旧号去比线上号，
+     永远「有新版本」，而刷新多少次都不换脚本。
+     ⇒ 三个都印，并且明写「本页脚本来自」是 tag 还是 commit。
+
+   ── 为什么不在 05 里做 ───────────────────────────────────────────────────
+     05 是界面脚本，只管画；版本判断要读 loader 广播、要发网络请求、
+     要写 localStorage。这些都在 04（核心）里，跟村历、地图同一层。
+     ⇒ 放 04，05 不碰。
+
+   ── 轮询 ─────────────────────────────────────────────────────────────────
+     天元录是 20 秒一次常驻轮询。本卡**不轮询**：
+     弹层不开就不发请求，开了才查一次；关掉就停。
+     理由是这条请求打的是 GitHub raw，对同一出口 IP 限速，
+     挂机时每 20 秒一次纯属白烧（天元录自己也踩到 429 了，见它 v541 的注释）。
+     代价是"打开弹层那一瞬间的号可能比实际晚几秒"，所以给了「⟳ 重查」。
+     ══════════════════════════════════════════════════════════════════════════ */
+
+/* 线上版本状态。字段含义与天元录 HOTV 一致，只是没有常驻轮询。 */
+var TH_VER = {
+  latest: '',      /* 线上该通道报的版本号（v1.0） */
+  note: '',        /* 这一版的一句话说明（version.json 的 note / devNote） */
+  err: false,      /* 上一次检查失败（网络/被拦）≠ 没有新版本 */
+  first: true,     /* 还没查过 */
+  at: 0            /* 上次检查的时刻（Date.now()），弹层上印出来供对时 */
+};
+
+/* 弹层是不是开着 —— 关掉之后回来的响应不再重画（避免白闪一次） */
+var TH_VER_OPEN = false;
+
+function thVerModal() {
+  try { return (typeof getDoc === 'function' ? getDoc() : document).getElementById('th-gal-vermodal'); } catch (e) { return null; }
+}
+
+/* ── 读 loader 广播的三个值 ────────────────────────────────────────────────
+   为什么每个都要 try + 多层回落：本脚本可能跑在 iframe 里，而 loader 往
+   window / top / parent 三处都广播过（见 00-热更新引导.js 的 broadcast()）。
+   只读 window 的话，壳长在 top 里时这里全是空字符串。 */
+function thVerPick(name) {
+  var v = '';
+  try { if (typeof window !== 'undefined' && window[name]) v = String(window[name]); } catch (e0) { v = ''; }
+  if (v) return v;
+  try { if (window.top && window.top !== window && window.top[name]) return String(window.top[name]); } catch (e1) {}
+  try { if (window.parent && window.parent !== window && window.parent[name]) return String(window.parent[name]); } catch (e2) {}
+  return '';
+}
+
+/* 通道：'' 或 'dev' */
+function thVerChan() {
+  var c = thVerPick('__CQ_CHAN__');
+  return (c === 'dev') ? 'dev' : '';
+}
+
+/* ★ 「实际在跑的是哪一版」—— 不能只看卡自带版本号。
+   loader 把真正使用的 ref 写在 __CQ_HOT_REF__ 上：
+     稳定卡刚导入      = 版本 tag（v1.0）或 commit sha
+     开发卡            = commit sha（40 位十六进制）
+     点过更新并被采纳  = 版本 tag
+   是版本 tag 就以它为准（那才是真正在跑的号），否则回落卡自带版本号。
+   ⚠ 只此一处定义，渲染和「是否新版本」判断都调它，别各写一份。 */
+function thVerCurVer() {
+  var ref = thVerPick('__CQ_HOT_REF__');
+  if (/^v[\d.]+$/.test(ref)) return ref;
+  return thVerPick('__CQ_CARD_VER__');
+}
+
+/* 版本号按**数**比，不按字符串：`v1.10 > v1.9` 字符串比较会判错
+   （'v1.10' < 'v1.9' 因为 '1' < '9'）。天元录、loader 各有一份，这里第三份
+   —— 不是重复造轮子，是三个脚本各有独立作用域，跨不到对方。 */
+function thVerNum(v) {
+  var a = String(v == null ? '' : v).replace(/^v/i, '').split('.'), o = [];
+  for (var i = 0; i < a.length; i++) o.push(Number(a[i]) || 0);
+  return o;
+}
+function thVerNewer(a, b) {
+  if (!a || !b) return false;
+  var x = thVerNum(a), y = thVerNum(b), n = Math.max(x.length, y.length);
+  for (var i = 0; i < n; i++) {
+    var p = x[i] || 0, q = y[i] || 0;
+    if (p > q) return true;
+    if (p < q) return false;
+  }
+  return false;
+}
+
+function thVerEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ── 查线上版本 ───────────────────────────────────────────────────────────
+   ★ 只能走 GitHub raw，**不能用 jsdelivr**：分支引用在 jsdelivr 上是
+     s-maxage=43200，加 query 也绕不开 ⇒ 返回 12 小时前的旧号。
+     路径必须是 `/refs/heads/main/`，不能是 `/main/`（实测同样吃到旧值）。
+     这两个坑 loader 里已记过一次，这里照抄，别再踩。
+   ★ 开发卡读 `dev`、稳定卡读 `stable`：stable 只在真打了 tag 时前进，
+     开发推永远不碰它 —— 否则玩家会被引去拉一个不存在的 tag。 */
+var TH_VER_URL = 'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/refs/heads/main/version.json';
+
+function thVerCheck(cb) {
+  var done = false;
+  function finish(ok, latest, note) {
+    if (done) return;
+    done = true;
+    TH_VER.first = false;
+    TH_VER.at = Date.now();
+    if (ok) { TH_VER.err = false; TH_VER.latest = String(latest || ''); TH_VER.note = String(note || ''); }
+    else { TH_VER.err = true; }
+    if (typeof cb === 'function') { try { cb(ok); } catch (eC) {} }
+  }
+  try {
+    var x = new XMLHttpRequest();
+    x.open('GET', TH_VER_URL + '?t=' + Date.now(), true);
+    x.timeout = 12000;
+    x.onload = function () {
+      var j = null;
+      try { j = JSON.parse(x.responseText); } catch (eJ) { j = null; }
+      var dev = (thVerChan() === 'dev');
+      var st = dev
+        ? ((j && j.dev) ? String(j.dev) : '')
+        : ((j && j.stable) ? String(j.stable) : '');
+      /* 说明按同一条通道挑：开发卡读 devNote，退役到 note。取不到就空着，
+         **绝不编一句假说明** —— 假说明比没有说明更误导。 */
+      var nt = dev
+        ? ((j && j.devNote) ? String(j.devNote) : ((j && j.note) ? String(j.note) : ''))
+        : ((j && j.note) ? String(j.note) : '');
+      nt = String(nt || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      if (x.status !== 200 || !/^v[\d.]+$/.test(st)) { finish(false); return; }
+      finish(true, st, nt);
+    };
+    x.onerror = function () { finish(false); };
+    x.ontimeout = function () { finish(false); };
+    x.send();
+  } catch (e) { finish(false); }
+}
+
+/* ── 画弹层 ───────────────────────────────────────────────────────────────
+   全部内容在打开 / 重查时现画，不做增量更新 —— 这个弹层很小，
+   整块重画比"记住哪些节点要改"省心，也不会漏掉某个数没刷新。 */
+function thVerRender() {
+  var doc = (typeof getDoc === 'function' ? getDoc() : document);
+  var box = doc.getElementById('th-ver-body');
+  if (!box) return;
+
+  var cv = thVerPick('__CQ_CARD_VER__');   /* 卡里钉的号 */
+  var cur = thVerCurVer();                 /* 真正在跑的号 */
+  var ref = thVerPick('__CQ_HOT_REF__');   /* 脚本来源 ref */
+  var chan = thVerChan();
+  var isNew = (!TH_VER.first && !TH_VER.err && thVerNewer(TH_VER.latest, cur));
+
+  /* ① 状态胶囊：颜色就是结论 */
+  var pill, pillCls;
+  if (TH_VER.first) { pill = '⋯ 正在检查线上版本…'; pillCls = 'is-loading'; }
+  else if (TH_VER.err) { pill = '？ 检查失败（网络 / 被拦 / 取不到 version.json）'; pillCls = 'is-err'; }
+  else if (isNew) { pill = '📦 有新版本 ' + TH_VER.latest + '　当前 ' + (cur || '未知'); pillCls = 'is-new'; }
+  else { pill = '✓ 已是最新' + (cur ? ' ' + cur : ''); pillCls = 'is-latest'; }
+
+  var html = '<div class="th-ver-pill ' + pillCls + '">' + thVerEsc(pill) + '</div>';
+
+  /* ② 这一版改了什么（远端没写就整行不出现） */
+  if (TH_VER.note) {
+    html += '<div class="th-ver-note">'
+      + (TH_VER.latest ? '<b>' + thVerEsc(TH_VER.latest) + '</b> · ' : '')
+      + thVerEsc(TH_VER.note) + '</div>';
+  }
+
+  /* ③ 诊断表：三个数分开印，这是本弹层存在的理由 */
+  function t(ms) {
+    var d = new Date(ms), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  var last = TH_VER.at ? t(TH_VER.at) : '还没查过';
+  var online = TH_VER.err ? '检查失败' : (TH_VER.first ? '检查中…' : (TH_VER.latest || '没取到'));
+  /* 卡版本 vs 实际运行 不一致 = 热更新生效了（脚本换了、卡没换）。
+     这不是错误，是正常状态，用金色标出即可；只有在"卡比线上旧"时才算异常。 */
+  var sameCard = (cv && cur && cv === cur);
+  html += '<div class="th-ver-diag">'
+    + '<div class="th-ver-diag-t">诊断</div>'
+    + '<span class="k">卡版本</span>　<b>' + thVerEsc(cv || '未知') + '</b>'
+    + '　<span class="k">实际运行</span>　<b class="' + (sameCard ? 'is-ok' : '') + '">' + thVerEsc(cur || '未知') + '</b><br>'
+    + '<span class="k">通道</span>　<b>' + (chan === 'dev' ? '开发（DEV）' : '稳定（玩家）') + '</b>'
+    + '　<span class="k">线上版本</span>　<b class="' + (TH_VER.err ? 'is-bad' : '') + '">' + thVerEsc(online) + '</b><br>'
+    + '<span class="k">本页脚本来自</span>　<b>' + thVerEsc(ref ? ref.slice(0, 12) : '未知') + '</b>'
+    + '<span class="k">（' + (ref && /^[0-9a-f]{40}$/.test(ref) ? 'commit' : 'tag') + '）</span><br>'
+    + '<span class="k">上次检查</span>　<b>' + thVerEsc(last) + '</b>'
+    + '</div>';
+
+  /* ④ 动作键 */
+  html += '<div class="th-ver-acts">'
+    + '<button type="button" class="th-ver-btn is-primary" data-th-veract="recheck">⟳ 立刻重查</button>'
+    /* 「刷新」只在真能换脚本时才有意义：
+       开发卡钉 commit，点它也只是重载同一份 ⇒ 禁用并说明，别给假按钮。 */
+    + '<button type="button" class="th-ver-btn" data-th-veract="refresh"'
+    + (isNew ? '' : ' disabled') + '>↻ 刷新并换到 ' + (isNew ? thVerEsc(TH_VER.latest) : '线上版') + '</button>'
+    + '<button type="button" class="th-ver-btn" data-th-veract="reset" title="清掉「记住的版本 tag」，再按卡自带的 ref 重载">🧹 清掉记住的版本</button>'
+    + '</div>';
+
+  /* ⑤ 说明段：写「下一步做什么」，不只报错 */
+  if (TH_VER.err) {
+    html += '<div class="th-ver-hint">检查失败多半是网络到不了 GitHub。'
+      + '这不等于「已是最新」，也不等于「卡坏了」—— 点「⟳ 立刻重查」再试一次。</div>';
+  }
+  if (chan === 'dev') {
+    html += '<div class="th-ver-hint">当前是<b>开发通道</b>：脚本按 commit sha 拉，'
+      + '线上报的号只用于对账，<b>不会</b>把玩家引到未测的版本上。'
+      + '要换脚本得重新导入开发卡。</div>';
+  }
+  if (isNew) {
+    html += '<div class="th-ver-hint">点「刷新并换到 ' + thVerEsc(TH_VER.latest) + '」会先记住这个版本 tag，'
+      + '再整页重载 —— 下次加载才真正换脚本。'
+      + '已经跑起来的脚本卸不掉，刷新是唯一能换源的动作。</div>';
+  }
+  if (!TH_VER.first && !TH_VER.err && !isNew && cur && cv && cur !== cv) {
+    html += '<div class="th-ver-hint">卡版本与「实际运行」不一致是<b>正常的</b>：'
+      + '热更新换了脚本但不会改卡，卡上印的号自然还停在导入时那一版。</div>';
+  }
+
+  box.innerHTML = html;
+
+  /* 按钮上的「有新版本」呼吸效果同步到顶栏那颗（关掉弹层也能看见） */
+  try {
+    var doc2 = (typeof getDoc === 'function' ? getDoc() : document);
+    var btn = doc2.querySelector('.th-gal-btn-version');
+    if (btn) {
+      if (isNew) btn.classList.add('is-new'); else btn.classList.remove('is-new');
+      btn.title = isNew
+        ? ('版本状态：线上有 ' + TH_VER.latest + '，当前跑 ' + (cur || '未知') + '（点开可刷新）')
+        : '版本状态：卡版本 / 实际运行的脚本来源 / 线上最新版，以及重查与刷新';
+    }
+  } catch (eBtn) {}
+}
+
+/* ── 开关 ─────────────────────────────────────────────────────────────────
+   打开时立刻查一次（不带轮询）：玩家点开就是想看现在的号，
+   给他一个"上次查的旧结果"等于没查。 */
+function thVerOpen() {
+  var m = thVerModal();
+  if (!m) return;
+  TH_VER_OPEN = true;
+  m.removeAttribute('hidden');
+  TH_VER.first = true;          /* 先画「检查中」，别让上一次的结论冒充这次 */
+  TH_VER.err = false;
+  thVerRender();
+  thVerCheck(function () {
+    /* 关掉之后回来的响应不再重画：玩家已经走了，重画只会白闪 */
+    if (TH_VER_OPEN) thVerRender();
+  });
+  try { if (typeof PixelAudio !== 'undefined') PixelAudio.playPageBlip(); } catch (e) {}
+}
+function thVerClose() {
+  TH_VER_OPEN = false;
+  var m = thVerModal();
+  if (m) m.setAttribute('hidden', '');
+}
+
+/* ── 点击委托（捕获阶段，壳重画 / 面板重建都不丢） ──────────────────────
+   与村历同一套写法：绑在文档捕获阶段，元素被重建也不用重绑。 */
+try {
+  if (!window.__thVerClickBound) {
+    window.__thVerClickBound = true;
+    var __thVerDoc = (typeof getDoc === 'function' ? getDoc() : document);
+    __thVerDoc.addEventListener('click', function (ev) {
+      var el = ev.target;
+      if (!el || !el.closest) return;
+
+      /* 顶栏 / 面板镜像那颗：打开弹层 */
+      var op = el.closest('[data-th-veropen]');
+      if (op) {
+        try { ev.stopPropagation(); ev.preventDefault(); } catch (e0) {}
+        thVerOpen(); return;
+      }
+
+      var act = el.closest('[data-th-veract]');
+      if (!act) return;
+      try { ev.stopPropagation(); ev.preventDefault(); } catch (e1) {}
+      var a = String(act.getAttribute('data-th-veract') || '');
+
+      if (a === 'close') { thVerClose(); return; }
+
+      if (a === 'recheck') {
+        TH_VER.first = true; TH_VER.err = false;
+        thVerRender();
+        thVerCheck(function () { if (TH_VER_OPEN) thVerRender(); });
+        return;
+      }
+
+      /* ★ 刷新之前**必须先把「下次用哪个 ref」告诉 loader**。
+         只写 location.reload() 是无效的：loader 每次开机都按卡里钉的那个 ref
+         去拉脚本，卡没换 ⇒ ref 没变 ⇒ 刷新一百次拉到的还是同一批旧脚本。
+         （天元录为此被作者骂过两次，前一次只加了诊断没动真因。）
+         ⇒ 写 localStorage.cqHotRef = 线上版本号，loader 开机读它
+           （脚本/00 第 110 行 `if (!DEV && saved && /^v[\d.]+$/.test(saved)) REF = saved;`）
+           就会改从那个版本 tag 拉脚本。
+         ⚠ **只写 cqHotRef，别动 cqHotCardTag**：后者存的是卡自带 ref，
+           改了会让 loader 判成"换了张卡"，把记住的 ref 清掉。
+         ⚠ 开发通道不写：DEV 刻意钉 commit，写了也会被 loader 忽略
+           （第 110 行有 `!DEV` 前置），不如直接说清楚"重新导入开发卡"。 */
+      if (a === 'refresh') {
+        var tg = String(TH_VER.latest || '');
+        var cur = thVerCurVer();
+        var dev = (thVerChan() === 'dev');
+        if (dev) {
+          if (typeof showToast === 'function') {
+            showToast('开发通道按 commit 拉脚本，刷新不会换版本——要换请重新导入开发卡', 3600);
+          }
+          return;
+        }
+        if (!/^v[\d.]+$/.test(tg) || !thVerNewer(tg, cur)) {
+          if (typeof showToast === 'function') showToast('线上没有比当前更新的版本', 2600);
+          return;
+        }
+        try { localStorage.setItem('cqHotRef', tg); } catch (eS0) {}
+        try { if (window.top && window.top !== window) window.top.localStorage.setItem('cqHotRef', tg); } catch (eS1) {}
+        try { if (window.parent && window.parent !== window) window.parent.localStorage.setItem('cqHotRef', tg); } catch (eS2) {}
+        if (typeof showToast === 'function') showToast('已记住 ' + tg + '，正在重载…', 1800);
+        try { (window.top || window).location.reload(); }
+        catch (eR) { try { location.reload(); } catch (eR2) {} }
+        return;
+      }
+
+      if (a === 'reset') {
+        /* 清掉"记住的版本 tag"。它是稳定卡点过更新后留下的；
+           一旦它指向一个不存在的 tag（比如开发推的号被记到了稳定卡上），
+           loader 就会一直按那个 ref 去拉 ⇒ 全部 404 ⇒ 空壳。
+           清完按卡自带 ref 重载，回到"这张卡本来该跑的那一版"。 */
+        try { localStorage.removeItem('cqHotRef'); } catch (eR0) {}
+        try { localStorage.removeItem('cqHotCardTag'); } catch (eR1) {}
+        if (typeof showToast === 'function') showToast('已清掉记住的版本，正在按卡自带 ref 重载…', 1800);
+        try { (window.top || window).location.reload(); }
+        catch (eR2) { try { location.reload(); } catch (eR3) {} }
+        return;
+      }
+    }, true);
+    /* Esc 关弹层 —— 与村历同一个习惯，别让玩家只能找 ✕ */
+    __thVerDoc.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') {
+        var mm = thVerModal();
+        if (mm && !mm.hasAttribute('hidden')) thVerClose();
+      }
+    }, true);
+  }
+} catch (eVerBind) {}
+
+/* 导出：世界书 / 推演脚本要读"线上是哪版"时走这里，不重复发请求 */
+try {
+  if (typeof HOST !== 'undefined' && HOST) {
+    HOST.__thVerOpen = thVerOpen;
+    HOST.__thVerClose = thVerClose;
+    HOST.__thVerCurVer = thVerCurVer;
+    HOST.__thVerCheck = thVerCheck;
+    HOST.__thVerNewer = thVerNewer;
+    HOST.__thVerState = TH_VER;
+  }
+} catch (eVerExp) {}
+
 function timeLabel() {
   /* ★ v164：改成 年/月/日 + 周几 + 时刻，不再有「第 N 天」。
      用户原话：「第几天这个变量就去掉吧，不要了。」
@@ -11504,6 +11998,9 @@ function buildShellDOM() {
         '<button type="button" class="th-gal-btn-mvu-heal" title="MVU 变量自愈监控：实时嗅探，点击可查看状态或手动补算">🩺 变量自愈</button>' +
         /* ★ v115：格式补全单独一颗，紧挨变量自愈（用户要求「放在变量补全的旁边」） */
         '<button type="button" class="th-gal-btn-format-fix" title="格式补全：本楼读不出正文时，点这里调 AI 补上 &lt;content&gt;">📐 格式补全</button>' +
+        /* 版本状态：热更新之后「我到底在跑哪一版」没人看得见，这颗是唯一入口。
+           点开是一个弹层，不常驻、不挡画面（本卡刻意不抄天元录的常驻悬浮球）。 */
+        '<button type="button" class="th-gal-btn-version" data-th-veropen="1" title="版本状态：卡版本 / 实际运行的脚本来源 / 线上最新版，以及重查与刷新">🏷 版本</button>' +
         '<button type="button" class="th-gal-btn-home" title="直接回家（免消耗）">🏠 回家</button>' +
       '</div>' +
     '</div>' +
@@ -12038,6 +12535,23 @@ function buildShellDOM() {
             '<div>· 日历只是给<b>你</b>看的方便表，正文里不写「日历」「面板」「按钮」这类界面词——写就写节日本身：灯笼、太鼓、茅之轮、团子。</div>' +
           '</div>' +
         '</div>' +
+      '</div>' +
+    '</div>' +
+    /* ══════════ 版本状态弹层（照《天元录》的版本页） ══════════
+       内容全部由 thVerRender() 在打开/重查时重画，这里只留骨架：
+       状态胶囊 + 更新说明 + 诊断表 + 三颗动作键 + 说明段。
+       跟着壳一起进 portal（CSS 里已登记 .th-gal-vermodal），
+       因为全屏时整个壳会被搬到 body 下，弹层得跟着走才看得见。 */
+    '<div class="th-gal-vermodal" id="th-gal-vermodal" hidden>' +
+      '<div class="th-ver-box">' +
+        '<div class="th-ver-head">' +
+          '<span class="th-ver-title">🏷 版本状态</span>' +
+          '<div class="th-ver-head-acts">' +
+            '<button type="button" class="th-ver-tbtn" data-th-veract="recheck" title="立刻重新问一次线上版本">⟳ 重查</button>' +
+            '<button type="button" class="th-ver-tbtn" data-th-veract="close">✕ 关闭</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="th-ver-body" id="th-ver-body"></div>' +
       '</div>' +
     '</div>' +
     '<div class="th-gal-shell-popover"></div>' +
@@ -20019,7 +20533,10 @@ function thBuildHudPanel(shell) {
     { t: '世界', keys: ['th-gal-btn-arc', 'th-gal-btn-season', 'th-gal-btn-weather', 'th-gal-btn-art',
                         'th-gal-btn-map', 'th-gal-btn-calendar', 'th-gal-btn-bag', 'th-gal-btn-home'] },
     /* ★ v150 新增：原顶栏急救键（重载图片 / 变量自愈 / 格式补全） */
-    { t: '修复', keys: ['th-gal-btn-reloadimg', 'th-gal-btn-mvu-heal', 'th-gal-btn-format-fix'] }
+    { t: '修复', keys: ['th-gal-btn-reloadimg', 'th-gal-btn-mvu-heal', 'th-gal-btn-format-fix'] },
+    /* 版本：单独一组，不混进「修复」—— 它不修任何东西，只是查号。
+       放最后一组，玩家要找它在哪儿时按「底下那组」记就够。 */
+    { t: '版本', keys: ['th-gal-btn-version'] }
   ];
   var used = {};
   var html = '';
