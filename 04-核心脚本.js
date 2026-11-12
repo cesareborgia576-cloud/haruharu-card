@@ -27507,4 +27507,87 @@ try { cqPatchWorldPrompts(); } catch (eW) {}
 /* 世界书可能比脚本晚就绪，2.5 秒后再兜一次（幂等） */
 try { setTimeout(cqPatchWorldPrompts, 2500); } catch (eT) {}
 
+/* ══ ★ v172：世界书结构天元录化（运行时纠偏） ══════════════════════════
+   老板原话：「谁让你开的创作要求，给老子删了」「变量条目照天元录摆」。
+   旧卡（还带着「创作要求」「强调」散条的包）刷新时 best-effort 做同一套手术：
+     ① 删「创作要求」；② 删「强调」，收尾强调折进「变量更新规则」末尾（天元录式短段）；
+     ③ 变量三件套 display_index 提到最前。
+   ★ 只认本卡世界书；有 updateWorldbookWith / replaceWorldbook 才写，拿不到就跳过；
+     已是新版 ⇒ 标记对不上，一个字节不动。幂等，可反复跑。
+   ════════════════════════════════════════════════════════════════ */
+var CQ_V172_RULES_TAIL = "---\n\n变量输出强调:\n  rule: 每楼回复的末尾必须插入下面这个变量块，任何情况下不可省略；有且只有这一份，不补第二份。\n  format: |-\n    <UpdateVariable>\n    <JSONPatch>\n    [ … ]\n    </JSONPatch>\n    </UpdateVariable>";
+function cqPatchWorldV172Mutate(list) {
+  var changed = false;
+  function nm(e) { try { return String(e.comment || e.name || ""); } catch (eN) { return ""; } }
+  function idx(name) { for (var i = 0; i < list.length; i++) { if (nm(list[i]) === name) return i; } return -1; }
+  var iC = idx("创作要求");
+  if (iC >= 0) { list.splice(iC, 1); changed = true; }
+  var iE = idx("强调");
+  if (iE >= 0) { list.splice(iE, 1); changed = true; }
+  var iR = idx("[mvu_update]变量更新规则");
+  if (iR >= 0) {
+    var c = String(list[iR].content || "");
+    if (c.indexOf("变量输出强调:") < 0) {
+      list[iR].content = c.replace(/\s+$/, "") + "\n\n" + CQ_V172_RULES_TAIL + "\n";
+      changed = true;
+    }
+  }
+  /* 变量三件套 display_index 提到最前：删完之后全表按排位重编（0..N-1），
+     跟源容器 v172 手术后的终态一致；字段拿不到就整段跳过 */
+  var hasDI = false;
+  for (var i2 = 0; i2 < list.length; i2++) {
+    var e2 = list[i2];
+    if (e2 && e2.extensions && typeof e2.extensions.display_index === "number") { hasDI = true; break; }
+  }
+  if (hasDI) {
+    for (var i3 = 0; i3 < list.length; i3++) {
+      var e3 = list[i3];
+      if (!e3) continue;
+      if (!e3.extensions) { try { e3.extensions = {}; } catch (eX1) {} }
+      if (e3.extensions && e3.extensions.display_index !== i3) { e3.extensions.display_index = i3; changed = true; }
+    }
+  }
+  return changed;
+}
+function cqPatchWorldV172() {
+  var wins = [];
+  function push(w) { try { if (w && wins.indexOf(w) < 0) wins.push(w); } catch (e) {} }
+  try { push(window); } catch (e0) {}
+  try { push(window.parent); } catch (e1) {}
+  try { push(window.top); } catch (e2) {}
+  try {
+    var td = window.top && window.top.document;
+    if (td && td.querySelectorAll) {
+      var ifr = td.querySelectorAll("iframe");
+      for (var i = 0; i < ifr.length; i++) { try { push(ifr[i].contentWindow); } catch (eI) {} }
+    }
+  } catch (e3) {}
+  for (var wi = 0; wi < wins.length; wi++) {
+    var w = wins[wi], rd = null;
+    try { if (w && typeof w.getWorldbook === "function") rd = w.getWorldbook; } catch (e4) {}
+    if (!rd) { try { if (typeof getWorldbook === "function") rd = getWorldbook; } catch (e5) {} }
+    if (!rd) continue;
+    var names = [];
+    try {
+      var nms = (w.getCharWorldbookNames ? w.getCharWorldbookNames("current") : null);
+      if (nms) { if (nms.primary) names.push(nms.primary); if (nms.additional) names = names.concat(nms.additional); }
+      if (w.getChatWorldbookName) { var cw = w.getChatWorldbookName("current"); if (cw) names.push(cw); }
+    } catch (e6) {}
+    for (var ni = 0; ni < names.length; ni++) {
+      var nm2 = names[ni];
+      try {
+        if (w && typeof w.updateWorldbookWith === "function") {
+          w.updateWorldbookWith(nm2, function (l) { try { cqPatchWorldV172Mutate(l); } catch (eM) {} return l; });
+        } else if (w && typeof w.replaceWorldbook === "function") {
+          var l2 = rd(nm2);
+          if (l2 && l2.length && cqPatchWorldV172Mutate(l2)) w.replaceWorldbook(nm2, l2);
+        }
+      } catch (eW2) {}
+    }
+  }
+}
+try { cqPatchWorldV172(); } catch (eV172) {}
+/* 世界书可能比脚本晚就绪，2.5 秒后再兜一次（幂等） */
+try { setTimeout(cqPatchWorldV172, 2500); } catch (eV172T) {}
+
 })();
