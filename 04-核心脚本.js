@@ -1536,6 +1536,26 @@ var HOST = (function () {
 })();
 
 function getDoc() { return HOST.document || document; }
+
+/* ★ v170：给「不在 setupInteractions 作用域里」的调用点一个安全出口。
+   ★ 必须在**顶层**：第一次把它放在 setupInteractions 内部，结果外面
+     照样 ReferenceError（thSwitchPlace is not defined），等于没修。
+   switchSceneLocation 是那个函数里的闭包，外面直接写它的名字必然报错，
+   标题屏「继续游戏」就是这么变成「点了没反应」的。 */
+function thSwitchPlace(loc, opts) {
+  try {
+    if (typeof setupInteractions !== 'undefined' && setupInteractions
+        && typeof setupInteractions.switchSceneLocation === 'function') {
+      setupInteractions.switchSceneLocation(loc, opts || {});
+      return true;
+    }
+  } catch (e0) {}
+  try {
+    var w = (typeof HOST !== 'undefined' && HOST) ? HOST : window;
+    if (typeof w.__thSwitchScene === 'function') { w.__thSwitchScene(loc, opts || {}); return true; }
+  } catch (e1) {}
+  return false;
+}
 /* ══ ★ v155：跨 document 找元素 ══
    以前全卡统一用 getDoc()，但 getDoc() 只认 HOST.document 一个。
    HOST 优先取 window.top —— 壳要是长在另一个 document 里（外置全屏、
@@ -8681,6 +8701,47 @@ var STYLE = `<style id="th-gal-shell-style">
     50%      { opacity: 1;   transform: scale(1.12); }
   }
 
+  /* ══ ★ v170：线上有新推送 —— 游戏界面居中最上方 ══════════════════════
+     和 .th-gen-toast 分开做：那条是「正在推进中」且 pointer-events:none，
+     永不参与交互；这条必须能点（立即刷新 / 关掉），位置也略低一点，
+     免得两条药丸叠在一起。 */
+  .th-push-bar {
+    position: absolute !important;
+    top: 32px !important;
+    left: 50% !important;
+    transform: translate(-50%, -8px) !important;
+    z-index: 96 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: calc(7px * var(--ui-scale, 1)) !important;
+    padding: calc(5px * var(--ui-scale, 1)) calc(11px * var(--ui-scale, 1)) !important;
+    border-radius: 999px !important;
+    background: linear-gradient(135deg, rgba(46, 32, 10, .96), rgba(24, 17, 7, .95)) !important;
+    border: 1px solid rgba(252, 211, 77, .66) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, .62), 0 0 16px rgba(252, 211, 77, .26) !important;
+    backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important;
+    color: #ffe9ae !important;
+    font-size: calc(10.5px * var(--ui-scale, 1)) !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    opacity: 0 !important; visibility: hidden !important;
+    transition: opacity .22s ease, transform .22s ease, visibility .22s !important;
+  }
+  .th-push-bar.is-on { opacity: 1 !important; visibility: visible !important; transform: translate(-50%, 0) !important; }
+  .th-push-bar button {
+    flex: 0 0 auto !important;
+    border: 1px solid rgba(252, 211, 77, .48) !important;
+    border-radius: 999px !important;
+    background: rgba(252, 211, 77, .14) !important;
+    color: #ffe9ae !important;
+    font-size: calc(10px * var(--ui-scale, 1)) !important;
+    font-weight: 800 !important;
+    padding: 2px 8px !important;
+    cursor: pointer !important;
+  }
+  .th-push-bar button:hover { background: rgba(252, 211, 77, .30) !important; }
+
   /* 功能面板：快捷栏全部按钮搬进这里 */
   .th-gal-hud-panel {
     position: absolute !important;
@@ -8697,6 +8758,10 @@ var STYLE = `<style id="th-gal-shell-style">
     backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important;
   }
   .th-gal-hud-panel.is-open { transform: translateX(0) !important; }
+  /* ★ v170：展开动画只有 .2s，动画还没走完时按钮在 hit-test 上已经到位。
+     手机 touchend 补发的合成 click 会直接落在按钮上 —— 玩家点开拉手的一瞬间
+     就顺手把里面某颗按钮点了。给面板一段极短的「不吃点击」窗口补上这个洞。 */
+  .th-gal-hud-panel.th-hud-opening { pointer-events: none !important; }
   .th-gal-hud-panel-head {
     display: flex !important; align-items: center !important; gap: 8px !important;
     padding: 8px 10px 7px !important; flex: 0 0 auto !important;
@@ -10359,6 +10424,102 @@ try {
     HOST.__thVerState = TH_VER;
   }
 } catch (eVerExp) {}
+
+/* ══ ★ v170：线上有新推送 → 游戏界面居中最上方横幅 ══════════════════════
+   ── 为什么不能只比版本号 ────────────────────────────────────────────────
+     老板要的是「不更迭版本号的玩家通道更新」：stableVer 还是 v1.0，
+     stableRef 却已经指向新 commit。version.json 一个字都没变，
+     原来那套 thVerNewer(线上, 卡里) 永远判不出有新东西。
+     ⇒ 判据换成 **ref 变了没有**：开机记下 loader 实际采用的 ref，
+       之后定时问 latest.json 里**本通道**的指针；不一样就是有新推送。
+       版本更迭同样覆盖（发新版时 ref 也会变）；开发读 ref、稳定读 stableRef，
+       两条通道互不串，玩家绝不会被开发推打扰。
+   ── 为什么轮询 ──────────────────────────────────────────────────────────
+     推送发生在玩家**已经开着页面**的时候，只开机查一次等于永远不知道。
+     6 秒后首查（避开开局那串脚本加载），之后每 60 秒一次；
+     查不到就静默等下一轮，绝不弹「检查失败」打扰玩家。
+*/
+var TH_PUSH = { base: '', shown: false, closed: false };
+var TH_PUSH_URL = 'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/refs/heads/main/latest.json';
+
+function thPushEnsure(shell) {
+  var el = shell.querySelector('.th-push-bar');
+  if (el) return el;
+  el = getDoc().createElement('div');
+  el.className = 'th-push-bar';
+  el.setAttribute('role', 'status');
+  el.innerHTML = '<span>📦 有新版本推送 · 刷新网页自动更新</span>' +
+    '<button type="button" data-th-push-reload="1">立即刷新</button>' +
+    '<button type="button" data-th-push-close="1" title="不再提示">✕</button>';
+  try { shell.appendChild(el); } catch (eA) { return null; }
+  el.addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (!t || !t.getAttribute) return;
+    if (t.getAttribute('data-th-push-close')) {
+      TH_PUSH.closed = true;
+      el.classList.remove('is-on');
+      return;
+    }
+    if (t.getAttribute('data-th-push-reload')) {
+      try {
+        var w = (typeof HOST !== 'undefined' && HOST && HOST.location) ? HOST : window;
+        w.location.reload();
+      } catch (eR) {}
+    }
+  });
+  return el;
+}
+
+function thPushShow() {
+  if (TH_PUSH.shown || TH_PUSH.closed) return;
+  var shell = getDoc().querySelector('#th-gal-shell-root');
+  if (!shell) return;
+  var el = thPushEnsure(shell);
+  if (!el) return;
+  TH_PUSH.shown = true;
+  el.classList.add('is-on');
+}
+
+function thPushCheck() {
+  if (TH_PUSH.shown || TH_PUSH.closed) return;
+  if (!TH_PUSH.base) {
+    /* loader 可能还没写完 __CQ_HOT_REF__：这一轮只记基准，不判 */
+    var cur = thVerPick('__CQ_HOT_REF__');
+    if (cur) TH_PUSH.base = cur;
+    return;
+  }
+  try {
+    var x = new XMLHttpRequest();
+    x.open('GET', TH_PUSH_URL + '?t=' + Date.now(), true);
+    x.timeout = 9000;
+    x.onload = function () {
+      if (x.status !== 200) return;
+      var j = null;
+      try { j = JSON.parse(x.responseText); } catch (eJ) { return; }
+      if (!j) return;
+      var dev = (thVerChan() === 'dev');
+      var r = String((dev ? j.ref : j.stableRef) || '');
+      /* 只认完整 40 位 sha：空 / 半截 / 老格式都不判，避免误报 */
+      if (!/^[0-9a-f]{40}$/.test(r)) return;
+      if (r !== TH_PUSH.base) thPushShow();
+    };
+    x.onerror = x.ontimeout = function () {};
+    x.send();
+  } catch (eX) {}
+}
+
+/* 只挂一次：热更脚本可能被重复执行，多个定时器会叠成请求风暴 */
+try {
+  if (typeof HOST !== 'undefined' && HOST && !HOST.__thPushTimer) {
+    HOST.__thPushTimer = -1;              /* 先占位，防重入 */
+    setTimeout(function () {
+      var cur0 = thVerPick('__CQ_HOT_REF__');
+      if (cur0 && !TH_PUSH.base) TH_PUSH.base = cur0;
+      thPushCheck();
+      HOST.__thPushTimer = setInterval(thPushCheck, 60000);
+    }, 6000);
+  }
+} catch (ePushInit) {}
 
 function timeLabel() {
   /* ★ v164：改成 年/月/日 + 周几 + 时刻，不再有「第 N 天」。
@@ -15435,7 +15596,7 @@ function stripInnerTags(text) {
    v107~v146 走的是「只认 <对话框显示>」这条路 —— 契约干净，但模型一旦漏写
    就整个对话框空白，玩家实际体验是「又掉格式了」。现在改成**尽量读出内容**：
 
-     第一层（穷举 6 个正文标签，按顺序取第一个命中的）：
+     第一层（穷举 6 个正文标签，★ v170 起只取**字数最多**的那一段）：
        <content> <gametext> <game> <maintext> <正文> <text>
        命中后 → 把里面「所有标签 + 它们包裹的内容」整块吞掉，只留纯文字。
 
@@ -15509,17 +15670,96 @@ function v147PickTag(decoded, tag) {
   return '';
 }
 
-/* 第一层：穷举 6 个正文标签 */
-function v147FirstTagBlock(decoded) {
+/* ══ ★ v170：正文标签「只显示字最多的那一段」══════════════════════════
+   老板原话：「当 AI 犯蠢在思维链里输出了一遍闭合的正文标签时，
+   对话框此时会率先显示这一段，后面的正文标签就不会显示了。」
+
+   旧版两处都在「取第一个」，叠起来正好把这个 bug 焊死：
+     · thStripOutsideBody  只保留**第一个非空**成对正文标签块，后面的全剪掉
+     · v147FirstTagBlock   按标签优先级取第一个命中就 return
+   ⇒ 思维链里那段短草稿一旦成形，真正的长正文连参与比较的机会都没有。
+
+   现在统一成一套判据：先扫出**所有**正文标签块，再按「剥完标签后的纯文字
+   字数」取最多的那段；字数相同取**靠后**的（正文在后、草稿在前）。
+   标签外仍然一律不参与，v165i 的约束继续成立。
+*/
+/* 通用 token：开 / 闭标签，标签名中英文都认。
+   用 .source 重新构造 RegExp，免得在字符串里跟正则转义打架。 */
+var V170_TAG_TOKEN = /<([a-zA-Z0-9_\u4e00-\u9fa5]+)(?:\s[^>]*)?>|<\/([a-zA-Z0-9_\u4e00-\u9fa5]+)\s*>/gi;
+
+function v170IsTextTag(name) {
+  var n = String(name || '').toLowerCase();
   for (var i = 0; i < V147_TEXT_TAGS.length; i++) {
-    var tag = V147_TEXT_TAGS[i];
-    var raw = v147PickTag(decoded, tag);
-    if (!raw) continue;
-    var txt = v147StripAllTags(raw);
-    if (txt && txt.trim()) return { text: txt, tag: tag };
+    if (String(V147_TEXT_TAGS[i]).toLowerCase() === n) return true;
   }
-  return null;
+  return false;
 }
+
+/* 扫出所有「最外层」正文标签块，外加最后一个未闭合的正文开标签。
+   返回 [{ start, end, inner, tag, closed }]，按 start 升序。
+   嵌套（同名或不同名）只在最外层收一次，内层交给 v147StripAllTags 脱壳。 */
+function v170CollectBodyBlocks(decoded) {
+  var d = String(decoded == null ? '' : decoded);
+  var re = new RegExp(V170_TAG_TOKEN.source, 'gi');
+  var stacks = {};
+  var blocks = [];
+  var mt;
+  while ((mt = re.exec(d)) !== null) {
+    var name = String(mt[1] || mt[2] || '');
+    var low = name.toLowerCase();
+    if (!v170IsTextTag(low)) continue;
+    var isClose = !!mt[2];
+    var st = stacks[low] || (stacks[low] = []);
+    if (isClose) {
+      if (st.length) {
+        var op = st.pop();
+        if (!st.length) {
+          blocks.push({
+            start: op.index, end: mt.index + mt[0].length,
+            inner: d.slice(op.end, mt.index), tag: name, closed: true
+          });
+        }
+      }
+    } else {
+      st.push({ index: mt.index, end: mt.index + mt[0].length });
+    }
+    if (mt[0].length === 0) re.lastIndex++;
+  }
+  /* 流式：最后一个没闭合的正文开标签 → 从它之后吃到结尾，也参与比字 */
+  var last = null;
+  for (var k in stacks) {
+    if (!Object.prototype.hasOwnProperty.call(stacks, k)) continue;
+    var arr = stacks[k];
+    if (arr.length && arr[arr.length - 1].index > (last ? last.start : -1)) {
+      last = { start: arr[arr.length - 1].index, end: arr[arr.length - 1].end, tag: k };
+    }
+  }
+  if (last) {
+    blocks.push({
+      start: last.start, end: d.length, inner: d.slice(last.end),
+      tag: last.tag, closed: false
+    });
+  }
+  blocks.sort(function (a, b) { return a.start - b.start; });
+  return blocks;
+}
+
+/* 第一层：所有正文标签里，★ 只取字最多的那一段 ★ */
+function v147FirstTagBlock(decoded) {
+  var blocks = v170CollectBodyBlocks(decoded);
+  var best = null, bestLen = -1, bestPos = -1;
+  for (var i = 0; i < blocks.length; i++) {
+    var b = blocks[i];
+    var txt = v147StripAllTags(b.inner);
+    /* 空白不算字数 —— 否则一堆空行 / 缩进会把短草稿顶上来 */
+    var len = String(txt || '').replace(/\s/g, '').length;
+    if (len > bestLen || (len === bestLen && b.start > bestPos)) {
+      bestLen = len; bestPos = b.start; best = { text: txt, tag: b.tag };
+    }
+  }
+  return (best && best.text && best.text.trim()) ? best : null;
+}
+
 
 /* 第二层：思维链收尾标签**之后**的内容。
    ★ 取「最靠后」的那个收尾标签 —— 模型可能写好几次思维链，
@@ -15650,7 +15890,7 @@ function stripNonProse(text) {
    保证任何地方都不可能出现「标签外的字漏进对话框」。
 
    实现取「最靠外的正文标签」：
-     · 有多个 <content> 时取**第一个非空**的（模型偶尔会写两段）
+     · ★ v170：有多个正文标签块时**全部保留**，交给上层按字数挑（见 v170CollectBodyBlocks）
      · 同一层嵌套（<content><对话框显示>…</对话框显示></content>）取最外层，
        内层由 v147StripAllTags 的白名单脱壳处理，不会把正文吃掉
      · 标签外的任何内容（前后的段落、别标签里的字）一律不参与
@@ -15660,37 +15900,29 @@ function stripNonProse(text) {
      里的后一段仍然留在原文里，后面任何一处误用整条原文的地方都会把它带出来。
      剪干净之后，原文里**只剩正文本身**，谁都漏不出去。
    ══════════════════════════════════════════════════════════════════════ */
+/* ★ v170：只剪「标签外」，**保留所有正文标签块**。
+   旧版只留第一个非空块 —— 思维链里那段短草稿一成形，真正的长正文被整段
+   剪掉，上层再怎么比字数也只剩一段可选。
+   现在把所有成对块按原文顺序拼回来，选择权交给 v147FirstTagBlock（比字数）。 */
 function thStripOutsideBody(decoded, tagName) {
   var d = String(decoded == null ? '' : decoded);
-  var tags = (tagName ? [tagName] : V147_TEXT_TAGS);
-  for (var i = 0; i < tags.length; i++) {
-    var tag = tags[i];
-    /* 找最外层的开标签与它对应的闭标签（支持嵌套同名，按层数配平） */
-    var openRe = new RegExp('<' + tag + '(?=[\\s>])[^>]*>', 'i');
-    var mo = openRe.exec(d);
-    if (!mo) continue;
-    var startInner = mo.index + mo[0].length;
-    /* 从开标签之后开始，按同名标签配平找闭标签 */
-    var rest = d.slice(startInner);
-    var tokRe = new RegExp('<' + tag + '(?=[\\s>])[^>]*>|<\\/' + tag + '\\s*>', 'gi');
-    var depth = 1, endInner = -1, mt;
-    while ((mt = tokRe.exec(rest)) !== null) {
-      if (mt[0].charAt(1) === '/') {
-        depth--;
-        if (depth === 0) { endInner = mt.index; break; }
-      } else {
-        depth++;
-      }
-    }
-    if (endInner < 0) continue;                    /* 没闭合：交给流式那套处理 */
-    var inner = rest.slice(0, endInner);
-    if (!inner.trim()) continue;                   /* 空的 <content></content>，试下一个 */
-    /* ★ 只保留里面这一段的副本，外面的一切（包括闭合标签之后的全部）都丢掉。
-       但要把闭合标签保留下来，便于上层判断结构完整。 */
-    return '<' + tag + '>' + inner + '</' + tag + '>';
+  var blocks = v170CollectBodyBlocks(d);
+  var picked = [], lastEnd = -1;
+  for (var i = 0; i < blocks.length; i++) {
+    var b = blocks[i];
+    /* ★ v170b：未闭合的流式块也要保留，否则「短草稿 + 正在写的长正文」里
+       长正文会被这一刀剪掉，上层比字数时只剩草稿可选。 */
+    if (b.start < lastEnd) continue;            /* 被前一块包住，别重复收 */
+    if (tagName && String(b.tag).toLowerCase() !== String(tagName).toLowerCase()) continue;
+    picked.push(b);
+    lastEnd = b.end;
   }
-  return d;    /* 一个正文标签都没有：原样返回，交给后面的层去判 */
+  if (!picked.length) return d;                /* 没有成对块：原样，交给后面 */
+  var out = '';
+  for (var j = 0; j < picked.length; j++) out += d.slice(picked[j].start, picked[j].end);
+  return out;
 }
+
 
 /* 总闸：返回 { text, layer, tag }。layer 1=正文标签 2=思维链尾部 0=没读到 */
 function parseContentWithLayer(rawText) {
@@ -20384,8 +20616,12 @@ function setupGlobalDialogueShield() {
      · 玩家在面板底部「📌 常显」里可以关掉自动折叠（存 localStorage）
      · 折叠时左上角一条细字报 时间 · 地点 · 精力（.th-gal-mini-hud）
    ══════════════════════════════════════════════════════════════════════ */
-var TH_HUD_KEY = 'thGalHudFold';
-var _thHudFoldAuto = true;          /* 是否自动折叠（玩家可关） */
+/* ★ v170：默认改成「拉开后需要手动关上」，自动折叠变成**可选**、默认关。
+   换键名不是手滑：老玩家 localStorage 里存过 '1'（自动折叠），
+   沿用旧键的话这次热修推下去，他们手上的卡照样自己收，等于没修。
+   新键读不到任何值 ⇒ 一律回到新默认。 */
+var TH_HUD_KEY = 'thGalHudFoldV2';
+var _thHudFoldAuto = false;         /* 是否自动折叠（玩家可开） */
 var _thHudTimer = null;
 var _thHudBound = false;
 /* ★ v163：自动折叠的真正判据。
@@ -20453,7 +20689,15 @@ function thHudOpen(shell) {
   if (!shell) return;
   thHudApply(shell, false);
   var panel = shell.querySelector('.th-gal-hud-panel');
-  if (panel) panel.classList.add('is-open');
+  if (panel) {
+    panel.classList.add('is-open');
+    /* ★ v170：刚展开的这一小段不让面板吃点击（配合上面的 CSS）。
+       320ms > .2s 过渡；用闭包抓住 panel，避免后面重画换了节点。 */
+    panel.classList.add('th-hud-opening');
+    (function (p) {
+      setTimeout(function () { try { p.classList.remove('th-hud-opening'); } catch (e0) {} }, 320);
+    })(panel);
+  }
   /* ★ v150：每次打开先把镜像按钮的文字刷成最新（季节/天气/音乐可能已变） */
   try { thSyncHudMirror(shell); } catch (eM) {}
   thHudArmAutoClose(shell);
@@ -20665,9 +20909,9 @@ function thBuildHudPanel(shell) {
   var pin = host.querySelector('[data-th-hudpin]');
   if (pin) {
     var paintPin = function () {
-      pin.textContent = _thHudFoldAuto ? '📌 常显' : '📌 常显 ✓';
-      pin.title = _thHudFoldAuto ? '现在是自动折叠：展开 2.8 秒无操作会自己收回去' : '现在是常显：展开后不会自动收回';
-      pin.style.color = _thHudFoldAuto ? '' : '#86efac';
+      pin.textContent = _thHudFoldAuto ? '📌 自动折叠 ✓' : '📌 自动折叠';
+      pin.title = _thHudFoldAuto ? '现在是自动折叠：展开 2.8 秒无操作会自己收回去' : '现在是手动关闭：展开后一直开着，点 ✕ 或拉手才收起';
+      pin.style.color = _thHudFoldAuto ? '#86efac' : '';
     };
     paintPin();
     pin.addEventListener('click', function (e) {
@@ -20677,7 +20921,7 @@ function thBuildHudPanel(shell) {
       if (!_thHudFoldAuto) { try { if (_thHudTimer) clearTimeout(_thHudTimer); } catch (eC) {} }
       else thHudArmAutoClose(shell);
       if (typeof showToast === 'function') {
-        showToast(_thHudFoldAuto ? '📌 已改回自动折叠（展开 2.8 秒后自己收回）' : '📌 已设为常显（展开后不会自己收回）', 3200);
+        showToast(_thHudFoldAuto ? '📌 已开启自动折叠（2.8 秒无操作自己收回）' : '📌 已设为手动关闭（展开后不会自己收回）', 3200);
       }
     });
   }
@@ -20837,7 +21081,10 @@ function setupHudFold(shell) {
   var top = shell.querySelector('.th-gal-shell-topbar');
 
   /* 初始状态：按玩家设置。默认折叠。 */
-  var startFolded = _thHudFoldAuto;
+  /* ★ v170：开机一律折叠（只露拉手）；展开之后**不再自动收回**。
+     旧版拿 _thHudFoldAuto 当开机状态用，把它改成 false 会让面板
+     开局就直接糊在画面上 —— 那不是老板要的「拉开后手动关」。 */
+  var startFolded = true;
   thHudApply(shell, startFolded);
 
   if (!shell.__thHudBound) {
@@ -20881,12 +21128,40 @@ function setupHudFold(shell) {
       var _gripTouchAt = 0;          /* 最近一次触摸的时刻，用来吞掉模拟鼠标事件 */
       var GRIP_TOUCH_GRACE = 700;    /* 700ms 内的模拟 mouseenter/click 一律忽略 */
 
+      /* ★ v170：吞掉「点拉手产生的合成 click」—— 这是玩家报的严重 bug。
+         真因：touch 的 pointerdown 里 preventDefault() **挡不住**浏览器在
+         touchend 后补发的那次 click（取消 pointerdown 只影响兼容鼠标事件，
+         click 照发）。而按下瞬间面板已经展开、拉手被盖住，这次 click 的
+         target 会落在**面板里的按钮**上，于是点开拉手的同时顺手点了一颗按钮。
+         拉手自己的 click 宽限监听拦不住它：click 根本不经过 grip。
+         ⇒ 在 shell 捕获阶段挂一次性哨兵，吞掉紧随其后的第一个 click。
+         只吞一个、350ms 自动撤销，之后玩家真实点按钮一律不受影响。 */
+      function armGripClickGuard() {
+        try { if (shell.__thGripGuard) shell.removeEventListener('click', shell.__thGripGuard, true); } catch (e0) {}
+        var eat = function (ev) {
+          try { shell.removeEventListener('click', eat, true); } catch (e1) {}
+          if (shell.__thGripGuard === eat) shell.__thGripGuard = null;
+          try { ev.preventDefault(); } catch (e2) {}
+          try { ev.stopPropagation(); } catch (e3) {}
+          try { if (ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } catch (e4) {}
+        };
+        shell.__thGripGuard = eat;
+        shell.addEventListener('click', eat, true);
+        setTimeout(function () {
+          if (shell.__thGripGuard === eat) {
+            try { shell.removeEventListener('click', eat, true); } catch (e5) {}
+            shell.__thGripGuard = null;
+          }
+        }, 350);
+      }
+
       /* 手指按下：立刻翻转，并锁住自动折叠 */
       grip.addEventListener('pointerdown', function (e) {
         if (!e || e.pointerType !== 'touch') return;   /* 鼠标走下面的老路 */
         _gripTouchAt = Date.now();
         try { shell.__thGripTouch = _gripTouchAt; shell.classList.add('th-grip-touching'); } catch (e0) {}
         thHudTouch();                                  /* 重置 2.8 秒计时 */
+        armGripClickGuard();                           /* ★ v170 先挂好哨兵再开面板 */
         e.preventDefault();
         e.stopPropagation();
         if (panel && panel.classList.contains('is-open')) thHudClose(shell, true);
@@ -21293,79 +21568,125 @@ function setupInteractions(shell) {
       }
     } catch (ePatch) {}
 
-    /* ── 重新生成那颗 ── */
+    /* ── 重新生成那颗 ──
+       ★ v170 修复：玩家报「点了没反应」，真机复现 = 酒馆的重新生成按钮
+       一次都没被点（__regenClicks = 0）。
+
+       ── 旧版错在哪 ────────────────────────────────────────────────────
+         TH.generate({type:'regenerate'}) 一旦不被当前酒馆助手版本支持，
+         Promise 直接 reject；而 `.catch(function(){})` 把错误吞掉之后
+         函数仍然 `return true` → 弹「已调用酒馆原生的重新生成」
+         → 实际什么都没发生。更糟的是它排第一，后面那条最可靠的
+         「点酒馆自己的按钮」永远轮不上。
+
+       ── 新规则 ────────────────────────────────────────────────────────
+         ① **DOM 点击优先**：玩家手动点酒馆的重生成按钮一定有效，
+            这是唯一不依赖 API 版本的路径。
+         ② DOM 找不到才试接口，Promise reject 必须**降级到下一条**，不许吞。
+         ③ 全失败 → 明确告诉玩家手动点，绝不静默、绝不谎报成功。
+         ④ 确认一条生效立即停，绝不重复触发生成。
+    */
     var qRegen = pair.querySelector('.th-gal-quickbtn-regen');
     if (!qRegen) return;
 
-    function regenViaHelper() {
-      var TH = null;
-      try { TH = (typeof window !== 'undefined' && window.TavernHelper) || null; } catch (e0) {}
-      if (!TH) { try { if (typeof HOST !== 'undefined' && HOST && HOST.TavernHelper) TH = HOST.TavernHelper; } catch (e1) {} }
-      if (!TH) { try { if (window.parent && window.parent.TavernHelper) TH = window.parent.TavernHelper; } catch (e2) {} }
-      if (TH && typeof TH.generate === 'function') {
-        try {
-          /* 酒馆助手：{ type: 'regenerate' } 就是原生重生成 */
-          var p = TH.generate({ type: 'regenerate' });
-          if (p && typeof p.catch === 'function') p.catch(function () {});
-          return true;
-        } catch (e3) {}
+    function regenDocs() {
+      var out = [], seen = [];
+      function add(d) {
+        if (!d) return;
+        for (var i = 0; i < seen.length; i++) if (seen[i] === d) return;
+        seen.push(d); out.push(d);
       }
-      return false;
-    }
-
-    function regenViaStGlobal() {
-      var cands = [];
-      try { if (window.parent) cands.push(window.parent); } catch (e0) {}
-      try { if (window.top) cands.push(window.top); } catch (e1) {}
-      try { if (HOST) cands.push(HOST); } catch (e2) {}
-      cands.push(window);
-      for (var i = 0; i < cands.length; i++) {
-        var w = cands[i];
-        try {
-          if (w && typeof w.Generate === 'function') {
-            var r = w.Generate('regenerate');
-            if (r && typeof r.catch === 'function') r.catch(function () {});
-            return true;
-          }
-        } catch (eG) {}
-        try {
-          var st = w && w.SillyTavern;
-          if (st && typeof st.Generate === 'function') {
-            var r2 = st.Generate('regenerate');
-            if (r2 && typeof r2.catch === 'function') r2.catch(function () {});
-            return true;
-          }
-        } catch (eS) {}
-      }
-      return false;
+      try { add(getDoc()); } catch (e0) {}
+      try { add(document); } catch (e1) {}
+      try { if (typeof HOST !== 'undefined' && HOST) add(HOST.document); } catch (e2) {}
+      try { add(window.parent && window.parent.document); } catch (e3) {}
+      try { add(window.top && window.top.document); } catch (e4) {}
+      return out;
     }
 
     function regenViaClick() {
-      /* 酒馆自己的重新生成按钮：不同版本 id 不一样，几个常见的都试一遍 */
-      var doc = getDoc();
+      var docs = regenDocs();
       var sels = ['#option_regenerate', '#regenerate_button', '.regenerate_button',
-                  '#rm_button_regenerate', '[data-i18n="Regenerate"]'];
-      for (var i = 0; i < sels.length; i++) {
-        try {
-          var b = doc.querySelector(sels[i]);
-          if (b) {
-            b.click();
-            return true;
-          }
-        } catch (eC) {}
-      }
-      /* 最后一条：按 title / 文字找。只在很短的一批按钮里找，不会误点 */
-      try {
-        var all = doc.querySelectorAll('#rightSendForm button, .mes_buttons button, #send_form button');
-        for (var k = 0; k < all.length; k++) {
-          var t = String(all[k].title || '') + ' ' + String(all[k].textContent || '');
-          if (/重新生成|重生成|regenerate|redo/i.test(t) && t.length < 30) {
-            all[k].click();
-            return true;
-          }
+                  '#rm_button_regenerate', '#regenerate_but', '#mes_regenerate',
+                  '.mes_regenerate', '[data-i18n="Regenerate"]'];
+      for (var d = 0; d < docs.length; d++) {
+        for (var i = 0; i < sels.length; i++) {
+          try {
+            var b = docs[d].querySelector(sels[i]);
+            /* ★ 必须排除壳内元素：否则会点到自己这颗 🔄，递归点自己 */
+            if (b && !(b.closest && b.closest('#th-gal-shell-root'))) {
+              b.click();
+              return true;
+            }
+          } catch (eC) {}
         }
-      } catch (eT) {}
+        /* 按文字 / title / aria-label 找，同样排除壳内、排除长文本误命中 */
+        try {
+          var all = docs[d].querySelectorAll('button, a[role="button"], .mes_button');
+          for (var k = 0; k < all.length; k++) {
+            var el = all[k];
+            if (el.closest && el.closest('#th-gal-shell-root')) continue;
+            var t = String(el.title || '') + ' ' + String(el.getAttribute('aria-label') || '')
+                  + ' ' + String(el.textContent || '');
+            if (/重新生成|重生成|regenerate|redo/i.test(t) && t.length < 40) {
+              el.click();
+              return true;
+            }
+          }
+        } catch (eT) {}
+      }
       return false;
+    }
+
+    function regenApiList() {
+      var list = [];
+      var TH = null;
+      try {
+        TH = window.TavernHelper
+          || (typeof HOST !== 'undefined' && HOST && HOST.TavernHelper)
+          || (window.parent && window.parent.TavernHelper) || null;
+      } catch (e0) {}
+      if (TH && typeof TH.generate === 'function') {
+        list.push(function () { return TH.generate({ type: 'regenerate' }); });
+      }
+      var ws = [];
+      try { if (window.parent) ws.push(window.parent); } catch (e1) {}
+      try { if (window.top) ws.push(window.top); } catch (e2) {}
+      ws.push(window);
+      for (var i = 0; i < ws.length; i++) {
+        (function (w) {
+          try {
+            if (w && typeof w.Generate === 'function') {
+              list.push(function () { return w.Generate('regenerate'); });
+            }
+          } catch (eG) {}
+          try {
+            var st = w && w.SillyTavern;
+            if (st && typeof st.Generate === 'function') {
+              list.push(function () { return st.Generate('regenerate'); });
+            }
+          } catch (eS) {}
+        })(ws[i]);
+      }
+      return list;
+    }
+
+    /* 逐条试接口：reject → 下一条；resolve / 同步返回 → 算「已发起」。
+       ★ 同步返回无法确认真的生成了，所以文案只说「已请求」，
+         不再谎报「已调用原生」—— 那正是玩家被误导的地方。 */
+    function regenViaApi(cb) {
+      var list = regenApiList();
+      function step(i) {
+        if (i >= list.length) { cb(false); return; }
+        var r;
+        try { r = list[i](); } catch (eX) { step(i + 1); return; }
+        if (r && typeof r.then === 'function') {
+          r.then(function () { cb(true); }, function () { step(i + 1); });
+        } else {
+          cb(true);
+        }
+      }
+      step(0);
     }
 
     qRegen.onclick = function (e) {
@@ -21376,20 +21697,26 @@ function setupInteractions(shell) {
       var busy = false;
       try { busy = (typeof _isGeneratingPersistentLock !== 'undefined' && _isGeneratingPersistentLock); } catch (eB) {}
       if (busy) {
-        try { popToast('⏳ 还在推进中，等这一轮结束再点重新生成'); } catch (eT) {}
-        return;
+        /* ★ v170：原来这里直接 return —— 这是「点了没反应」的另一半原因。
+           _isGeneratingPersistentLock 靠「推进结束」事件复位，一旦那事件
+           没被捕获（切后台 / 生成被打断 / 读档），锁会一直挂到 45 分钟兜底，
+           期间玩家每次点都只看到「还在推进中」，什么都不会发生。
+           玩家主动点这一下是明确意图，不该被一个可能过期的内部状态否决。
+           ⇒ 提示照给，但**照样往下走**；真在生成时酒馆自己会处理连点。 */
+        try { popToast('⏳ 好像还在推进中，仍按你的要求重新生成'); } catch (eT) {}
       }
 
       qRegen.classList.add('is-spinning');
-      var done = false;
-      try { done = regenViaHelper(); } catch (e1) {}
-      if (!done) { try { done = regenViaStGlobal(); } catch (e2) {} }
-      if (!done) { try { done = regenViaClick(); } catch (e3) {} }
-
-      if (done) {
-        try { popToast('🔄 已调用酒馆原生的重新生成'); } catch (eT2) {}
+      if (regenViaClick()) {
+        try { popToast('🔄 已点酒馆的重新生成'); } catch (eT2) {}
       } else {
-        try { popToast('❌ 没找到酒馆的重新生成入口，请手动点酒馆界面上的重生成'); } catch (eT3) {}
+        regenViaApi(function (okApi) {
+          if (okApi) {
+            try { popToast('🔄 已请求重新生成（没反应就手动点酒馆的重生成）'); } catch (eT3) {}
+          } else {
+            try { popToast('❌ 没找到酒馆的重新生成入口，请手动点酒馆界面上的重生成'); } catch (eT4) {}
+          }
+        });
       }
       /* 转圈：3 秒后自己停。真正的结束由 setGeneratingState 那边的
          「推进结束」提示告诉玩家，这里不抢它的活。 */
@@ -25274,9 +25601,7 @@ async function updateContainer(shell) {
        必须通过 setupInteractions 这个出口调（以前直调 → ReferenceError →
        后面的跳转/音乐/背景图全部不执行，这就是“点了没反应”的根源）。 */
     try {
-      if (typeof switchSceneLocation === 'function') switchSceneLocation(dest, { free: true });
-      else if (setupInteractions && typeof setupInteractions.switchSceneLocation === 'function') setupInteractions.switchSceneLocation(dest, { free: true });
-      else if (typeof HOST !== 'undefined' && HOST && typeof HOST.__thSwitchScene === 'function') HOST.__thSwitchScene(dest, { free: true });
+      thSwitchPlace(dest, { free: true });
     } catch (eSw) { try { console.warn('⚠️ 切场景失败：' + eSw); } catch (eSw2) {} }
     var jumpOk = false;
     if (rewriteGreeting) {
@@ -25472,7 +25797,7 @@ async function updateContainer(shell) {
         var sdR = getSD();
         saved = (sdR && sdR.主角信息 && sdR.主角信息.地点) ? String(sdR.主角信息.地点).trim() : '';
       } catch (errR) {}
-      if (saved && saved !== '开场白' && isKnownPlace(saved)) switchSceneLocation(saved, { free: true });
+      if (saved && saved !== '开场白' && isKnownPlace(saved)) thSwitchPlace(saved, { free: true });
       popToast('回到游戏：' + (saved && saved !== '开场白' ? saved : '开场白那一屏'));
     };
   }
@@ -25839,7 +26164,7 @@ async function updateContainer(shell) {
         markGameStarted();
         writeTitleState('playing');
         hideTitleScreen();
-        switchSceneLocation(saved, { free: true });
+        thSwitchPlace(saved, { free: true });
         popToast('已继续当前聊天存档：' + saved);
         return;
       }
@@ -25860,7 +26185,7 @@ async function updateContainer(shell) {
           curArc = normArc(sdL && sdL.全局 ? sdL.全局.当前篇章 : '');
         } catch (eL) {}
         var dest = arcHomePlace(curArc);
-        switchSceneLocation(dest, { free: true });
+        thSwitchPlace(dest, { free: true });
         popToast('已直接进入当前篇章场景：' + dest);
       }
     };
