@@ -22756,10 +22756,12 @@ var MvuSelfHealing = (function() {
     } else {
       // 模型若漏写了 <Analysis>，自动根据 validOps 逆向推导并合成严密、标准的分析推演块
       /* ★ v164：时间从一条「精确时间」变成 时 / 分 两条，找任一即可 */
-      var timeOp = validOps.find(function(o) { return o.path === '/时间/时' || o.path === '/时间/分' || o.path === '/时间/日期'; });
+      var timeOp = validOps.find(function(o) { return o.path === '/时间/精确时间' || o.path === '/时间/时' || o.path === '/时间/分' || o.path === '/时间/日期'; });
       var timeStr = '当前时间段';
       if (timeOp) {
-        var hmOps = validOps.filter(function(o) { return o.path === '/时间/时' || o.path === '/时间/分'; });
+        var exactOp = validOps.find(function(o) { return o.path === '/时间/精确时间'; });
+        var hmOps = exactOp ? [] : validOps.filter(function(o) { return o.path === '/时间/时' || o.path === '/时间/分'; });
+        if (exactOp) timeStr = String(exactOp.value);
         if (hmOps.length) {
           var hh = null, mm = null;
           hmOps.forEach(function(o) {
@@ -23769,27 +23771,17 @@ var MvuSelfHealing = (function() {
         return '【★ 玩家刚用地图快速移动：从「' + j.from + '」跨 ' + j.steps + ' 格到「' + j.to + '」，脚本已一次性推进 ' + j.minutes + ' 分钟并扣 ' + j.energy + ' 精力】' +
           '本轮补丁**禁止**再改 /时间/年、/时间/月、/时间/日、/时间/时、/时间/分、/主角信息/精力值、/主角信息/地点；不许重复加时间或扣精力，地点固定写目的格。见《小地图与快速跳转》条目。\n';
       })() +
-      '你是一个严格的Galgame状态变量计算器。根据下方的变量更新规则、格式强调、篇章人物速查及当前变量快照，为最新剧情正文生成变量补丁。\n' +
-      '必须且只能输出严格的双段结构，绝不能遗漏 <Analysis> 分析标签与分析内容，绝不能遗漏 <JSONPatch> 补丁：\n' +
-      '<UpdateVariable>\n<Analysis>\n' +
-      '- Time passed: 剧情自然流逝推进15分钟，从 [当前时间] 变为 [新时间]。\n' +
-      '- Dramatic update: No.\n' +
-      '- Variable analysis:\n' +
-      '  - 角色互动：[哪位角色同场/对话，好感度增减(+5)与在场状态(true/false)]\n' +
-      '  - 状态结算：主角信息与环境稳定。\n' +
-      '</Analysis>\n<JSONPatch>\n[\n' +
-      '  {"op":"replace","path":"/时间/时","value":新小时数字},\n' +
-      '  {"op":"replace","path":"/时间/分","value":新分钟数字},\n' +
+      '你是 Galgame 状态变量计算器。只根据下方的当前变量快照与本轮剧情正文，算出本轮变更。\n' +
+      '只输出一个 <JSONPatch> 补丁数组块；不要 <UpdateVariable> / <Analysis> 外壳、不要解释、不要 Markdown 代码块：\n' +
+      '<JSONPatch>\n[\n' +
+      '  {"op":"replace","path":"/时间/精确时间","value":"08:15"},\n' +
       '  {"op":"replace","path":"/主要角色列表/某某/好感度","value":新数值},\n' +
       '  {"op":"replace","path":"/主要角色列表/某某/在场状态","value":true}\n' +
-      ']\n</JSONPatch>\n</UpdateVariable>\n\n' +
-      '【规则铁律与禁令】：\n' +
-      '1. 【严禁更新地点/位置】：玩家与主角地点一律由前端系统脚本处理，严禁向 /主角信息/地点、/玩家位置、/地点 写入任何操作！\n' +
-      '2. 【必须输出 <Analysis> 结构】：分析标签包含详细推演说明，绝不能省略或直接跳过！\n' +
-      '3. 【时间自然推进】：根据剧情推进 10~30 分钟，只改 /时间/时 与 /时间/分（**必须写数字**，不许写 "21:40" 这种字符串）；越过 23:59 就顺手把 /时间/日期 +1，跨月自己处理月末天数，跨年把 /时间/年份 +1。若睡觉或过夜，直接把 /时间/日期 +1 且 /时间/时 设 7、/时间/分 设 40；\n' +
-      '4. 【好感度积极增长】：本轮正文中与主角产生对话、互动、陪伴的角色，好感度必须在现有快照基础上每次 +5！\n' +
-      '5. 【在场状态】：同场/碰面/对话的角色设为 true，离开或未出场者设为 false；\n' +
-      '6. 绝不输出任何多余废话或Markdown代码块。';
+      ']\n</JSONPatch>\n\n' +
+      '【规则】按《变量更新规则》执行，此处只列最容易写错的三条：\n' +
+      '1. 时间按剧情推进 10~30 分钟，只改 /时间/精确时间，值必须是 "HH:MM" 五字符字符串；跨零点把 /时间/日期 +1，跨月处理月末天数，跨年 /时间/年份 +1；睡觉过夜设 "07:40"。严禁写 /时间/时、/时间/分 这类不存在的字段。\n' +
+      '2. 同场 / 对话 / 陪伴的角色，好感度（或恶堕值）在快照基础上 +5；同场设 在场状态=true，离场或未出场设 false。\n' +
+      '3. 地点、位置、季节、天气、插图版本、开局类型、玩家信息由脚本写入，补丁里一律禁止出现。';
 
     /* ★ v131：不再按篇章开关，三处的人全在名单里 */
     var userContent = '【世界】：夏越村 / 幸福公寓 / 神社 三处连成一片，所有人同时存在、不受篇章限制\n' +
@@ -23823,22 +23815,19 @@ var MvuSelfHealing = (function() {
       if (txt) msgs.push({ role: role, content: txt.slice(0, 1200) });
     }
 
-    var sysPrompt = '你负责对当前Galgame进行全上下文深度变量推演。根据历史上下文与本轮正文，计算必须更新的变量，输出严格的格式（必须包含完整的 Analysis 分析段落）：\n' +
-      '<UpdateVariable>\n<Analysis>\n' +
-      '- Time passed: 剧情流逝说明\n' +
-      '- Dramatic update: No.\n' +
-      '- Variable analysis:\n' +
-      '  - 角色互动与在场状态分析\n' +
-      '</Analysis>\n<JSONPatch>\n[\n' +
-      '  {"op":"replace","path":"/时间/时","value":新小时数字},\n' +
-      '  {"op":"replace","path":"/时间/分","value":新分钟数字},\n' +
+    var sysPrompt = '你是 Galgame 状态变量计算器。根据多轮历史与最新正文，算出本轮必须更新的变量。\n' +
+      '只输出一个 <JSONPatch> 补丁数组块；不要 <UpdateVariable> / <Analysis> 外壳、不要解释、不要 Markdown 代码块：\n' +
+      '<JSONPatch>\n[\n' +
+      '  {"op":"replace","path":"/时间/精确时间","value":"08:15"},\n' +
       '  {"op":"replace","path":"/主要角色列表/某某/好感度","value":数值},\n' +
       '  {"op":"replace","path":"/主要角色列表/某某/在场状态","value":true}\n' +
-      ']\n</JSONPatch>\n</UpdateVariable>\n' +
-      '【禁令】：严禁更新任何地点或玩家位置（/主角信息/地点、/玩家位置）！篇章=' + curArc + '，角色=' + roster.roles + '。严禁输出任何解释或Markdown代码块。';
+      ']\n</JSONPatch>\n' +
+      '时间只改 /时间/精确时间（"HH:MM" 五字符），跨零点改 /时间/日期；' +
+      '地点、位置、季节、天气、插图版本、开局类型、玩家信息由脚本写入，补丁里禁止出现。' +
+      '篇章=' + curArc + '，角色=' + roster.roles + '。';
 
     msgs.unshift({ role: 'system', content: sysPrompt });
-    msgs.push({ role: 'user', content: varSnapshot + '\n\n【系统指令】请对上述多轮历史与最新正文进行深度变量推演，只输出闭合的 <UpdateVariable><Analysis>...</Analysis><JSONPatch>[...]</JSONPatch></UpdateVariable>：' });
+    msgs.push({ role: 'user', content: varSnapshot + '\n\n【系统指令】请对上述多轮历史与最新正文进行深度变量推演，只输出一个 <JSONPatch>[...]</JSONPatch> 补丁数组块，不要别的外壳：' });
 
     return await executeApiCall(cfg, msgs, 2200);
   }
@@ -23996,6 +23985,13 @@ var MvuSelfHealing = (function() {
         if (p === '/玩家位置' || p === '/地点' || p.indexOf('/主角信息/地点') === 0) return false;
         var topSeg = p.split('/')[1];
         if (['时间', '主要角色列表', '苦主列表', '全局', '主角信息'].indexOf(topSeg) === -1) return false;
+        /* ★ v171：schema 的「时间」只有 年份/月份/日期/精确时间 四个字段。
+           旧提示词示例教模型写 /时间/时、/时间/分，这两个字段根本不存在，
+           写进去就是野字段（模型还会照着反复写）。这里直接挡掉。 */
+        if (topSeg === '时间') {
+          var seg2 = p.split('/')[2];
+          if (['年份', '月份', '日期', '精确时间'].indexOf(seg2) === -1) return false;
+        }
         return true;
       });
 
@@ -24106,8 +24102,8 @@ var MvuSelfHealing = (function() {
      落盘结果与改之前**除变量块外逐字节相同**。
      ══════════════════════════════════════════════════════════════════ */
 
-  /* 找 <UpdateVariable> 的起止区间（按同名标签配平，防模型套了两层） */
-  function cqFindVarBlockSpan(s) {
+  /* 兼容保留：找单个 <UpdateVariable> 区间（老调用点仍可能用） */
+function cqFindVarBlockSpan(s) {
     if (!s) return null;
     var m = /<UpdateVariable(?=[\s>])[^>]*>/i.exec(s);
     if (!m) return null;
@@ -24128,31 +24124,128 @@ var MvuSelfHealing = (function() {
     return { start: start, end: (end < 0 ? s.length : end), closed: (end >= 0) };
   }
 
-  /* 把新变量块塞回原文，其余原样保留 */
-  function cqSpliceVarBlock(raw, patchXml) {
-    var s = String(raw || '');
-    if (!s) return '';
-    if (!patchXml) return s;          /* 没有新块就不动，绝不把旧块删空 */
+/* ═══ ★ v171：变量块去重 —— 一段回复里只允许一份 <UpdateVariable> ═══
+   老板原话：「变量补全脚本有问题，输出两个变量标签部分时居然不会删除，
+              我补全了七次，它一直没删除多余的变量标签部分。
+              一直在反复重新更新变量内容。」
 
-    /* ① 首选：整段 <UpdateVariable> 换掉 */
-    var sp = cqFindVarBlockSpan(s);
-    if (sp) return s.slice(0, sp.start) + patchXml + s.slice(sp.end);
+   旧实现 cqSpliceVarBlock 只找**第一个** <UpdateVariable> 块换掉，
+   第二份（以及半截的）原封不动留在楼里：
+     · checkVarFormat 每轮都报「出现了 N 份（每轮只允许一份）」
+     · writeBackPatch 又把整条消息交给 mvu.parseMessage 重新解析
+       ⇒ 旧那份补丁跟着再 apply 一遍，变量被反复覆盖回去
+     · 玩家再点补全 → 又是只换第一份 ⇒ 七次都一样
 
-    /* ② 次选：只有 <JSONPatch> 没有 <UpdateVariable>（模型偶尔这样写）。
-       若紧挨着前面还有一个裸 <Analysis>…</Analysis>，连它一起换，
-       免得留下「孤儿分析 + 新分析」两份。 */
-    var jm = /<JSONPatch(?=[\s>])[^>]*>[\s\S]*?<\/JSONPatch\s*>/i.exec(s);
-    if (jm) {
-      var jStart = jm.index;
-      var head = s.slice(0, jStart);
-      var am = /<Analysis(?=[\s>])[^>]*>[\s\S]*?<\/Analysis\s*>\s*$/i.exec(head);
-      if (am) jStart = am.index;
-      return s.slice(0, jStart) + patchXml + s.slice(jm.index + jm[0].length);
+   新做法：收齐所有最外层变量块，第一份原位换成新块，其余整块删掉；
+   夹在两块之间的正文 / 后台推演 / 插图 / 重要记忆一个字不动。
+   单份的正常情况走原路径，除变量块外仍然逐字节不变（v165V 契约继续成立）。
+*/
+
+/* 扫出所有「最外层」<UpdateVariable> 块。
+   按同名标签配平：嵌套的算一整块；没闭合的半截一直吃到文末。
+   返回 [{start,end,closed}]，按 start 升序。 */
+function cqCollectVarSpans(s) {
+  var out = [];
+  if (!s) return out;
+  var tokRe = /<UpdateVariable(?=[\s>])[^>]*>|<\/UpdateVariable\s*>/gi;
+  var mt, depth = 0, start = -1;
+  while ((mt = tokRe.exec(s)) !== null) {
+    if (mt[0].charAt(1) === '/') {
+      if (depth > 0) {
+        depth--;
+        if (depth === 0) {
+          out.push({ start: start, end: mt.index + mt[0].length, closed: true });
+          start = -1;
+        }
+      }
+    } else {
+      if (depth === 0) start = mt.index;
+      depth++;
     }
-
-    /* ③ 都没有：原文原样，变量块追加到末尾 */
-    return s.replace(/\s+$/, '') + '\n\n' + patchXml;
   }
+  /* 流式中没写完：从最后一个未配平的开标签一直管到结尾 */
+  if (depth > 0 && start >= 0) out.push({ start: start, end: s.length, closed: false });
+  return out;
+}
+
+/* 删掉「变量块外面」残留的裸 JSONPatch / 孤儿 Analysis。
+   只用在拼接结果的头尾两段，新块本身绝不进这个函数。 */
+function cqStripOrphanVarTags(s) {
+  return String(s || '')
+    .replace(/<(?:JSONPatch|json_?patch)\b[^>]*>[\s\S]*?<\/(?:JSONPatch|json_?patch)\s*>/gi, '')
+    .replace(/<(?:JSONPatch|json_?patch)\b[^>]*>[\s\S]*$/i, '')
+    .replace(/<Analysis\b[^>]*>[\s\S]*?<\/Analysis\s*>/gi, '');
+}
+
+/* 扫出所有裸 <JSONPatch> 块（模型偶尔不写 UpdateVariable 外壳）。 */
+function cqCollectBarePatchSpans(s) {
+  var out = [];
+  if (!s) return out;
+  var tokRe = /<(?:JSONPatch|json_?patch)(?=[\s>])[^>]*>|<\/(?:JSONPatch|json_?patch)\s*>/gi;
+  var mt, open = null;
+  while ((mt = tokRe.exec(s)) !== null) {
+    if (mt[0].charAt(1) === '/') {
+      if (open != null) { out.push({ start: open, end: mt.index + mt[0].length, closed: true }); open = null; }
+    } else if (open == null) {
+      open = mt.index;
+    }
+  }
+  if (open != null) out.push({ start: open, end: s.length, closed: false });
+  return out;
+}
+
+/* 把 span 列表按「第一份换 patchXml、其余删掉」拼回字符串。
+   从后往前删，前面的索引才不会漂移。 */
+function cqSpliceSpans(s, spans, firstStart, firstEnd, patchXml) {
+  var out = s;
+  for (var i = spans.length - 1; i >= 0; i--) {
+    if (i === 0) out = out.slice(0, firstStart) + patchXml + out.slice(firstEnd);
+    else out = out.slice(0, spans[i].start) + out.slice(spans[i].end);
+  }
+  return out;
+}
+
+/* 把新变量块塞回原文：只留一份，其余全删，别的标签一字不动 */
+function cqSpliceVarBlock(raw, patchXml) {
+  var s = String(raw || '');
+  if (!s) return '';
+  if (!patchXml) return s;          /* 没有新块就不动，绝不把旧块删空 */
+
+  /* ① 首选：所有 <UpdateVariable> 一起处理 */
+  var spans = cqCollectVarSpans(s);
+  if (spans.length) {
+    var out = cqSpliceSpans(s, spans, spans[0].start, spans[0].end, patchXml);
+    /* 块外若还散着裸 JSONPatch / 孤儿 Analysis（模型把两份拆着写），
+       头尾各清一遍；新块本身在中间，不受影响。 */
+    var at = out.indexOf(patchXml);
+    if (at >= 0) {
+      return cqStripOrphanVarTags(out.slice(0, at)) + patchXml
+        + cqStripOrphanVarTags(out.slice(at + patchXml.length));
+    }
+    return out;
+  }
+
+  /* ② 次选：只有裸 <JSONPatch>（可能还不止一份）。
+     第一份若紧挨着前面有一个 <Analysis>…</Analysis>，连它一起换，
+     免得留下「孤儿分析 + 新分析」两份。 */
+  var jSpans = cqCollectBarePatchSpans(s);
+  if (jSpans.length) {
+    var jStart = jSpans[0].start;
+    var head = s.slice(0, jStart);
+    var am = /<Analysis(?=[\s>])[^>]*>[\s\S]*?<\/Analysis\s*>\s*$/i.exec(head);
+    if (am) { jStart = am.index; head = s.slice(0, jStart); }
+    var out2 = cqSpliceSpans(s, jSpans, jStart, jSpans[0].end, patchXml);
+    var at2 = out2.indexOf(patchXml);
+    if (at2 >= 0) {
+      return cqStripOrphanVarTags(out2.slice(0, at2)) + patchXml
+        + cqStripOrphanVarTags(out2.slice(at2 + patchXml.length));
+    }
+    return out2;
+  }
+
+  /* ③ 都没有：原文原样，变量块追加到末尾 */
+  return s.replace(/\s+$/, '') + '\n\n' + patchXml;
+}
 
   /* ★ 核心替换与 MVU 驱动函数：严防回滚，确保剧情正文 100% 毫发无损地保留在最前方 */
   async function writeBackPatch(msgIndex, patchXml, opsArr, preservedProse) {
@@ -27352,5 +27445,66 @@ try {
     };
   }
 } catch (eExp) {}
+
+/* ══ ★ v171：世界书「变量强调」运行时纠偏 ══════════════════════════════
+   世界书随卡走、不走 CDN 热更。已导入旧卡的玩家刷新时，把那版「同一句
+   禁令重复两遍 + 最后再喊一遍结尾记得输出变量标签」按旧文本特征换成精简版。
+   ★ 已是新版 / 玩家自己改过 ⇒ 旧标记对不上，一律不动。幂等，可反复跑。
+   ★ 只尽力而为：拿不到世界书或返回的是副本时静默跳过，绝不影响游戏。
+   ══════════════════════════════════════════════════════════════════ */
+var CQ_V171_W_EMPH = "<强调>\n一轮只写一份变量块，格式照《[mvu_update]变量输出格式》，写完即收尾，不补第二份。\n\n1. 变量更新只认 <UpdateVariable><JSONPatch>[ … ]</JSONPatch></UpdateVariable>；严禁 <status_current_variables>，也不要把它塞进变量块。\n2. 正文只用一个 <content> 包一层；不写 <对话框显示>，不套别的壳。\n3. 同场、碰面、打招呼或说话 → 在场状态改 true；离场或本轮没出现 → false。聊天、送东西、帮忙、亲密接触 → 好感度（或恶堕值）+5。\n4. 睡觉 / 过夜 / 过了午夜 → /时间/日期 +1、/时间/精确时间 设 \"07:40\"；时间一律 HH:MM 五字符、时分补零，跨月按月末天数、跨年 /时间/年份 +1。\n5. 有 NSFW 动作 → 先写一张「人物名｜手势前戏」打头再写正经动作；同时发生的两个动作两张都写。\n</强调>";
+var CQ_V171_W_THINK = "<内置思维链>\n## ★ 每一条回复都必须先写 <thinking>，再写正文\n\n**输出顺序（固定，不许调换、不许省略）：**\n\n```\n<thinking>\n（按下面 7 步逐条过一遍，简短，每步一两句话）\n</thinking>\n<content>正文</content>\n<重要记忆>…</重要记忆>\n<UpdateVariable><JSONPatch>[ … ]</JSONPatch></UpdateVariable>\n```\n\n**思维链是给你自己用的，玩家看不到它。** 不要在里面写正文、不要写露骨内容、不要超过 15 行。\n写完 </thinking> 之后立刻进正文，不要把清单抄进 <content> 里。\n\n---\n\n## 七步自检（顺序固定，一步都不能跳）\n\n**① 我这一轮要演的是谁、在哪。**\n   读变量里的 主角信息.地点 和在场人物，确认这一轮发生在哪、有谁在。\n   ⚠ 如果 <后台推演> 里给了场外 NPC 的动向，只用来写他们，不要改 {{user}} 的位置。\n\n**② 对白格式对不对。**\n   每一句人物开口说话，必须是 `{人物名}「对白内容」`；\n   {{user}} 说话写 `{#}「对白内容」`；\n   旁白、动作、心理**不许带 `{}`**。这一轮如果有说话，就在这一步把它抓回来。\n\n**③ 有没有写 <content>。**\n   - 有且只有一个 `<content>…</content>`，里面只放正文，不套别的包裹标签。\n   - 不许写 `<对话框显示>`（已下架）。\n   - 思维链在 <content> **前面**，不许写进去。\n   - 正文里不写 URL、不写「图床」两个字。\n\n**④ 这一轮有没有触发「被邀请连携移动」。**\n   即：**对方客观上要带 {{user}} 去别处**（「跟我去溪边」「来我家坐坐」「我带你过去」），\n   而且话已经说出口、在等她回答。\n   → 有，就写 `<连携移动-被邀请>角色名/(角色名)|(某地)</连携移动-被邀请>`，\n     写在 </content> 后面。**只写一个人**。地点必须是固值表里的原词。\n   → 没有，就一个字都不要写这个标签（不许写空标签、不许写「无」）。\n\n**⑤ 这一轮有没有触发「邀请连携移动」。**\n   即：**{{user}} 主动请对方一起去某地**，而且**对方已经答应了**。\n   → 有，就写 `<连携移动-邀请>角色名/(角色名)|(某地)</连携移动-邀请>`，\n     两个人会一起过去。**只写一个人**。\n   → 对方没答应、还在犹豫、只是含糊应了一声 → **不写**（这一轮人不动）。\n\n   ★ ④ 和 ⑤ **同一轮最多只写一个**。两个都写了，玩家会不知道该跟谁走。\n\n**⑥ 这一轮有没有触发 NSFW 插图。**\n   按《插图库》的名单和动作词判：\n   - 有 NSFW 动作 → **先写一个** `人物名｜手势前戏` 打头，再写正经动作；\n     同时发生的两个动作（口交 + 手交）**两个标签都写**。\n   - 动作只要还在继续，**这一轮必须再写一次**，不许因为上轮写过就省。\n   - 没有 NSFW → 不写插图标签。名单外的角色没有图，也不要写。\n\n**⑦ 结尾三件套齐了没有。**\n   - `<重要记忆>`：**一轮一条**，五个要素用「／」分隔、不换行，时间写精确的「年月日 时:分」。\n   - `<UpdateVariable><JSONPatch>[ … ]</JSONPatch></UpdateVariable>`：\n     **有且只有一个**，本轮凡是有变化、且《变量更新规则》里存在的字段**全部都要写**，一个不漏。\n     没有变化就写 `[]`。**严禁** `<status_current_variables>`（那不是变量更新）。\n   - 人在同一处、碰面、说话 → 在场状态改 true；聊过天、送过东西、有肢体接触 → 好感/恶堕 +5；\n     睡过夜、过了午夜 → /时间/日期 +1，/时间/精确时间 改成 HH:MM 五字符。\n\n---\n\n## 收尾核对\n\n写完 </content> 后核对一次：`<重要记忆>` 与 `<UpdateVariable>` 各一份、没有多写。\n核对完就结束，**不要为了保险再补一份变量块**。\n</内置思维链>";
+function cqPatchWorldPrompts() {
+  var specs = [
+    { name: '强调', oldMark: '别他妈输出<status_current_variables>', text: CQ_V171_W_EMPH },
+    { name: '内置思维链', oldMark: '不管你前面写得多么好', text: CQ_V171_W_THINK }
+  ];
+  var wins = [];
+  function push(w) { try { if (w && wins.indexOf(w) < 0) wins.push(w); } catch (e) {} }
+  try { push(window); } catch (e0) {}
+  try { push(window.parent); } catch (e1) {}
+  try { push(window.top); } catch (e2) {}
+  try {
+    var td = window.top && window.top.document;
+    if (td && td.querySelectorAll) {
+      var ifr = td.querySelectorAll("iframe");
+      for (var i = 0; i < ifr.length; i++) { try { push(ifr[i].contentWindow); } catch (eI) {} }
+    }
+  } catch (e3) {}
+  for (var wi = 0; wi < wins.length; wi++) {
+    var w = wins[wi], fn = null;
+    try { if (w && typeof w.getWorldbook === "function") fn = w.getWorldbook; } catch (e4) {}
+    if (!fn) { try { if (typeof getWorldbook === "function") fn = getWorldbook; } catch (e5) {} }
+    if (!fn) continue;
+    var pools = [];
+    try { var one = fn(); if (one) pools.push(one); } catch (e6) {}
+    try {
+      var nms = (w.getCharWorldbookNames ? w.getCharWorldbookNames("current") : null);
+      var names = [];
+      if (nms) { if (nms.primary) names.push(nms.primary); if (nms.additional) names = names.concat(nms.additional); }
+      if (w.getChatWorldbookName) { var cw = w.getChatWorldbookName("current"); if (cw) names.push(cw); }
+      for (var ni = 0; ni < names.length; ni++) { try { var p = fn(names[ni]); if (p) pools.push(p); } catch (e7) {} }
+    } catch (e8) {}
+    for (var pi = 0; pi < pools.length; pi++) {
+      var list = pools[pi];
+      if (!list || !list.length) continue;
+      for (var li = 0; li < list.length; li++) {
+        var e = list[li];
+        if (!e || typeof e.content !== "string") continue;
+        var nm = String(e.comment || e.name || "");
+        for (var si = 0; si < specs.length; si++) {
+          var sp = specs[si];
+          if (nm !== sp.name) continue;
+          if (e.content.indexOf(sp.oldMark) < 0) continue;
+          e.content = sp.text;
+          try { console.log('[春日狂想曲] 世界书「' + sp.name + '」已精简去重（v171）'); } catch (eL) {}
+        }
+      }
+    }
+  }
+}
+try { cqPatchWorldPrompts(); } catch (eW) {}
+/* 世界书可能比脚本晚就绪，2.5 秒后再兜一次（幂等） */
+try { setTimeout(cqPatchWorldPrompts, 2500); } catch (eT) {}
 
 })();
