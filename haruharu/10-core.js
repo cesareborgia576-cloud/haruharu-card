@@ -16053,8 +16053,11 @@ function galMetrics(bodyEl) {
       var f = parseFloat(cs.fontSize); if (f > 0) fs = f;
       var l = parseFloat(cs.lineHeight);
       lh = (l > 0) ? l : Math.round(fs * 1.45);
+      /* ★ 07:11：这里原来把字号 Math.round 了 —— 12.5px 当 13px 量，
+         每行宽度虚高 4%，一行刚好装得下的句子被判成两行，
+         于是每页少装一行（就是那个永远空一行的来源之一）。改成原样使用。 */
       font = (cs.fontStyle || 'normal') + ' ' + (cs.fontWeight || 'normal') + ' '
-           + Math.round(fs) + 'px ' + (cs.fontFamily || 'sans-serif');
+           + fs + 'px ' + (cs.fontFamily || 'sans-serif');
     }
   } catch (e) {}
   var vpWc = 0;
@@ -16135,7 +16138,9 @@ function measureGalHeight(text, bodyEl) {
          以前是 1.04，偏保守，每页会少装半行到一行。 */
       /* 1.02 → 1.005：原来那 2% 是给"滚动条 + 标点禁则"预留的，
          现在没有滚动条了，2% 就变成纯浪费（10 行会少算 0.2 行，累计起来就是一整行空白）。 */
-      n = Math.ceil((w * 1.005) / mm.availW);
+      /* 1.005 的保守余量也去掉：它让每块都被判宽 0.5%，
+         短句多的时候累计起来正好是一行。改成只减 0.5px 抗浮点误差。 */
+      n = Math.max(1, Math.ceil((w - 0.5) / mm.availW));
     } else {
       n = Math.ceil(seg.length / mm.cpl);
     }
