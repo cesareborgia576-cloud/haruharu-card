@@ -17531,6 +17531,9 @@ function setGeneratingState(isGen) {
       setTimeout(function () {
         try {
           if (typeof DialogueReader === 'undefined' || !DialogueReader) return;
+          /* ★ 07:43：只有**真的有正文**才自动开框。
+             回空时抢着开，会导致"关掉又弹"——玩家根本关不掉。 */
+          if (!(DialogueReader.pages && DialogueReader.pages.length > 0)) return;
           DialogueReader._userClosed = false;
           DialogueReader.isOpen = true;
           DialogueReader.render();
@@ -18888,7 +18891,12 @@ var DialogueReader = {
          render 是被多处调用的（翻页、心跳、切场景、换字号），
          玩家开着框却看到一片空白的情况必须在这里兜住，不能指望调用方记得挂。 */
     if (this.pages.length === 0 && this._emptyReply) {
-      /* 完全空值：不挂说明条，直接开框显示红字 */
+      /* 完全空值：不挂说明条，直接显示红字 —— 但玩家手关过就别再弹 */
+      if (this._userClosed) {
+        stage.setAttribute('hidden', '');
+        if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
+        return;
+      }
       stage.removeAttribute('hidden');
       this.isOpen = true;
       try { fitDialogueStage(shell); } catch (eFitE) {}
