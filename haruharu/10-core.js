@@ -17467,8 +17467,7 @@ function setGeneratingState(isGen) {
     if (badge) badge.style.display = isGen ? 'inline-block' : 'none';
     if (isGen) shell.classList.add('th-gal-gen-on');
     else shell.classList.remove('th-gal-gen-on');
-    /* ★ 07:05：推进中 / 推进结束 的提示，只显示在游戏界面最上方 */
-    try { __thGenBanner(isGen); } catch (eGB) {}
+    /* ★ 07:07：状态条先撤掉 —— 它的 DOM 插进 shell 会挤动布局，导致对话框又空一行。 */
   } catch (eB) {}
   /* ★ v163：原写法只刷 shell.querySelector('.th-gal-shell-submit') —— 那拿到的是
      **控制舱里那颗**（display:none，玩家看不见）。面板里那颗真按钮永远显示「发送」，
@@ -25995,11 +25994,7 @@ function __thMountReroll() {
   } catch (eM) { return false; }
 }
 
-try {
-  setTimeout(function () { __thMountReroll(); }, 1200);
-  setTimeout(function () { __thMountReroll(); }, 4000);
-  setInterval(function () { try { __thMountReroll(); } catch (eI) {} }, 8000);
-} catch (eBoot) {}
+/* ★ 07:07：重 roll 按钮暂不自动挂载（会改动状态卡宽度→影响布局）。 */
 
 try { setTimeout(__thLiveVerTick, 4000); setInterval(__thLiveVerTick, 20000); } catch (eLv) {}
 
