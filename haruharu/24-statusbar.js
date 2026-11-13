@@ -1,4 +1,4 @@
-/* 春日狂想曲·统一版 v1.50 · 24-statusbar.js · 源脚本：[非同层] 13-状态栏·天元录式注入 */
+/* 春日狂想曲·统一版 v1.51 · 24-statusbar.js · 源脚本：[非同层] 13-状态栏·天元录式注入 */
 (function () {
   'use strict';
   var TOP = null;
