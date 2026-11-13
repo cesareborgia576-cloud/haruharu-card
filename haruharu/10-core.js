@@ -17963,11 +17963,22 @@ function hasDialogueTagInLatest() {
   try {
     var _i = getLatestAIMessageIndex();
     var _r = getMsgRawText(_i);
-    if (_r === null || _r === undefined) return false;
-    return !!parseContentWithLayer(String(_r)).text;
-  } catch (eT) {
-    return false;
-  }
+    if (_r !== null && _r !== undefined && parseContentWithLayer(String(_r)).text) return true;
+  } catch (eT) {}
+  /* ★ 11-14：上面这条路（getMsgRawText）和真正拿来渲染的那条（getLatestAIRawText）
+     **不是同一个来源**。实测出现过很荒谬的一幕：对话框已经解析出 29 页、正显示
+     「1 / 29 · 解析」，这里却判成「没有正文」，于是盖上一块
+     「⚠ 未识别到正文内容」的说明条，把整段正文挡在后面 —— 玩家看到的就是
+     「明明有正文，框里却是这句提示」，翻页还能翻。
+     判据补一条：渲染器手里已经有页、且来源不是兜底原文，那就是有正文。 */
+  try {
+    if (typeof DialogueReader !== 'undefined' && DialogueReader) {
+      var _pg = DialogueReader.pages;
+      var _src2 = DialogueReader.lastSource;
+      if (_pg && _pg.length && _src2 && _src2 !== 'raw') return true;
+    }
+  } catch (eD2) {}
+  return false;
 }
 
 /* ══ ★ v115：对话框里的「格式故障说明」条 ══════════════════════════════════
@@ -17980,6 +17991,14 @@ function hasDialogueTagInLatest() {
 var DLG_BROKEN_NOTE_ID = 'th-gal-dlg-broken-note';
 
 function showDialogueBrokenNote() {
+  /* ★ 11-14：**整个停用**。
+     玩家一小时前的原话：「没检测到标签直接展示原文」。
+     而这块「⚠ 未识别到正文内容 / 你极大概率是截断或回空了」的说明条，
+     实际效果是把正文整个盖住 —— 明明右边写着 1/29·解析、正文解析得好好的，
+     框里却只剩这句提示，还能翻页。
+     兜底逻辑本来就会把原文铺进框里（this.pages = [_fbText]），
+     有字就显示字，不需要这块说明。所以这里直接返回，永不显示。 */
+  return false;
   try {
     var doc = getDoc();
     var shell = doc && doc.querySelector ? doc.querySelector('#th-gal-shell-root') : null;
