@@ -5504,6 +5504,37 @@ var STYLE = `<style id="th-gal-shell-style">
     color: #fff !important;
   }
   
+  /* ★ 对话框正文区滚动条：之前完全没写，一直是系统默认灰条（带上下箭头），
+     跟 gal 框完全不搭。这里彻底重画：
+       · 轨道压到 8px、半透明，几乎融进背景
+       · 滑块改成金色渐变圆头，悬停更亮
+       · ::-webkit-scrollbar-button 直接 display:none —— 截图里那两个三角箭头就是它 */
+  .th-gal-dialogue-body::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 4px !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(232, 202, 138, 0.78) 0%, rgba(186, 146, 78, 0.68) 100%) !important;
+    border-radius: 4px !important;
+    border: 1px solid rgba(255, 246, 220, 0.22) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(250, 224, 164, 0.95) 0%, rgba(210, 168, 96, 0.85) 100%) !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-corner {
+    background: transparent !important;
+  }
+
   .th-gal-dialogue-body {
     display: block !important;
     margin: 0 !important;
