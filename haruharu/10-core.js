@@ -18509,6 +18509,14 @@ var DialogueReader = {
     /* ★ 07:38：只有**模型什么都没返回**（原文 trim 后为空）才算"回空了"。
        标签缺失是另一回事，不归这条管。 */
     try { this._emptyReply = (String(rawText == null ? '' : rawText).trim() === ''); } catch (eER) { this._emptyReply = false; }
+    if (this._emptyReply) {
+      /* ★ 07:40：回空时把上一次的页清干净，否则页码还显示 1/20 这种上一楼的数据 */
+      this.pages = [];
+      this.speakers = [];
+      this.currentIndex = 0;
+      this.lastSig = '';
+      this.lastSource = '';
+    }
     /* ★ 性能优化卫兵：非生成态且原文与生成状态完全未变时，先检查视口几何，未变则静默返回，避免每 700ms 强制重排 */
     if (!isGenerating && rawText === this.lastRaw && this.lastSource) {
       var bodyCheck = this.stage ? this.stage.querySelector('.th-gal-dialogue-body') : null;
@@ -18891,6 +18899,12 @@ var DialogueReader = {
       syncChoiceOverlayWithDialogue(false);
       if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
       try { syncDialogueStanding(shell); } catch (eDSE) {}
+      /* 页码：没有页就别显示 1/20，给两个横杠 */
+      try {
+        if (indicator) { indicator.textContent = '— / —'; indicator.title = '这一楼没有正文'; }
+        if (prevBtn) prevBtn.setAttribute('hidden', '');
+        if (topBtn) topBtn.setAttribute('hidden', '');
+      } catch (eInd) {}
       return;
     }
     if (this.pages.length === 0 && !_noteOn) {
