@@ -19089,12 +19089,15 @@ function thBuildHudPanel(shell) {
       _liveTag = window.__SPR_HOT_TAG__ || (HOST && HOST.__SPR_HOT_TAG__)
               || window.__SPR_ACTIVE_TAG || (HOST && HOST.__SPR_ACTIVE_TAG) || '';
     } catch (eLt) {}
+    /* ★ 11-14：人类可读版本号（v1.39）。只给一个 commit 前缀，没人知道那是哪一版。 */
+    var _liveVer = '';
+    try { _liveVer = window.__SPR_HOT_VER__ || (HOST && HOST.__SPR_HOT_VER__) || ''; } catch (eV2) {}
     try { _chgVer = (window.__SPR_CHG_VER || ''); } catch (eGv) {}
     head.innerHTML = '<div style="flex:1;min-width:0;">'
       + '<b style="font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>'
       + '<div style="margin-top:4px;font-size:11px;line-height:1.6;color:#8b8175;">'
       +   '卡版本 <b style="color:#c9bfae;">' + escChg(_cardVer || '（未知）') + '</b>'
-      +   ' · 线上 <b style="color:#86efac;">' + escChg(_liveTag ? _liveTag.slice(0, 10) : '（未热更）') + '</b>'
+      +   ' · 线上 <b style="color:#86efac;">' + escChg(_liveVer ? ('v' + String(_liveVer).replace(/^v/i, '') + ' · ' + String(_liveTag || '').slice(0, 8)) : (_liveTag ? String(_liveTag).slice(0, 10) : '（未热更）')) + '</b>'
       + '</div>'
       + '</div>';
     var xBtn = doc.createElement('button');
