@@ -17467,6 +17467,8 @@ function setGeneratingState(isGen) {
     if (badge) badge.style.display = isGen ? 'inline-block' : 'none';
     if (isGen) shell.classList.add('th-gal-gen-on');
     else shell.classList.remove('th-gal-gen-on');
+    /* ★ 07:05：推进中 / 推进结束 的提示，只显示在游戏界面最上方 */
+    try { __thGenBanner(isGen); } catch (eGB) {}
   } catch (eB) {}
   /* ★ v163：原写法只刷 shell.querySelector('.th-gal-shell-submit') —— 那拿到的是
      **控制舱里那颗**（display:none，玩家看不见）。面板里那颗真按钮永远显示「发送」，
@@ -25896,6 +25898,108 @@ function __thLiveVerTick() {
     setTimeout(function () { fin(''); }, 5000);
   } catch (e4) { fin(''); }
 }
+
+
+/* ══ 生成状态条（推进中 / 推进结束）══════════════════════════════════════
+   作者要求：只能显示在**游戏界面最上方**，不许浮在页面上。
+   所以挂进 #th-gal-shell-root，absolute 居中，跟界面同生共死。
+   结束态留 2.5 秒再收，让玩家看见"这一轮完了"。 */
+var __thGenHideTimer = null;
+function __thGenBanner(on) {
+  try {
+    var d = getDoc();
+    if (!d || !d.body) return;
+    var shell = d.querySelector('#th-gal-shell-root');
+    if (!shell) return;
+    var el = d.getElementById('th-genbar');
+    if (!el) {
+      el = d.createElement('div');
+      el.id = 'th-genbar';
+      el.setAttribute('style',
+        'position:absolute;top:0;left:50%;transform:translateX(-50%);' +
+        'z-index:2147483641;padding:6px 16px;border-radius:0 0 10px 10px;' +
+        'font-size:12px;line-height:1.4;letter-spacing:.03em;pointer-events:none;' +
+        'font-family:inherit;white-space:nowrap;box-sizing:border-box;max-width:96%;' +
+        'display:none;');
+      try {
+        var sp = window.getComputedStyle(shell).position;
+        if (!sp || sp === 'static') shell.style.setProperty('position', 'relative', 'important');
+      } catch (eP) {}
+      try { shell.appendChild(el); } catch (eA) { return; }
+    }
+    if (__thGenHideTimer) { try { clearTimeout(__thGenHideTimer); } catch (eT) {} __thGenHideTimer = null; }
+    if (on) {
+      el.textContent = '⏳ 正在推进中…';
+      el.style.background = 'linear-gradient(160deg,rgba(120,53,15,.96),rgba(69,26,3,.96))';
+      el.style.border = '1px solid rgba(251,191,36,.55)';
+      el.style.borderTop = '0';
+      el.style.color = '#fde68a';
+      el.style.display = 'block';
+    } else {
+      el.textContent = '✅ 推进结束';
+      el.style.background = 'linear-gradient(160deg,rgba(20,83,45,.96),rgba(6,46,26,.96))';
+      el.style.border = '1px solid rgba(74,222,128,.5)';
+      el.style.borderTop = '0';
+      el.style.color = '#bbf7d0';
+      el.style.display = 'block';
+      __thGenHideTimer = setTimeout(function () {
+        try { el.style.display = 'none'; } catch (e0) {}
+        __thGenHideTimer = null;
+      }, 2500);
+    }
+  } catch (eGen) {}
+}
+
+/* ══ 重 roll：常驻在主角 UI 的右边 ═════════════════════════════════════
+   作者原话：「我tm的重roll按钮呢，在游戏界主角ui的紧贴的右边常驻显示的那个按钮。」
+   做法：直接塞进状态卡内部末尾（它就是 flex 行），天然紧贴右边，且随卡一起常驻。 */
+function __thDoReroll() {
+  var done = false;
+  try {
+    var c = (window.SillyTavern && SillyTavern.getContext) ? SillyTavern.getContext() : null;
+    if (c && typeof c.generate === 'function') { c.generate('regenerate'); done = true; }
+  } catch (e0) {}
+  if (!done) {
+    try {
+      var td = (window.top && window.top.document) || document;
+      var b = td.getElementById('regenerate_button') || td.querySelector('.mes_regenerate');
+      if (b) { b.click(); done = true; }
+    } catch (e1) {}
+  }
+  if (!done) { try { popToast('找不到重 roll 入口，请用酒馆原生按钮'); } catch (e2) {} }
+}
+
+function __thMountReroll() {
+  try {
+    var d = getDoc();
+    if (!d) return false;
+    var card = d.querySelector('.th-gal-status-card');
+    if (!card) return false;
+    if (d.getElementById('th-reroll-btn')) return true;
+    var b = d.createElement('button');
+    b.type = 'button';
+    b.id = 'th-reroll-btn';
+    b.textContent = '🔄';
+    b.title = '重 roll 这一楼（重新生成）';
+    b.setAttribute('style',
+      'flex:0 0 auto;margin-left:6px;width:20px;height:20px;border-radius:50%;' +
+      'border:1px solid rgba(226,184,87,.55);background:rgba(255,255,255,.10);' +
+      'color:#f2e9dc;font-size:11px;line-height:1;cursor:pointer;pointer-events:auto;' +
+      'display:inline-flex;align-items:center;justify-content:center;padding:0;');
+    b.onclick = function (e) {
+      try { e.stopPropagation(); } catch (eS) {}
+      __thDoReroll();
+    };
+    try { card.appendChild(b); } catch (e1) {}
+    return true;
+  } catch (eM) { return false; }
+}
+
+try {
+  setTimeout(function () { __thMountReroll(); }, 1200);
+  setTimeout(function () { __thMountReroll(); }, 4000);
+  setInterval(function () { try { __thMountReroll(); } catch (eI) {} }, 8000);
+} catch (eBoot) {}
 
 try { setTimeout(__thLiveVerTick, 4000); setInterval(__thLiveVerTick, 20000); } catch (eLv) {}
 
