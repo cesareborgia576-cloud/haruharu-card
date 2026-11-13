@@ -25537,7 +25537,10 @@ function __thDoReload() {
 /* 左上角/顶栏那个「📜 版本」按钮 —— 有新版本就整颗变红，玩家一眼看到就点进去 */
 function __thMarkVerBadge(on) {
   try {
-    var list = document.querySelectorAll('[data-th-verlog]');
+    /* ★ 05:47：这里原来查的是 `document` —— 脚本自己那个**隐藏 iframe**，
+       里面根本没有顶栏按钮，所以徽章永远变不红。必须查宿主页面。 */
+    var _d = getDoc();
+    var list = _d.querySelectorAll('[data-th-verlog]');
     for (var i = 0; i < list.length; i++) {
       var b = list[i];
       if (on) {
@@ -25548,7 +25551,7 @@ function __thMarkVerBadge(on) {
         b.style.fontWeight = '700';
         b.setAttribute('data-newver', '1');
         if (!b.querySelector('.th-newver-dot')) {
-          var dot = document.createElement('span');
+          var dot = _d.createElement('span');
           dot.className = 'th-newver-dot';
           dot.setAttribute('style', 'display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5252;margin-left:5px;vertical-align:middle;box-shadow:0 0 6px #ff5252;');
           b.appendChild(dot);
@@ -25566,7 +25569,12 @@ function __thMarkVerBadge(on) {
 /* ★ 顶部常驻横幅：读到有新版就挂在最上方，**没有关闭按钮、不会自动消失**。
    玩家点它 = 刷新到新版；刷新完版本就对上了，横幅自然不再出现。 */
 function __thLiveVerShow(v) {
-  var doc = document, d;
+  /* ★ 05:47 关键：横幅必须画在**玩家看得见的那个文档**里。
+     以前写的是 `document` —— 也就是脚本所在的隐藏 iframe，
+     节点确实建出来了，但玩家永远看不到（版本页能刷新、横幅却不弹，就是这个）。 */
+  var doc = null, d = null;
+  try { doc = getDoc(); } catch (eG) { doc = null; }
+  if (!doc) { try { doc = document; } catch (eG2) { doc = null; } }
   try { if (!doc || !doc.body) return; } catch (e0) { return; }
   try { d = doc.getElementById('th-newver-banner'); } catch (e1) { d = null; }
   if (!d) {
