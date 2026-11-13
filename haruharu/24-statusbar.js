@@ -59,6 +59,11 @@
     next();
   }
 
+  /* 导出给齿轮面板：v150 把状态栏整个 display:none 了，原来挂在状态栏
+     「功能」页里的「📜 更新记录」按钮跟着一起消失。现在面板底部有自己的
+     版本按钮，点它就走这里。函数声明会提升，所以在定义前赋值也拿得到。 */
+  try { window.__thOpenChg = openChg; } catch (eChgEx) {}
+
   function openChg() {
     var doc = hostDoc(); if (!doc || !doc.body) return;
     if (doc.getElementById('haru-chg-mask')) return;

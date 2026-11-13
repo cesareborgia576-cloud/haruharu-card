@@ -18707,6 +18707,9 @@ function thBuildHudPanel(shell) {
     '<div class="th-gal-hud-grid">' +
       '<button type="button" class="th-gal-shell-act-btn" data-th-hudpin="1" title="关掉自动折叠：展开后不会自己收回去">📌 常显</button>' +
       '<button type="button" class="th-gal-shell-act-btn" data-th-hudfull="1" title="进入 / 退出全屏">⛶ 全屏</button>' +
+      /* ★ v150 补：卡版本 + 本版更新内容。原来这颗挂在状态栏「功能」页里，
+         状态栏被隐藏后入口没了，玩家找不到「这版改了什么」。 */
+      '<button type="button" class="th-gal-shell-act-btn" data-th-verlog="1" title="查看卡版本与本版更新内容">📜 版本</button>' +
     '</div></div>';
 
   /* ★ v150：顶栏永久隐藏后，精力值没地方看了 —— 在面板顶部补一条状态条。
@@ -18766,6 +18769,19 @@ function thBuildHudPanel(shell) {
         try { if (FullscreenMode.active) FullscreenMode.exit(); else FullscreenMode.enter(); } catch (eF) {}
       }
       thHudArmAutoClose(shell);
+    });
+  }
+
+  /* ★ v150 补：版本 / 本版更新。真正干活的是 24-statusbar.js 的 openChg()，
+     它按 changelog.json（CDN 三镜像）渲染可滚动弹层。 */
+  var verBtn = host.querySelector('[data-th-verlog]');
+  if (verBtn) {
+    verBtn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      try {
+        if (typeof window.__thOpenChg === 'function') { window.__thOpenChg(); thHudArmAutoClose(shell); return; }
+      } catch (eC) {}
+      try { if (typeof showToast === 'function') showToast('更新记录还没加载好，等两秒再点一次', 3000); } catch (eT) {}
     });
   }
 }
