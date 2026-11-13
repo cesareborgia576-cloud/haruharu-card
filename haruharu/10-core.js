@@ -20764,14 +20764,56 @@ function setupInteractions(shell) {
   syncDlgHBtn();
   try { fitDialogueStage(shell); } catch (eF0) {}
   if (btnDlgH) {
+    /* ★ 05:34：真正的强制重排。
+       以前只调 refit()，而 refit 依赖 this.lastRaw —— 那条路没走过的话它是空的，
+       refit 就什么都不做，于是"框变高了、字还是那么几行"。
+       这里：拿不到 lastRaw 就重新从最新一楼取原文，清掉几何缓存，再完整跑一遍分页。 */
+    var _forcePaginate = function () {
+      try {
+        var raw = String(DialogueReader.lastRaw || '');
+        if (!raw) {
+          try { raw = String(getLatestAIRawText() || ''); } catch (eG0) { raw = ''; }
+        }
+        try { DialogueReader.lastGeom = ''; } catch (eG1) {}
+        if (raw) {
+          try { DialogueReader.lastSource = ''; } catch (eG2) {}
+          DialogueReader.setRawText(raw, false);
+        } else {
+          try { DialogueReader.render(); } catch (eR1) {}
+        }
+      } catch (eFP) {}
+    };
+
     var _stepLines = function (delta) {
       var before = dlgLinesPref();
       var after = setDlgLines(before + delta);
       if (after === before) { popToast('已经是' + (delta > 0 ? '最多' : '最少') + ' ' + after + ' 行'); return; }
+      /* 一句一页模式下，框多高都不影响每页几个字 —— 那这个按钮就等于没反应。
+         玩家按了加减行，意图显然是"框高决定字数"，所以自动切回「装满」。 */
+      var switched = false;
+      try {
+        if (dlgPageMode() === 'one') {
+          try { sessionStorage.setItem(DLG_PAGE_KEY, 'fill'); localStorage.setItem(DLG_PAGE_KEY, 'fill'); } catch (ePM) {}
+          switched = true;
+          if (typeof syncDlgPageBtn === 'function') { try { syncDlgPageBtn(); } catch (eSP) {} }
+        }
+      } catch (ePm2) {}
       syncDlgHBtn();
       try { fitDialogueStage(shell); } catch (eF) {}
-      try { DialogueReader.refit(); } catch (eR) {}
-      popToast('对话框：' + after + ' 行（' + (delta > 0 ? '+' : '') + delta + '）');
+      _forcePaginate();
+      /* 诊断出口：卡住时让作者一眼看到"容量到底算成多少" */
+      try {
+        var _b = shell.querySelector('.th-gal-dialogue-body');
+        window.__TH_DLG_DBG__ = {
+          lines: after,
+          lineH: galLineH(_b),
+          boxH: dialogueHeightPx(_b),
+          availH: computeGalAvailH(_b),
+          pages: (DialogueReader.pages || []).length,
+          mode: dlgPageMode()
+        };
+      } catch (eDbg2) {}
+      popToast('对话框：' + after + ' 行' + (switched ? '（已切回装满模式）' : ''));
     };
     btnDlgH.onclick = function (e) {
       e.stopPropagation();
