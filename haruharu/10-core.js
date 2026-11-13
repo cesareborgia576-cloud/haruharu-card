@@ -13012,6 +13012,11 @@ function arcHomePlace(arc) {
    不依赖任何清理逻辑，新聊天没跑过 init patch 时天然就是纯爱。          */
 function thNormGameMode(m) { return (m === '牛头') ? '牛头' : '纯爱'; }
 function thGameModeOf() {
+  /* ★ 内存优先。thSetGameMode 刚把 MVU 写完那一刻，getSD() 走的是
+     collectMvuState（消息层），落库还没反映出来，读回来会是上一局的旧值 ——
+     表现就是「明明选了牛头，开局还是纯爱」。内存是本次会话的真相，先认它；
+     重启之后它没了，自然往下读 MVU，行为不变。 */
+  try { if (window.__thGameMode) return thNormGameMode(window.__thGameMode); } catch (e0) {}
   try {
     var sd = getSD() || {};
     if (sd.全局 && sd.全局.游戏模式) return thNormGameMode(sd.全局.游戏模式);
@@ -13402,6 +13407,19 @@ function thSetPlayerInfo(o) {
   } catch (e3) {}
   try { writeVars({ stat_data: { 主角信息: p } }); } catch (e4) {}
   try { window.__thPlayerInfo = p; } catch (e5) {}
+  /* ★ 左上角那个玩家名字读的是酒馆的 persona 名（context.name1），
+     不是我们自己的 主角信息.玩家姓名。只写变量不改它，那里就永远是 user。
+     只在玩家真的填了名字时同步；留空不动，免得把人家自己的 persona 冲掉。 */
+  try {
+    var _nm = p['玩家姓名'];
+    if (_nm) {
+      var _c2 = getStContext();
+      if (_c2 && _c2.name1 !== _nm) {
+        _c2.name1 = _nm;
+        if (typeof _c2.saveSettingsDebounced === 'function') { try { _c2.saveSettingsDebounced(); } catch (eSv) {} }
+      }
+    }
+  } catch (eNm) {}
   return p;
 }
 try {
@@ -23346,7 +23364,7 @@ async function updateContainer(shell) {
     if (piMind) piMind.value = p['玩家性格'];
   }
   function thSyncArcLabels() {
-    var t = arcDisplayName(thPendingArc) + '篇';
+    var t = arcDisplayName(thPendingArc);   /* 已含「篇」，不要再拼 */
     if (modeArcLabel) modeArcLabel.textContent = t;
     if (seasonArcLabel) seasonArcLabel.textContent = t;
     if (artArcLabel) artArcLabel.textContent = t;
@@ -23357,14 +23375,18 @@ async function updateContainer(shell) {
     if (!confirmList) return;
     var pi = thNormPlayerInfo(thPendingPlayerInfo);
     var rows = [
-      ['起始篇章', arcDisplayName(thPendingArc) + '篇', false],
+      /* ★ arcDisplayName 自带「篇」字（神社篇 / 幸福公寓篇 / 夏越村篇），
+         这里再拼一个就是「神社篇篇」—— 玩家截图里那个重复就是这么来的。 */
+      ['起始篇章', arcDisplayName(thPendingArc), false],
       ['游戏模式', thPendingMode + '模式', false],
       ['季节', TH_SEASON_META[thPendingSeason].icon + ' ' + thPendingSeason, false],
       ['插图版本', TH_ART_META[thPendingArt].icon + ' ' + thPendingArt, false],
-      ['玩家姓名', pi['玩家姓名'] || '（未填写 → 不定义 u，正文只用「你」）', !pi['玩家姓名']],
-      ['外貌身材', pi['玩家外貌身材'] || '（未填写 → 不描写 u 的外貌）', !pi['玩家外貌身材']],
-      ['玩家年龄', pi['玩家年龄'] || '（未填写 → 不暗示年纪）', !pi['玩家年龄']],
-      ['玩家性格', pi['玩家性格'] || '（未填写 → 不替 u 定性格）', !pi['玩家性格']],
+      /* 未填写「未指定」。原来那串「（未填写 → 不定义 u，正文只用「你」）」是
+         写给模型看的规则说明，印在确认页上像调试日志，玩家看不懂要它干嘛。 */
+      ['玩家姓名', pi['玩家姓名'] || '未指定', !pi['玩家姓名']],
+      ['外貌身材', pi['玩家外貌身材'] || '未指定', !pi['玩家外貌身材']],
+      ['玩家年龄', pi['玩家年龄'] || '未指定', !pi['玩家年龄']],
+      ['玩家性格', pi['玩家性格'] || '未指定', !pi['玩家性格']],
       ['开局类型', thPendingStartType === '梦幻开局' ? '🌙 梦幻开局 · 所有女角色好感 100' : '🌤 正常开局 · 原始好感起步', false]
     ];
     var h = '';
