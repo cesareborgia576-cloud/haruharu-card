@@ -23430,6 +23430,9 @@ async function updateContainer(shell) {
   }
   function chooseStartType(st) {
     thPendingStartType = thNormStartType(st);
+    /* 和其它几屏一样落一份 sessionStorage：按钮绑定被 DOM 重建冲掉时，
+       只剩这一行还能证明玩家点过什么。 */
+    try { sessionStorage.setItem('thGalPendingStartTypeChoice', thPendingStartType); } catch (eSt) {}
     renderConfirm();
     writeTitleState('confirm');
     applyTitleState();
@@ -23455,6 +23458,8 @@ async function updateContainer(shell) {
       if (_svSe) se = thNormSeason(_svSe);
       var _svAv = sessionStorage.getItem('thGalPendingArtChoice');
       if (_svAv) av = thNormArt(_svAv);
+      var _svSt = sessionStorage.getItem('thGalPendingStartTypeChoice');
+      if (_svSt) st = thNormStartType(_svSt);
     } catch (eSv2) {}
     /* 先写全部变量，再开局；梦幻开局的好感由 arcInitPatch 落库 */
     thSetGameMode(gm, { skipPeerSync: true });
