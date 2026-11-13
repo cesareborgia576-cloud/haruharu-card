@@ -25500,8 +25500,14 @@ function __thLiveVerTick() {
     if (done) return;
     done = true;
     if (!/^v\d+(\.\d+)+$/.test(v)) return;
+    /* ★ 05:22：先用构建序号比（只增不减）。版本号会被作者回退（v1.53→v1.22），
+       只比字符串的话，回退之后永远认为"没有新版"。seq 拿不到才退回字符串比。 */
+    var q = 0, curSeq = 0;
+    try { q = Number(window.__CQ_OSS_SEQ__ || 0); } catch (eQ) {}
+    try { curSeq = Number(window.__SPR_SEQ__ || (window.top && window.top.__SPR_SEQ__) || 0); } catch (eQS) {}
     var cur = __thLiveVerCur();
-    if (cur && __thLiveVerCmp(v, cur) > 0) {
+    var newer = (q && curSeq) ? (q > curSeq) : (cur && __thLiveVerCmp(v, cur) > 0);
+    if (newer) {
       try { window.__SPR_LIVE_NEW__ = v; } catch (e1) {}
       try { if (window.top && window.top !== window) window.top.__SPR_LIVE_NEW__ = v; } catch (e2) {}
       __thLiveVerShow(v);
