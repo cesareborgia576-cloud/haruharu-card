@@ -15810,17 +15810,19 @@ function fitDialogueStageToContent(shell) {
     if (stage.hasAttribute('hidden')) return;
     var lh = galLineH(body);
     if (!(lh > 0)) return;
-    var used = Math.ceil((body.scrollHeight - 0.5) / lh);
-    if (!(used > 0)) return;
+    /* ★ 06:12：不在"正文该多高"上做文章了 —— 那套算法已经被证明靠不住。
+       现在只做两件事：
+         ① 正文高度固定为「有效行数 × 行高」（页与页之间不跳）
+         ② 框 height:auto，由名牌 + 正文自己撑开（永远不会比内容高）
+       空档的物理来源就是"框比内容高"，② 直接从根上掐掉，不再依赖任何估算。 */
     var cap = dlgEffLines(body);
-    if (used > cap) used = cap;
-    if (used < 1) used = 1;
-    var bodyH = Math.floor(used * lh);
+    var bodyH = Math.floor(cap * lh);
+    body.style.setProperty('flex', '0 0 auto', 'important');
     body.style.setProperty('height', bodyH + 'px', 'important');
     body.style.setProperty('max-height', bodyH + 'px', 'important');
-    var h = Math.round(galChromeH(body) + bodyH);
-    stage.style.setProperty('height', h + 'px', 'important');
-    stage.style.setProperty('max-height', Math.max(h, Math.round(dialogueViewportMetrics(body).vpH * 0.84 || h)) + 'px', 'important');
+    body.style.setProperty('overflow-y', 'hidden', 'important');
+    stage.style.setProperty('height', 'auto', 'important');
+    stage.style.setProperty('max-height', dialogueMaxHeightPx(body) + 'px', 'important');
   } catch (eFC) {}
 }
 
@@ -15890,9 +15892,14 @@ function fitDialogueStage(shell) {
     var h = dialogueHeightPx(body);
     var cap = dialogueMaxHeightPx(body);
     if (!h) return 0;
-    stage.style.setProperty('height', h + 'px', 'important');
+    /* ★ 06:12：这里以前写死 height: <算出来的 px>。只要有任何一个地方把"名牌/内边距"
+       估大一点，框就会比内容高，多出来的那截就是"空半个框"，而且框越高空得越多
+       （作者观察到的规律完全对得上）。
+       现在不再猜高度：stage 用 auto，由它的子元素撑开 —— 框多高 = 名牌 + 正文，
+       一个像素都不多。max-height 仍然封顶，防止超出视口。 */
+    stage.style.setProperty('height', 'auto', 'important');
     stage.style.setProperty('max-height', cap + 'px', 'important');
-    stage.style.setProperty('min-height', Math.max(46, Math.round(h * 0.6)) + 'px', 'important');
+    stage.style.setProperty('min-height', '0px', 'important');
     /* ★ v90：正文区高度用真实可用高度，不再拍脑袋减 22（那 22 不够，正好差半行）。 */
     var avail = computeGalAvailH(body);
     /* flex 子项默认可以伸缩，手机上会被拉长（空白）或压扁（切字）——钉死它 */
