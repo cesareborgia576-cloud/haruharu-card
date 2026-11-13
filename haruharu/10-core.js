@@ -17525,6 +17525,18 @@ function setGeneratingState(isGen) {
     if (badge) badge.style.display = isGen ? 'inline-block' : 'none';
     if (isGen) shell.classList.add('th-gal-gen-on');
     else shell.classList.remove('th-gal-gen-on');
+    /* ★ 07:35 作者要求：推进结束 → 主动把对话框打开（解除"手关"锁，并强制展开）。
+       回空的情况也要开：框里会有那行红字告诉他去点重roll。 */
+    if (!isGen) {
+      setTimeout(function () {
+        try {
+          if (typeof DialogueReader === 'undefined' || !DialogueReader) return;
+          DialogueReader._userClosed = false;
+          DialogueReader.isOpen = true;
+          DialogueReader.render();
+        } catch (eOpen) {}
+      }, 260);
+    }
     /* ★ 07:13：状态条装回来。这次不再改 shell 的 position（上次怀疑是它挤动布局）。 */
     try { __thGenBanner(isGen); } catch (eGB) {}
   } catch (eB) {}
@@ -18874,7 +18886,11 @@ var DialogueReader = {
       try { hideDialogueBrokenNote(); showDialogueBrokenNote(); } catch (eReNote) {}
       syncChoiceOverlayWithDialogue(false);
       if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
-      try { body.innerHTML = ''; } catch (eClrBody) {}
+      /* ★ 07:35 作者要求：这一楼回空时，框里直接给一行红字，指明下一步点哪 */
+      try {
+        body.innerHTML = '<div style="color:#ff6b6b;font-weight:700;font-size:12.5px;line-height:1.8;letter-spacing:.02em;">'
+          + '回空了，点击旁边的重roll按钮重新尝试</div>';
+      } catch (eClrBody) {}
       /* ★ v116：说明条不是正文，没人说话 → 立绘收回去 */
       try { syncDialogueStanding(shell); } catch (eDS3) {}
       return;
