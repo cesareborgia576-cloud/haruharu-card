@@ -109,6 +109,72 @@
     });
   }
 
+  /* 状态栏「⚙ 功能」页：内置插图 / 外置插图 两个开关 */
+  function injectFunc(f) {
+    var d;
+    try { d = f.contentDocument; } catch (e) { return; }
+    if (!d || d.getElementById('page-func')) return;
+    var tabs = d.querySelector('.saku-tabs');
+    var vpage = d.getElementById('page-version');
+    if (!tabs || !vpage) return;
+
+    var tab = d.createElement('span');
+    tab.className = 'saku-tab';
+    tab.setAttribute('data-page', 'page-func');
+    tab.innerHTML = '<span class="saku-ico">⚙</span>功能';
+    tabs.appendChild(tab);
+
+    var pg = d.createElement('div');
+    pg.className = 'saku-page';
+    pg.id = 'page-func';
+    pg.innerHTML = [
+      '<div class="saku-page-title">功能</div>',
+      '<div class="ver-row"><span class="ver-k">内置插图</span>',
+      '<span class="ver-v" id="sb-fn-illust-v">—</span>',
+      '<button type="button" class="ver-btn" id="sb-fn-illust">切换</button></div>',
+      '<div class="ver-row"><span class="ver-k">外置插图</span>',
+      '<span class="ver-v" id="sb-fn-ext-v">—</span>',
+      '<button type="button" class="ver-btn" id="sb-fn-ext">切换</button></div>',
+      '<div style="margin-top:10px;font-size:11px;color:#8a8175;line-height:1.75;">',
+      '内置插图：卡里自带的图组（&lt;插图&gt; 标签）。<br>',
+      '外置插图：st-chatu8 这类生图插件出的图，铺在游戏背景上，压在内置插图之上。</div>'
+    ].join('');
+    vpage.parentNode.appendChild(pg);
+
+    function ls(k, dflt) {
+      try { var v = localStorage.getItem(k); return v === null ? dflt : v; } catch (e) { return dflt; }
+    }
+    function paint() {
+      var i1 = ls('SPR_ILLUST_ON', 'on') !== 'off';
+      var i2 = ls('SPR_EXT_ILLUST', 'on') === 'on';
+      try {
+        d.getElementById('sb-fn-illust-v').textContent = i1 ? '开' : '关';
+        d.getElementById('sb-fn-illust').textContent = i1 ? '关闭' : '打开';
+        d.getElementById('sb-fn-ext-v').textContent = i2 ? '开' : '关';
+        d.getElementById('sb-fn-ext').textContent = i2 ? '关闭' : '打开';
+      } catch (e) {}
+    }
+    try {
+      d.getElementById('sb-fn-illust').onclick = function () {
+        var next = ls('SPR_ILLUST_ON', 'on') === 'off';
+        try {
+          if (TOP.__sprIllust) TOP.__sprIllust.set(next);
+          else localStorage.setItem('SPR_ILLUST_ON', next ? 'on' : 'off');
+        } catch (e) {}
+        paint();
+      };
+      d.getElementById('sb-fn-ext').onclick = function () {
+        var next = ls('SPR_EXT_ILLUST', 'on') !== 'on';
+        try {
+          if (TOP.__sprExtIllust) TOP.__sprExtIllust.set(next);
+          else localStorage.setItem('SPR_EXT_ILLUST', next ? 'on' : 'off');
+        } catch (e) {}
+        paint();
+      };
+    } catch (eB) {}
+    paint();
+  }
+
   function injectChg(f) {
     var d;
     try { d = f.contentDocument; } catch (e) { return; }
@@ -150,6 +216,7 @@
       f.addEventListener('load', function () {
         try { var bd = f.contentDocument && f.contentDocument.body; if (bd) f.style.height = '600px'; } catch (e2) {}
         try { injectChg(f); } catch (e4) {}
+        try { injectFunc(f); } catch (e5) {}
       });
     } catch (e3) {}
   }

@@ -1455,6 +1455,8 @@
     var btn = doc.getElementById(NEXT_BTN_ID);
     if (!cgBox || !btn) return;
     var group = state.queue || [];          /* ★ v125：这一轮拼好的整条队列 */
+    /* 功能页里可以把内置插图关掉：当没有图处理，走下面的「收干净」分支 */
+    if (!illustEnabled()) group = [];
     var figEl = doc.getElementById(CG_FIGURE_ID);
 
     /* ★ v99：这一轮一个图组都没有 → 连黑幕一起收干净，壳的场景图与立绘回来。
@@ -1843,6 +1845,11 @@
   var extOn = false;
   var extTimer = null;
 
+  /* 内置插图总开关（状态栏「功能」页控制）。默认开。 */
+  function illustEnabled() {
+    try { return HOST.localStorage.getItem('SPR_ILLUST_ON') !== 'off'; } catch (e) { return true; }
+  }
+
   function extDoc() { try { return getDoc(); } catch (e) { return null; } }
 
   function extVp() {
@@ -1987,7 +1994,22 @@
         scan: extScan,
         count: function () { return extQueue.length; },
         list: function () { return extQueue.slice(); },
-        next: function () { if (extQueue.length) { extIdx = (extIdx + 1) % extQueue.length; extRender(); extPaintBtn(); } }
+        next: function () { if (extQueue.length) { extIdx = (extIdx + 1) % extQueue.length; extRender(); extPaintBtn(); } },
+        set: function (v) {
+          extOn = !!v;
+          try { HOST.localStorage.setItem('SPR_EXT_ILLUST', extOn ? 'on' : 'off'); } catch (eS) {}
+          if (extOn) { extScan(); extIdx = Math.max(0, extQueue.length - 1); }
+          extRender(); extPaintBtn();
+        },
+        get: function () { return extOn; }
+      };
+      HOST.__sprIllust = {
+        set: function (on) {
+          try { HOST.localStorage.setItem('SPR_ILLUST_ON', on ? 'on' : 'off'); } catch (eS2) {}
+          try { paint(); } catch (eP2) {}
+          extToast(on ? '🖼 内置插图：开' : '🖼 内置插图：关');
+        },
+        get: function () { return illustEnabled(); }
       };
     } catch (e2) {}
     extScan();
