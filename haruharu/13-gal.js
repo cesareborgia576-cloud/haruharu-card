@@ -1246,6 +1246,13 @@
       '  backdrop-filter: blur(8px) !important;',
       '}',
       '#' + AUTO_BTN_ID + '.is-shown { display: flex !important; }',
+      /* ★ v10.7：自动开关也要能嵌进壳内，否则壳里只有推进按钮、开关还飘在外面 */
+      '#' + AUTO_BTN_ID + '.in-shell {',
+      '  position: absolute !important;',
+      '  left: 10px !important;',
+      '  right: auto !important;',
+      '  bottom: 6px !important;',
+      '}',
       '#' + AUTO_BTN_ID + ':hover { border-color: #93c5fd !important; }',
       '#' + AUTO_BTN_ID + '.is-fixed {',
       '  opacity: 0.72 !important;',
@@ -1377,11 +1384,20 @@
       vp = (shell && shell.querySelector) ? shell.querySelector('.th-gal-shell-viewport') : null;
     } catch (e) { vp = null; }
 
+    var nb = doc.getElementById(NEXT_BTN_ID);
+    var ab = doc.getElementById(AUTO_BTN_ID);
+
     if (vp) {
       try { if (box.parentNode !== vp) vp.appendChild(box); } catch (e1) {}
       try { if (fig && fig.parentNode !== vp) vp.appendChild(fig); } catch (e2) {}
+      /* ★ v10.7：按钮搬进游戏视口。以前只有图和黑幕进壳，按钮还是 fixed 在
+         整个窗口上，看着像贴在酒馆界面左下角的播放器。 */
+      try { if (nb && nb.parentNode !== vp) vp.appendChild(nb); } catch (eN1) {}
+      try { if (ab && ab.parentNode !== vp) vp.appendChild(ab); } catch (eA1) {}
       if (box.classList) box.classList.add('in-shell');
       if (fig && fig.classList) fig.classList.add('in-shell');
+      if (nb && nb.classList) nb.classList.add('in-shell');
+      if (ab && ab.classList) ab.classList.add('in-shell');
       try { box.style.left = ''; box.style.top = ''; box.style.width = ''; box.style.height = ''; } catch (e3) {}
       try { if (fig) { fig.style.left = ''; fig.style.top = ''; fig.style.width = ''; fig.style.height = ''; } } catch (e4) {}
       return;
@@ -1389,8 +1405,12 @@
 
     try { if (box.parentNode !== doc.body) doc.body.appendChild(box); } catch (e5) {}
     try { if (fig && fig.parentNode !== doc.body) doc.body.appendChild(fig); } catch (e6) {}
+    try { if (nb && nb.parentNode !== doc.body) doc.body.appendChild(nb); } catch (eN2) {}
+    try { if (ab && ab.parentNode !== doc.body) doc.body.appendChild(ab); } catch (eA2) {}
     if (box.classList) box.classList.remove('in-shell');
     if (fig && fig.classList) fig.classList.remove('in-shell');
+    if (nb && nb.classList) nb.classList.remove('in-shell');
+    if (ab && ab.classList) ab.classList.remove('in-shell');
     try {
       box.style.left = '0px'; box.style.top = '0px';
       box.style.width = '100vw'; box.style.height = '100vh';
@@ -1513,16 +1533,24 @@
          · 顺带把「自动 / 固定」开关一起亮出来。
        为什么不再藏：玩家没法区分「这张就一张」和「翻页坏了」，
        而且他自己给的图常常只有一张，藏起来等于这套翻页机制形同不存在。 */
+    /* ★ v10.7：只有 1 张时不出按钮。
+       v125 原来让单张也显示「仅 1 张 1/1」，理由是「免得玩家以为翻页坏了」；
+       实际效果是左下角常驻一个带 ▶ 的紫色斜角块，被当成播放器/插槽，更迷惑。
+       单张没有可翻的东西，按钮和「自动/固定」开关一起收掉。 */
+    if (group.length <= 1) {
+      btn.classList.remove('is-shown');
+      btn.classList.remove('is-single');
+      var ab1 = doc.getElementById(AUTO_BTN_ID);
+      if (ab1) ab1.classList.remove('is-shown');
+      return;
+    }
     btn.classList.add('is-shown');
-    /* 用 add/remove 而不是 classList.toggle(名, 布尔) —— 第二个参数老环境不认 */
-    if (group.length <= 1) btn.classList.add('is-single');
-    else btn.classList.remove('is-single');
+    btn.classList.remove('is-single');
     var numEl = btn.querySelector('.num');
     if (numEl) numEl.textContent = (Math.min(state.index, group.length - 1) + 1) + '/' + group.length;
     var labelEl = btn.querySelector('.label');
     if (labelEl) {
-      if (group.length <= 1) labelEl.textContent = '仅 1 张';
-      else labelEl.textContent = (state.index >= group.length - 1) ? '回到第一张' : '下一张';
+      labelEl.textContent = (state.index >= group.length - 1) ? '回到第一张' : '下一张';
     }
     var abtn = doc.getElementById(AUTO_BTN_ID);
     if (abtn) abtn.classList.add('is-shown');
