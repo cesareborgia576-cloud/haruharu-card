@@ -369,8 +369,10 @@
             var _wantAll = CFG.bookOffInText.concat(CFG.bookNonOnly);
             var _embedded = (data.character_book && data.character_book.entries) || [];
             var _add = [];
+            var _missNames = [];
             _wantAll.forEach(function (nm) {
               if (_present[nm]) return;
+              _missNames.push(nm);
               for (var i = 0; i < _embedded.length; i++) {
                 if (String(_embedded[i].comment || '') === nm) {
                   var cp = JSON.parse(JSON.stringify(_embedded[i]));
@@ -380,6 +382,27 @@
                 }
               }
             });
+            /* ★ 08:02：酒馆导入后常把内嵌世界书抽成独立文件，character_book 会被清空，
+               这时 _add 是 0 条 —— 上面那条"补入"永远不会打印（玩家看到的 8/21 就是这个原因）。
+               所以再兜一层：从 COS 上取这 21 条的原文来补。 */
+            if (!_add.length && _missNames.length) {
+              try {
+                var _pr = await fetch('https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/wbpatch.json?t=' + Date.now());
+                if (_pr.ok) {
+                  var _plist = await _pr.json();
+                  (_plist || []).forEach(function (e) {
+                    var nm = String(e.comment || '');
+                    if (_missNames.indexOf(nm) < 0) return;
+                    var cp = JSON.parse(JSON.stringify(e));
+                    cp.enabled = wantedBook(nm, mode, false);
+                    _add.push(cp);
+                  });
+                  oks.push('从线上取回条目原文 ' + _add.length + ' 条');
+                }
+              } catch (eFp) {
+                errs.push('线上条目原文拉取失败：' + (eFp && eFp.message || eFp));
+              }
+            }
             if (_add.length) {
               var _done = false;
               if (typeof TH.createLorebookEntries === 'function') {
