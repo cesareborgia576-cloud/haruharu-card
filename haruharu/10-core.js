@@ -8157,7 +8157,14 @@ var STYLE = `<style id="th-gal-shell-style">
     overflow: hidden !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.38) !important;
   }
-  .th-gal-mini-hud.is-on { display: inline-flex !important; }
+  /* ★ 11-14：这条彻底关掉。
+     下面 8401 那条单类规则已经被它压过 —— 因为这里是「两个类」，
+     权重更高，不管写在哪都赢。于是元素（建的时候自带 is-on）
+     一直挂在 top:32px / left:8px / z-index:44 上，
+     正好被 top:8px / z-index:46 的主角状态卡盖住大半，
+     只在卡片下沿露出一条黑边 —— 玩家看到的就是「面板底下藏着个什么」。
+     时间 / 精力现在由主角状态卡自己报，这条 mini-hud 完全多余。 */
+  .th-gal-mini-hud.is-on { display: none !important; }
   .th-gal-mini-hud .mh-time {
     color: #e8eef6 !important;
     font-variant-numeric: tabular-nums !important;
@@ -18133,13 +18140,26 @@ var DialogueReader = {
       var _tagAlt = V147_TEXT_TAGS.join('|');
       hasBodyTag = new RegExp('<(?:' + _tagAlt + ')(?=[\\s>])[^>]*>', 'i').test(String(rawText || ''));
     } catch (eTagChk) {}
-    /* ★ 11-14 修复：解析器空手而归时，**仍然必须去读 DOM**。
-       原来这里是 (content && hasBodyTag) —— content 一旦为空就直接判死，
-       DOM 里明明有字也不用，整楼掉进「未检测到正文标签已展示原文」兜底。
-       玩家看到的就是自相矛盾的一幕：有正文标签、提示说没识别到、却还能翻页（1/1）。
-       正确语义：**只要有正文标签**，就先信 DOM 那份渲染排版；
-       解析器也有结果时，再做下面那道重合度校验，防止 DOM 混进标签外的内容。 */
-    var fromDom = hasBodyTag ? renderedProseFromDom() : '';
+    /* ★ 11-14 二次修复：**不再拿 hasBodyTag 当门槛**。
+       上一版改成 hasBodyTag ? 读DOM : ''，只要标签名稍微不对（模型爱写 <正文内容>、
+       <对话正文>、或者干脆忘了写闭标签），hasBodyTag 就是 false，
+       DOM 依旧不读 —— 于是照样报「未检测到正文标签已展示原文」。
+       玩家已经说得很清楚：**有正文就用 DOM 渲染的文本**。
+       现在无条件读 DOM，只是判断标准分两档：
+         · 有正文标签 → 重合度校验（原来的逻辑，防标签外内容混入）
+         · 没认出标签 → 只要 DOM 文本足够长、且这段字确实出现在原文里，就采信。
+       宁可多认一段正文，也不要让玩家对着一句「未检测到正文」发呆。 */
+    var fromDom = renderedProseFromDom();
+    if (fromDom && !hasBodyTag) {
+      /* 无标签时的防呆：DOM 那段开头 18 个字必须真的出现在原始楼层里，
+         否则说明读到的不是这一楼（或混进了界面自身的文字），放弃。 */
+      var _probe = String(fromDom).replace(/\s+/g, '').slice(0, 18);
+      var _rawFlat = String(rawText || '').replace(/\s+/g, '');
+      if (!_probe || _rawFlat.indexOf(_probe) < 0) {
+        fromDom = '';
+        try { window.__thDomRejected = { reason: 'probe-miss', probe: _probe }; } catch (ePr) {}
+      }
+    }
     if (fromDom && fromDom.length > 24) {
       /* 重合度校验：DOM 版与解析器版，取较短的那份做子序列比对。
          只要 DOM 里多出超过 20 字「解析器没有的东西」，就判定它混进了标签外的内容。 */
