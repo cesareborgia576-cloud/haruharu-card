@@ -19113,7 +19113,10 @@ function thBuildHudPanel(shell) {
     if (!tag) { try { tag = window.__SPR_ACTIVE_TAG || (HOST && HOST.__SPR_ACTIVE_TAG) || ''; } catch (eN1) {} }
     try { stale = !!(window.__SPR_HOT_STALE__ || (HOST && HOST.__SPR_HOT_STALE__)); } catch (eN2) {}
 
-    var KEY = 'SPR_SEEN_TAG', seen = '';
+    /* ★ 键名换到 V2。旧键 SPR_SEEN_TAG 在 v1.26/v1.27 那两版里是「一显示就记账」，
+       早就被写满了 —— 如果继续用同一个键，新的常驻通知会因为「这一版已通知过」
+       永远不出现，玩家看到的就是「又变回旧的通知了」。换键 = 重新开始一次。 */
+    var KEY = 'SPR_SEEN_TAG_V2', seen = '';
     try { seen = localStorage.getItem(KEY) || ''; } catch (eN3) {}
 
     var mark = stale ? ('stale:' + tag) : String(tag || '');
