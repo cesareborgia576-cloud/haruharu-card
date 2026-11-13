@@ -15785,44 +15785,21 @@ function galNoteFit() {
   return _galOverflowPenalty;
 }
 function computeGalAvailH(bodyEl) {
-  var stageH = dialogueHeightPx(bodyEl) || 0;
-  var fallback = Math.max(60, Math.round((stageH || 160) * 0.78));
-  try {
-    var stage = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-dialogue-stage') : null;
-    if (!stage) return fallback;
-    var h = stageH || stage.clientHeight || 0;
-    if (!(h > 0)) return fallback;
-    var cs = window.getComputedStyle(stage);
-    var pt = parseFloat(cs.paddingTop) || 0;
-    var pb = parseFloat(cs.paddingBottom) || 0;
-    var bt = parseFloat(cs.borderTopWidth) || 0;
-    var bb = parseFloat(cs.borderBottomWidth) || 0;
-    var nameH = 0;
-    try {
-      var nameEl = stage.querySelector('.th-gal-dialogue-name');
-      if (nameEl && !nameEl.hasAttribute('hidden')) {
-        var ncs = window.getComputedStyle(nameEl);
-        nameH = (nameEl.offsetHeight || 0)
-              + (parseFloat(ncs.marginTop) || 0)
-              + (parseFloat(ncs.marginBottom) || 0);
-      }
-    } catch (en) {}
-    /* 再留 3px：贴着底边的那一撇一捺不算被切 */
-    /* ★ 11-14：原来只留 3px。行高 22.5px 时，3px 根本不够 —— 最后一行的
-       下沿会贴到边框外，浏览器就冒出滚动条，看起来像"有字藏在下面"。
-       改成留「整整一行 + 4px」，宁可少装一行，也绝不出现滚动条。 */
-    var _lhNow = 22;
-    try {
-      var _l0 = parseFloat(window.getComputedStyle(bodyEl).lineHeight);
-      if (_l0 > 0) _lhNow = _l0;
-    } catch (eLH) {}
-    /* ★ 05:30：框高已经是「行数 × 行高 + 名牌边框」，这里就**不能再多扣一行**，
-       否则每页永远少装一行（正是"框很大却字很少"的观感）。只留 2px 抗亚像素。 */
-    var avail = h - pt - pb - bt - bb - nameH - 2;
-    if (!(avail > 40)) return fallback;
-    avail = avail * (1 - _galOverflowPenalty);
-    return Math.max(40, Math.floor(avail));
-  } catch (e) { return fallback; }
+  /* ★ 05:45 作者定位：分页算得没错，但那 4~6px 的余量正好落在**半透明圆角边**上，
+     下一行的上半截就露在那条透明带里，看着像"字卡在边边"。
+     现在不再从容器高度反推 —— 直接给「行数 × 行高」这个精确值：
+       正文区多高 = 你能看几行，一行都不多给。
+     （框本身的高度 = 边框 + 名牌 + 这个值，由 dialogueHeightPx 负责。） */
+  var lh = galLineH(bodyEl);
+  var lines = dlgLinesPref();
+  var want = lines * lh;
+  /* 视口装不下时再往下收，绝不溢出到框外 */
+  var m = dialogueViewportMetrics(bodyEl);
+  if (m.vpH) {
+    var hardCap = m.vpH - 10 - galChromeH(bodyEl);
+    if (hardCap > lh) want = Math.min(want, hardCap);
+  }
+  return Math.max(lh, Math.floor(want));
 }
 /* 数出一条消息当前实际能放多少行（给日志 / 调试用 */
 function galLinesPerPage(bodyEl) {
@@ -15848,7 +15825,11 @@ function fitDialogueStage(shell) {
     /* ★ v90：正文区高度用真实可用高度，不再拍脑袋减 22（那 22 不够，正好差半行）。 */
     var avail = computeGalAvailH(body);
     body.style.setProperty('max-height', avail + 'px', 'important');
-    body.style.setProperty('overflow-y', 'auto', 'important');
+    /* ★ 05:45：这里原来是 auto。auto 会把"多出来的几像素"也画出来，
+       正好压在框底的半透明圆角上 —— 玩家看到的就是"字卡在透明边边"。
+       分页已经保证一页正好是 N 行，所以这里 hidden 不会切字，
+       只切掉那截本不该存在的残行。 */
+    body.style.setProperty('overflow-y', 'hidden', 'important');
     return h;
   } catch (e) { return 0; }
 }
@@ -18496,7 +18477,16 @@ var DialogueReader = {
     /* ★ v87：正文没变还不够，几何也得没变。全屏 / 拉窗口 / 换字号之后视口变了，
        旧的页是按旧尺寸切的，放进新尺寸里就是一小块（看着扁）或者一大坨。
        几何指纹变了就重切一次，跟正文变了一样对待。 */
-    var geomKey = body ? dialogueGeomKey(body) : '';
+    /* ★ 05:42 真凶：这里原来写的是 `var geomKey = body ? ... : ''`，
+       而 `var body` 是在**下面几十行之后**才声明的 —— var 提升让这里的 body 是
+       undefined，于是 geomKey 永远是 ''，"几何变了"永远为 false。
+       结果：改字号、改框高、进出全屏，页都按第一次的尺寸切，永远不重切。
+       （这就是「框变高了，字还是那么几行」的根因，跟分页算法本身无关。）
+       现在先把壳和 body 查出来，再算指纹。 */
+    var _sh0 = null, _bd0 = null;
+    try { _sh0 = getDoc().querySelector('#th-gal-shell-root'); } catch (eSH) {}
+    try { _bd0 = _sh0 ? _sh0.querySelector('.th-gal-dialogue-body') : null; } catch (eBD) {}
+    var geomKey = _bd0 ? dialogueGeomKey(_bd0) : '';
     var geomChanged = (geomKey !== this.lastGeom);
     this.lastGeom = geomKey;
     this.lastRaw = rawText;
@@ -18506,8 +18496,8 @@ var DialogueReader = {
     var first = !this.lastSig;
     if (!first && isGenerating && this.lastSplitAt && (nowTs - this.lastSplitAt) < 700) return;
 
-    var shell = getDoc().querySelector('#th-gal-shell-root');
-    var body = shell ? shell.querySelector('.th-gal-dialogue-body') : null;
+    var shell = _sh0 || getDoc().querySelector('#th-gal-shell-root');
+    var body = _bd0 || (shell ? shell.querySelector('.th-gal-dialogue-body') : null);
     var keep = this.isOpen ? this.currentIndex : 0;
 
     var gal = splitPagesForGal(content, body);
