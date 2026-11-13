@@ -360,7 +360,7 @@
               return e;
             });
           });
-          oks.push('世界书条目 ' + hit + '/' + (CFG.bookOffInText.length + CFG.bookNonOnly.length) + ' 条命中');
+          oks.push('世界书条目 ' + hit + '/' + (CFG.bookOffInText.length + CFG.bookNonOnly.length) + ' 条命中【切换器 s48】');
 
           /* ★ 07:55：绑定的世界书可能是早期导入的旧副本，缺条目（玩家看到的 8/21）。
              这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
@@ -381,12 +381,26 @@
               }
             });
             if (_add.length) {
-              await TH.updateLorebookEntriesWith(wb, function (es) {
-                var out = (es || []).slice();
-                _add.forEach(function (n) { out.push(n); });
-                return out;
-              });
-              oks.push('补入缺失条目 ' + _add.length + ' 条');
+              var _done = false;
+              if (typeof TH.createLorebookEntries === 'function') {
+                try { await TH.createLorebookEntries(wb, _add); _done = true; } catch (eC1) { _done = false; }
+              }
+              if (!_done) {
+                await TH.updateLorebookEntriesWith(wb, function (es) {
+                  var out = (es || []).slice();
+                  _add.forEach(function (n) { out.push(n); });
+                  return out;
+                });
+              }
+              /* 回读确认：补完再数一次，让玩家看到到底进没进去 */
+              var _hit2 = 0;
+              try {
+                var _after = await TH.getLorebookEntries(wb);
+                var _has = {};
+                (_after || []).forEach(function (e) { _has[String(e.comment || '')] = 1; });
+                _wantAll.forEach(function (nm) { if (_has[nm]) _hit2++; });
+              } catch (eChk) { _hit2 = -1; }
+              oks.push('补入缺失条目 ' + _add.length + ' 条' + (_hit2 >= 0 ? '（回读 ' + _hit2 + '/21）' : ''));
             }
           } catch (eAdd) {
             errs.push('补入缺失条目失败：' + (eAdd && eAdd.message || eAdd));
