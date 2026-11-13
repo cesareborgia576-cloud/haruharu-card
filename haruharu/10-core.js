@@ -12325,11 +12325,13 @@ function thImgUrlsForArc(arc) {
          第一次进店必然白一下。15 张压完才 2.44MB，一次推完更划算。
          （push 自带去重，重复推不会重复加载。） */
       try {
-        Object.keys(CONVENIENCE_FRONT_SETS).forEach(function (se) {
-          var g = CONVENIENCE_FRONT_SETS[se];
-          if (!g) return;
-          push(g.day); push(g.dusk); push(g.night);
-        });
+        /* ★ 05:58 玩家反馈：图太多、白白加载其他三个季节。
+           现在只预载**当前季节**那一套；其余季节等真的换季了再拉
+           （换季是月份驱动的，一年最多三次，现拉一张的代价远小于常驻三倍）。 */
+        var _seNow0 = '春';
+        try { _seNow0 = thSeasonOf(); } catch (eSe0) {}
+        var _gConv = CONVENIENCE_FRONT_SETS[_seNow0];
+        if (_gConv) { push(_gConv.day); push(_gConv.dusk); push(_gConv.night); }
         push(CONVENIENCE_INNER_SETS.day); push(CONVENIENCE_INNER_SETS.dusk); push(CONVENIENCE_INNER_SETS.night);
       } catch (eConv) {}
     } else if (a === '神社') {
@@ -12337,13 +12339,18 @@ function thImgUrlsForArc(arc) {
       Object.keys(SHRINE_IMG_SETS || {}).forEach(function (k) {
         var g = SHRINE_IMG_SETS[k];
         if (!g) return;
-        push(g.day); push(g.dusk); push(g.night);
-        /* ★ v159：四季档 */
-        if (g.seasons) Object.keys(g.seasons).forEach(function (se) {
-          var sub = g.seasons[se];
-          if (!sub) return;
-          push(sub.day); push(sub.dusk); push(sub.night);
-        });
+        /* ★ 05:58：四季档以前是**四季全推**，神社十几个场景 × 3 档 × 3 季
+           = 上百张图，玩家一进神社就在后台拉几十 MB。
+           现在只推当前季节那一档；没这个季节的档才退回基础档。
+           其他季节真的到了当场再拉（不会白屏，只是那一下要等图）。 */
+        var _seNow1 = '春';
+        try { _seNow1 = thSeasonOf(); } catch (eSe1) {}
+        var _sub = (g.seasons && g.seasons[_seNow1]) || null;
+        if (_sub) {
+          push(_sub.day); push(_sub.dusk); push(_sub.night);
+        } else {
+          push(g.day); push(g.dusk); push(g.night);
+        }
       });
     } else {
       Object.keys(SCENE_IMGS).forEach(function (k) {
