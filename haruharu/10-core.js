@@ -15795,6 +15795,35 @@ function dlgHPref() { return 'n' + dlgLinesPref(); }
 function dlgHRatio() { return 0.4; }          /* 只剩指纹在用，不参与任何计算 */
 function nextDlgHPref() { return 'n' + setDlgLines(dlgLinesPref() + 1); }
 
+/* ★ 06:08 作者观察：高度越高空得越多、越矮空得越多、压到最扁时刚好。
+   这说明纸面上的算式没错，错的是**实际装进来的行数比框能装的少**，
+   差额随框高变大。别再拿公式对赌了 —— 渲染完直接量：
+     · 正文真实占了几行（scrollHeight / 行高，向上取整）
+     · 把框高收成「名牌边框 + 这几行」
+   一行不多少一行不补，肉眼上永远没有空档。 */
+function fitDialogueStageToContent(shell) {
+  try {
+    if (!shell) return;
+    var stage = shell.querySelector('.th-gal-dialogue-stage');
+    var body = shell.querySelector('.th-gal-dialogue-body');
+    if (!stage || !body) return;
+    if (stage.hasAttribute('hidden')) return;
+    var lh = galLineH(body);
+    if (!(lh > 0)) return;
+    var used = Math.ceil((body.scrollHeight - 0.5) / lh);
+    if (!(used > 0)) return;
+    var cap = dlgEffLines(body);
+    if (used > cap) used = cap;
+    if (used < 1) used = 1;
+    var bodyH = Math.floor(used * lh);
+    body.style.setProperty('height', bodyH + 'px', 'important');
+    body.style.setProperty('max-height', bodyH + 'px', 'important');
+    var h = Math.round(galChromeH(body) + bodyH);
+    stage.style.setProperty('height', h + 'px', 'important');
+    stage.style.setProperty('max-height', Math.max(h, Math.round(dialogueViewportMetrics(body).vpH * 0.84 || h)) + 'px', 'important');
+  } catch (eFC) {}
+}
+
 function dialogueHeightPx(bodyEl) {
   return Math.max(64, Math.round(galChromeH(bodyEl) + dlgEffLines(bodyEl) * galLineH(bodyEl)));
 }
@@ -18730,6 +18759,8 @@ var DialogueReader = {
       requestAnimationFrame(function () {
         try {
           if (!_bEl || !_bEl.isConnected) return;
+          /* ★ 06:08：先按真实内容收一次框，再做溢出检查 */
+          try { fitDialogueStageToContent(getDoc().querySelector('#th-gal-shell-root')); } catch (eFC0) {}
           var ov = _bEl.scrollHeight - _bEl.clientHeight;
           if (ov > 2) {
             var before = _galOverflowPenalty;
