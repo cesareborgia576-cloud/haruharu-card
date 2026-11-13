@@ -351,15 +351,46 @@
         if (wb) {
           var before = await TH.getLorebookEntries(wb);
           var hit = 0;
+          var _present = {};
           await TH.updateLorebookEntriesWith(wb, function (es) {
             return (es || []).map(function (e) {
               var c = String(e.comment || '');
-              if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) hit++;
+              if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
               e.enabled = wantedBook(c, mode, e.enabled);
               return e;
             });
           });
           oks.push('世界书条目 ' + hit + '/' + (CFG.bookOffInText.length + CFG.bookNonOnly.length) + ' 条命中');
+
+          /* ★ 07:55：绑定的世界书可能是早期导入的旧副本，缺条目（玩家看到的 8/21）。
+             这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
+             只增不删、只碰这 21 个具名条目，不动玩家自己的条目。 */
+          try {
+            var _wantAll = CFG.bookOffInText.concat(CFG.bookNonOnly);
+            var _embedded = (data.character_book && data.character_book.entries) || [];
+            var _add = [];
+            _wantAll.forEach(function (nm) {
+              if (_present[nm]) return;
+              for (var i = 0; i < _embedded.length; i++) {
+                if (String(_embedded[i].comment || '') === nm) {
+                  var cp = JSON.parse(JSON.stringify(_embedded[i]));
+                  cp.enabled = wantedBook(nm, mode, false);
+                  _add.push(cp);
+                  break;
+                }
+              }
+            });
+            if (_add.length) {
+              await TH.updateLorebookEntriesWith(wb, function (es) {
+                var out = (es || []).slice();
+                _add.forEach(function (n) { out.push(n); });
+                return out;
+              });
+              oks.push('补入缺失条目 ' + _add.length + ' 条');
+            }
+          } catch (eAdd) {
+            errs.push('补入缺失条目失败：' + (eAdd && eAdd.message || eAdd));
+          }
           if (hit === 0) errs.push('世界书里没匹配到任何模式条目，请确认卡内世界书已绑定');
           void before;
         } else {
