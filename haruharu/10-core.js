@@ -13069,6 +13069,8 @@ function thSetGameMode(m, opts) {
   try { writeVars({ stat_data: { 全局: { 游戏模式: gm } } }); } catch (e4) {}
   /* ③ 内存提示，防止上面两条都慢半拍 */
   try { window.__thGameMode = gm; } catch (e5) {}
+  /* 诊断：写完立刻读回来，能看出是「写进去了但读不到」还是「压根没写」。 */
+  try { console.log('[SPR] thSetGameMode 写入=' + gm + ' 读回=' + thGameModeOf()); } catch (eDg3) {}
 
   /* ④ ★ 苦主列表跟着模式走 —— 只有真正变了才动，避免每次开局白写一遍 */
   if (before !== gm) {
@@ -23404,6 +23406,8 @@ async function updateContainer(shell) {
     applyTitleState();
   }
   function chooseMode(mode) {
+    /* 诊断：点「牛头」时这行必须出现。没出现就是按钮绑定失效（DOM 被重建过）。 */
+    try { console.log('[SPR] chooseMode =', mode); } catch (eDg1) {}
     thPendingMode = thNormGameMode(mode);
     try { sessionStorage.setItem('thGalPendingModeChoice', thPendingMode); } catch (eM) {}
     writeTitleState('season');
@@ -23461,6 +23465,12 @@ async function updateContainer(shell) {
       var _svSt = sessionStorage.getItem('thGalPendingStartTypeChoice');
       if (_svSt) st = thNormStartType(_svSt);
     } catch (eSv2) {}
+    /* 诊断：开局这一刻把四个来源都打出来，一眼看出是「玩家没点上」还是「变量没写进去」。 */
+    try {
+      console.log('[SPR] beginGameConfirmed 模式：内存=' + thPendingMode +
+        ' session=' + (function () { try { return sessionStorage.getItem('thGalPendingModeChoice') || '(空)'; } catch (e) { return '?'; } })() +
+        ' 最终=' + gm);
+    } catch (eDg2) {}
     /* 先写全部变量，再开局；梦幻开局的好感由 arcInitPatch 落库 */
     thSetGameMode(gm, { skipPeerSync: true });
     thSetSeason(se, true);
