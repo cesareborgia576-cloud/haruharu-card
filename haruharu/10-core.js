@@ -11559,8 +11559,8 @@ function buildShellDOM() {
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-deduce" title="后台推演外置 AI：点开面板（切场景会自动推演）">🎲 推演</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-reopen-dialogue" title="打开或收起剧情对话框">📜 对话框</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-music-toggle is-playing" title="开关背景音乐">🎵 音乐:开</button>' +
-        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h" title="对话框加高一行（每点一次正好多一行字）">↕ 行数:9 ＋</button>' +
-        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h-dec" title="对话框降低一行（每点一次正好少一行字）">↕ 行数 －</button>' +
+        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h" title="对话框加高一行">➕行</button>' +
+        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h-dec" title="对话框降低一行">➖行</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-page" title="框有多高就塞多少行（铺满）／或每页只放一句">📄 分页:铺满</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-font-size" title="调整界面字号大小">🔤 字号:自动</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-toggle-options" title="呼出或隐藏当前前往选项">🧭 选项</button>' +
@@ -20926,11 +20926,11 @@ function setupInteractions(shell) {
   function syncDlgHBtn() {
     /* 显示的是「几行」，不是「小/中/大」——高度已经是行数的结果 */
     if (btnDlgH) {
-      btnDlgH.textContent = '↕ 行数:' + dlgLinesPref() + ' ＋';
-      btnDlgH.title = '加高一行（每点一次正好多一行字）';
+      btnDlgH.textContent = '➕行';
+      btnDlgH.title = '加高一行 · 当前 ' + dlgLinesPref() + ' 行';
     }
     if (btnDlgHD) {
-      btnDlgHD.textContent = '↕ 行数 －';
+      btnDlgHD.textContent = '➖行';
       btnDlgHD.title = '降低一行（每点一次正好少一行字）· 当前 ' + dlgLinesPref() + ' 行';
     }
     try { shell.style.setProperty('--th-dlg-h', dialogueHeightPx(shell.querySelector('.th-gal-dialogue-body')) + 'px'); } catch (eV) {}
