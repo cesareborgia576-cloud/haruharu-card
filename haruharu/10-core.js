@@ -19063,6 +19063,129 @@ function thBuildHudPanel(shell) {
     tryNext();
   }
 
+  /* ══ ★ 推送通知 ═══════════════════════════════════════════════════════
+     玩家要的是「通知」：**推了新版本，主动告诉我一次**，而不是让我自己
+     想起去点「📜 版本」，更不是每次都要问一句「你到底推送了没有」。
+
+     做法：脚本起来 ~2.2 秒后自己比一次
+        · 本次 loader 实际在用的 ref（__SPR_HOT_TAG__，没有就退 __SPR_ACTIVE_TAG）
+        · 玩家上次确认过的 ref（localStorage.SPR_SEEN_TAG）
+     两者不一样 → 弹一条通知，带「看看更新了啥」直达更新记录弹层。
+     ★ 每次 ref 变化都弹一次；同一版只弹一次（SPR_SEEN_TAG 记账）。
+       首次进入也弹 —— 玩家第一次就能确认「热更到底认没认出来」，
+       比静默更可信。
+     ★ 探测失败（__SPR_HOT_STALE__）单独弹一条「你可能还在旧版」，带刷新按钮 ——
+        这正是过去几小时里最坑人的那种情况：没有任何提示，只能靠猜。 */
+  try { window.__thOpenChangelog = thOpenChangelog; } catch (eExChg) {}
+
+  function thNotifyUpdate() {
+    var doc = getDoc();
+    if (!doc || !doc.body) return;
+    if (doc.getElementById('th-hotnotify')) return;
+    /* escChg 定义在 thOpenChangelog 内部，这里够不着，自带一个 */
+    function escN(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    var tag = '', stale = false;
+    try { tag = window.__SPR_HOT_TAG__ || (HOST && HOST.__SPR_HOT_TAG__) || ''; } catch (eN0) {}
+    if (!tag) { try { tag = window.__SPR_ACTIVE_TAG || (HOST && HOST.__SPR_ACTIVE_TAG) || ''; } catch (eN1) {} }
+    try { stale = !!(window.__SPR_HOT_STALE__ || (HOST && HOST.__SPR_HOT_STALE__)); } catch (eN2) {}
+
+    var KEY = 'SPR_SEEN_TAG', seen = '';
+    try { seen = localStorage.getItem(KEY) || ''; } catch (eN3) {}
+
+    var mark = stale ? ('stale:' + tag) : String(tag || '');
+    if (mark && mark === seen) return;          /* 这一版已经通知过了 */
+    try { localStorage.setItem(KEY, mark); } catch (eN4) {}
+    if (!stale && !tag) return;
+
+    var card = doc.createElement('div');
+    card.id = 'th-hotnotify';
+    card.setAttribute('style',
+      'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2147483640;' +
+      'width:min(430px,92vw);box-sizing:border-box;padding:12px 14px;' +
+      'background:linear-gradient(160deg,rgba(28,24,36,.97),rgba(14,12,18,.97));' +
+      'border:1px solid rgba(200,170,110,.45);border-radius:12px;' +
+      'box-shadow:0 14px 40px rgba(0,0,0,.7);color:#e8e2d6;' +
+      'font-size:13px;line-height:1.6;backdrop-filter:blur(6px);' +
+      'opacity:0;transition:opacity .28s ease,transform .28s ease;');
+
+    var head, sub, actions;
+    if (stale) {
+      head = '⚠️ 没能确认线上版本';
+      sub = '热更探测失败，你看到的可能是旧版。刷新一次通常就好。';
+    } else {
+      head = '🔔 已更新到新版本';
+      sub = '线上版本 <b style="color:#86efac;font-family:monospace;">' + escN(String(tag).slice(0, 10)) + '</b>'
+          + '　·　卡版本 <b style="color:#c9bfae;">' + escN(String(window.__SPR_CARD_VER || '—')) + '</b>';
+    }
+
+    card.innerHTML =
+      '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="color:#e6c884;font-weight:600;letter-spacing:.3px;">' + head + '</div>' +
+          '<div style="margin-top:3px;color:#9c9385;font-size:12px;">' + sub + '</div>' +
+        '</div>' +
+      '</div>';
+
+    actions = doc.createElement('div');
+    actions.setAttribute('style', 'display:flex;gap:8px;margin-top:10px;');
+
+    function mkBtn(label, primary, fn) {
+      var b = doc.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.setAttribute('style',
+        'flex:1;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;' +
+        (primary
+          ? 'border:1px solid rgba(230,200,132,.7);background:rgba(230,200,132,.16);color:#f0dfb8;'
+          : 'border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#b8b0a2;'));
+      b.addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        try { fn(); } catch (eB) {}
+        close();
+      });
+      return b;
+    }
+
+    function close() {
+      try {
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(-50%) translateY(-8px)';
+        setTimeout(function () { try { if (card.parentNode) card.parentNode.removeChild(card); } catch (eC) {} }, 300);
+      } catch (eC2) {}
+    }
+
+    if (stale) {
+      actions.appendChild(mkBtn('刷新页面', true, function () { try { location.reload(); } catch (eR) {} }));
+      actions.appendChild(mkBtn('知道了', false, function () {}));
+    } else {
+      actions.appendChild(mkBtn('看看更新了啥', true, function () { try { thOpenChangelog(); } catch (eO) {} }));
+      actions.appendChild(mkBtn('知道了', false, function () {}));
+    }
+    card.appendChild(actions);
+
+    doc.body.appendChild(card);
+    try {
+      requestAnimationFrame(function () {
+        card.style.opacity = '1';
+        card.style.transform = 'translateX(-50%) translateY(0)';
+      });
+    } catch (eRaf) { card.style.opacity = '1'; }
+    /* 20 秒自己收，不挡操作；关掉之后这一版不再弹（已记进 SPR_SEEN_TAG） */
+    setTimeout(close, 20000);
+    try { console.info('[通知] 热更通知：' + (stale ? '探测失败' : ('新版本 ' + String(tag).slice(0, 10)))); } catch (eL) {}
+  }
+  try {
+    if (typeof document !== 'undefined' && document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { setTimeout(thNotifyUpdate, 2200); });
+    } else {
+      setTimeout(thNotifyUpdate, 2200);
+    }
+  } catch (eBoot) {}
+
   var verBtn = host.querySelector('[data-th-verlog]');
   if (verBtn) {
     verBtn.addEventListener('click', function (e) {
