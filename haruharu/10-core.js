@@ -17490,7 +17490,11 @@ function buildCleanProseClone(box) {
          保险阀一触发就全部退回，思维链反而原原本本漏回来。 */
       var own = 0;
       try { own = String(le.textContent || '').replace(/\s+/g, '').length; } catch (eO) {}
-      if (totalLen > 0 && own >= totalLen * 0.55) { spared++; continue; }
+      /* ★ 阈值 0.55 → 0.25：预设常把正文切成好几个 div，每段只占全楼 10~20%。
+         按 0.55 判，这些分段容器全部被当成「注入物」剔掉，DOM 就永远读不到正文，
+         只能退回解析器那份（换行信息缺失，看着像按行断）。
+         放到 0.25 能保住分段容器；只占几个百分点的小块（思维链余额、按钮、装饰）照样挡得住。 */
+      if (totalLen > 0 && own >= totalLen * 0.25) { spared++; continue; }
       ce.setAttribute('data-th-kill', '1'); killed++;
     }
   } catch (e) {}
@@ -18076,7 +18080,13 @@ var DialogueReader = {
         try { window.__thDomRejected = { ratio: 'low', dom: String(fromDom).length, raw: content.length }; } catch (eRej) {}
       }
     } else {
-      this.lastSource = content ? 'raw' : 'none';
+      /* ★ 三分语义：dom / parse / raw
+         · dom   → DOM 渲染结果（最干净，换行最准）
+         · parse → 解析器拿到了正文，但 DOM 没读到（预设把正文包进带 class 的 div，
+                   isInjectedEl 一刀切成注入物剔光了）。**内容仍是对的**，只是没吃到 DOM 的排版。
+         · raw   → 两者都没有，走「整层原文全展示」的兜底。
+         以前这里把 parse 也标成 raw，玩家看到 TXT 就以为在跑兜底原文 —— 其实不是。 */
+      this.lastSource = content ? 'parse' : 'none';
     }
     /* ★ v82：识别到第几层不再弹任何提示。踩到第几层是脚本自己的事，
        玩家想回看原始楼层，点按钮栏那颗「🕘 历史」就行。 */
@@ -18087,9 +18097,18 @@ var DialogueReader = {
          和 v110「没标签一个字都不许留」不冲突：v110 防的是**上一楼的残留
          pages 串到这一楼**，这里用的是这一楼自己的 rawText，来源清楚。
          isGenerating 时不做 —— 流式还没写完，每 700ms 铺一次会抖成筛子。 */
+      /* ★ 幂等 + 楼层锁：同一楼只要进过兜底，就一直兜底。
+         上一版没做这个，结果 parseContentWithLayer 在同一楼里时灵时不灵，
+         兜底把 pages 设成 [整段]（1/1）、下一拍正常分页又按段切成 1/26，
+         两边每 700ms 抢一次 → 页码在 1/1 和 1/26 之间鬼畜。 */
       var _fbText = '';
       try { _fbText = compactProse(sanitizeRawProse(String(rawText || ''))); } catch (eFb) { _fbText = ''; }
       if (_fbText && !isGenerating) {
+        var _fbSig = 'fb|' + _fbText.length + '|' + _fbText.slice(0, 24) + '|' + _fbText.slice(-24);
+        this._fbFloor = String(rawText || '');
+        this._fbSig = _fbSig;
+        if (this._fbDone === _fbSig) return;   /* 同一段已经铺好了，别再 render 一次 */
+        this._fbDone = _fbSig;
         this.pages = [_fbText];
         this.speakers = [''];
         this.currentIndex = 0;
@@ -18137,6 +18156,12 @@ var DialogueReader = {
       }
       return;
     }
+    /* ★ 楼层锁：这一楼已经进了兜底（_fbFloor 同一串原文）→ 正常分页不许抢回来。
+       解析器对同一楼的判定会飘（流式尾巴、标签半截），不锁就会一直打架。 */
+    if (this._fbFloor && this._fbFloor === String(rawText || '') && this._fbSig) {
+      return;
+    }
+
     /* 这一楼有正常正文了 → 撤掉兜底半屏，回到原来的高度档位 */
     try {
       var _okShell = getDoc().querySelector('#th-gal-shell-root');
@@ -18376,7 +18401,10 @@ var DialogueReader = {
       var diag = null;
       try { diag = window.__thProseDiag; } catch (eDg) {}
       try {
-        var src = (this.lastSource === 'dom') ? 'DOM' : (this.lastSource ? 'TXT' : '');
+        var src = this.lastSource === 'dom' ? 'DOM'
+                : this.lastSource === 'parse' ? '解析'
+                : this.lastSource === 'raw' ? 'TXT'
+                : '';
         if (src) {
           srcTag = ' · ' + src;
           if (src === 'DOM' && diag) srcTag += '剔' + (diag.killed || 0);
@@ -18387,7 +18415,9 @@ var DialogueReader = {
       try {
         indicator.title = '正文来源：' + (this.lastSource === 'dom'
           ? '酒馆渲染后的 DOM（机制判据已跑）'
-          : '原始聊天文本（三层解析兜底——思维链会从这条路漏进来）')
+          : this.lastSource === 'parse'
+            ? '正文标签解析（DOM 没读到，可能预设把正文包进了带 class 的容器）'
+            : '整层原文兜底（未识别到正文标签 → 全部原文铺满半屏，不分页）')
           + (diag ? '\n楼层元素 ' + diag.live + ' 个（' + (diag.vis ? '整层可见' : '整层不可见·「看不见」判据已停用')
               + '），摘掉 ' + diag.killed + ' 个，放过(正文容器) '
               + (diag.spared || 0) + ' 个，锚点裁掉 ' + (diag.anchor || 0) + ' 块，留字 ' + diag.kept + '/' + diag.raw
