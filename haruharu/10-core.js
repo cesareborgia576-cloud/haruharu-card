@@ -702,6 +702,27 @@ function seasonSceneKeyOf(name) {
   if (n.indexOf('乡村小路') !== -1) return 'village_road';
   return 'village_road';
 }
+/* ★ 06:00：预加载发生在**入局之前**（玩家刚在开局页选了季节、变量还没写），
+   这时 thSeasonOf() 读 stat_data 是空的，只会回落到默认「夏」，
+   结果永远预载错季节。这里按优先级找真正选中的那个：
+     ① 存档变量 全局.季节（已入局）
+     ② 开局页点选时写下的全局/本地值（未入局）
+     ③ 默认夏 */
+function thSeasonForPreload() {
+  var s = '';
+  try {
+    var sd = getSD() || {};
+    s = String((sd.全局 && sd.全局.季节) || '');
+  } catch (e0) {}
+  if (!/^[春夏秋冬]$/.test(s)) {
+    try { s = String(window.__TH_PICK_SEASON__ || (window.top && window.top.__TH_PICK_SEASON__) || ''); } catch (e1) {}
+  }
+  if (!/^[春夏秋冬]$/.test(s)) {
+    try { s = String(localStorage.getItem('thPickSeason') || ''); } catch (e2) {}
+  }
+  return /^[春夏秋冬]$/.test(s) ? s : '夏';
+}
+
 function seasonSceneUrl(name) {
   try {
     /* ★ v155：v146 那批四季图已整批删除（只有季节档、没有时段档，会把
@@ -12328,8 +12349,7 @@ function thImgUrlsForArc(arc) {
         /* ★ 05:58 玩家反馈：图太多、白白加载其他三个季节。
            现在只预载**当前季节**那一套；其余季节等真的换季了再拉
            （换季是月份驱动的，一年最多三次，现拉一张的代价远小于常驻三倍）。 */
-        var _seNow0 = '春';
-        try { _seNow0 = thSeasonOf(); } catch (eSe0) {}
+        var _seNow0 = thSeasonForPreload();
         var _gConv = CONVENIENCE_FRONT_SETS[_seNow0];
         if (_gConv) { push(_gConv.day); push(_gConv.dusk); push(_gConv.night); }
         push(CONVENIENCE_INNER_SETS.day); push(CONVENIENCE_INNER_SETS.dusk); push(CONVENIENCE_INNER_SETS.night);
@@ -12343,8 +12363,7 @@ function thImgUrlsForArc(arc) {
            = 上百张图，玩家一进神社就在后台拉几十 MB。
            现在只推当前季节那一档；没这个季节的档才退回基础档。
            其他季节真的到了当场再拉（不会白屏，只是那一下要等图）。 */
-        var _seNow1 = '春';
-        try { _seNow1 = thSeasonOf(); } catch (eSe1) {}
+        var _seNow1 = thSeasonForPreload();
         var _sub = (g.seasons && g.seasons[_seNow1]) || null;
         if (_sub) {
           push(_sub.day); push(_sub.dusk); push(_sub.night);
@@ -20524,7 +20543,12 @@ function setupInteractions(shell) {
     var w = 0;
     try { w = shell.getBoundingClientRect().width || shell.offsetWidth || 0; } catch (e) { }
     if (!w) { w = FONT_REF_W; }
-    var auto = Math.min(FONT_MAX, Math.max(1, w / FONT_REF_W));
+    /* ★ 06:00 作者：手机端左上角 UI 太大，没有随屏幕缩小。
+       根因就在这儿 —— `Math.max(1, …)` 把下限钉死在 1 倍，屏幕比 460 窄也照样 1 倍，
+       所以手机上永远是"桌面尺寸硬塞进小屏"。
+       现在按容器宽度**纯等比**：360px 屏 → 0.78 倍，整套 UI 一起缩，
+       不会再出现"只有字变大、框没变"的错位。下限 0.55 保底可读。 */
+    var auto = Math.min(FONT_MAX, Math.max(0.55, w / FONT_REF_W));
     var lv = fontLevel(fontPref);
     var v = Math.min(FONT_TOTAL_MAX, auto * lv.mul);
     shell.style.setProperty('--ui-scale', String(Math.round(v * 1000) / 1000));

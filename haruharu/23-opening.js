@@ -815,7 +815,15 @@
         var v = pick.getAttribute('data-thso-val');
         if (g === 'arc') draft.arc = arcOf(v).key;
         else if (g === 'mode') draft.mode = normMode(v);
-        else if (g === 'season') draft.season = normSeason(v);
+        else if (g === 'season') {
+          draft.season = normSeason(v);
+          /* ★ 06:00：把"选中的季节"当场记下来。
+             10-core 的预加载跑在**入局之前**，那时 全局.季节 还没写进变量，
+             只能靠这个值决定预载哪一季的图。变量写完之后仍然以变量为准。 */
+          try { window.__TH_PICK_SEASON__ = draft.season; } catch (eS0) {}
+          try { if (window.top && window.top !== window) window.top.__TH_PICK_SEASON__ = draft.season; } catch (eS1) {}
+          try { localStorage.setItem('thPickSeason', draft.season); } catch (eS2) {}
+        }
         else if (g === 'startType') draft.startType = normStartType(v);
         refreshPanel();
         return;
