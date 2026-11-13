@@ -18915,8 +18915,23 @@ function thBuildHudPanel(shell) {
     box.setAttribute('style', 'width:min(560px,94vw);max-height:76vh;display:flex;flex-direction:column;background:linear-gradient(160deg,#16131c,#0d0b11);border:1px solid rgba(200,170,110,.35);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.75);overflow:hidden;');
 
     var head = doc.createElement('div');
-    head.setAttribute('style', 'display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(200,170,110,.18);');
-    head.innerHTML = '<b style="flex:1;font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>';
+    head.setAttribute('style', 'display:flex;align-items:flex-start;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(200,170,110,.18);');
+
+    /* ★ 标题下面挂两行版本信息，专治「到底更没更」这个扯不清的问题：
+         卡版本 = 这张卡打出来时写死的 VER，换卡才会变
+         线上版本 = loader 实际在用的 ref（stableRef / main / commit sha 前 10 位）
+       两个都在，你自己就能判断跑的是卡里那份还是线上那份。 */
+    var _cardVer = '', _liveTag = '', _chgVer = '';
+    try { _cardVer = window.__SPR_CARD_VER || (HOST && HOST.__SPR_CARD_VER) || ''; } catch (eCv) {}
+    try { _liveTag = window.__SPR_HOT_TAG__ || (HOST && HOST.__SPR_HOT_TAG__) || ''; } catch (eLt) {}
+    try { _chgVer = (window.__SPR_CHG_VER || ''); } catch (eGv) {}
+    head.innerHTML = '<div style="flex:1;min-width:0;">'
+      + '<b style="font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>'
+      + '<div style="margin-top:4px;font-size:11px;line-height:1.6;color:#8b8175;">'
+      +   '卡版本 <b style="color:#c9bfae;">' + escChg(_cardVer || '（未知）') + '</b>'
+      +   ' · 线上 <b style="color:#86efac;">' + escChg(_liveTag ? _liveTag.slice(0, 10) : '（未热更）') + '</b>'
+      + '</div>'
+      + '</div>';
     var xBtn = doc.createElement('button');
     xBtn.type = 'button';
     xBtn.textContent = '✕';
