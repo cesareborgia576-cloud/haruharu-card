@@ -18736,7 +18736,10 @@ var DialogueReader = {
     this.pages = pages;
     /* 新的一条正文才回到第一页；生成中正文只会往后长、页只会变多，保留用户翻到的页 */
     this.currentIndex = first ? 0 : Math.min(keep, pages.length - 1);
-    this.isOpen = true;
+    /* ★ 07:26：以前这里无条件 isOpen = true。于是点选项 / 切场景 / 我那个自纠重排，
+       只要重切一次页，玩家关掉的框就被强行弹回来。
+       现在：玩家亲手关过（_userClosed）就不再自动开。 */
+    if (!this._userClosed) this.isOpen = true;
     this.render();
   },
   /* ★ v87：外部（比如全屏脚本、窗口 resize）说「尺寸变了」，就把指纹清掉重排一次 */
@@ -18745,6 +18748,8 @@ var DialogueReader = {
     try { if (this.lastRaw) this.setRawText(this.lastRaw, false); } catch (e) {}
   },
   reopen: function() {
+    /* 玩家主动要开 → 解除"手关"锁 */
+    this._userClosed = false;
     /* ★ 11-14：**先信自己手里的**。
        下面那段会用 getMsgRawText 再判一次「这一楼有没有正文」，可它跟真正渲染用的
        getLatestAIRawText 不是同一个来源 —— 渲染明明有字，它读到空，于是把
@@ -20115,6 +20120,9 @@ function setupInteractions(shell) {
     diagClose.onclick = function(e) {
       e.stopPropagation();
       DialogueReader.isOpen = false;
+      /* ★ 07:26：玩家**亲手关的**框，就别再自动弹回来了（点选项、切场景、重排都不许）。
+         只有他再点「📜 对话框」才解除。 */
+      DialogueReader._userClosed = true;
       DialogueReader.render();
     };
   }
