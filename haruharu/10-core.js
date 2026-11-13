@@ -16458,7 +16458,33 @@ function splitPagesForGalInner(text, bodyEl) {
        现在 Canvas 测宽已经很快了，这个上限抬到 40，只当极端情况的安全阀。 */
     if (_galCheapMode && cur.length >= 40) flush();
     var trial = cur.length ? (curText() + '\n' + u.text) : u.text;
-    if (cur.length && measureGalHeight(trial, bodyEl) > maxH) flush();
+    if (cur.length && measureGalHeight(trial, bodyEl) > maxH) {
+      /* ★ 06:52 作者：固定框高之后底部又空出来 —— 因为装箱是**按整块**放的：
+         下一块放不下就整块挪到下一页，于是每页最多空出一行。
+         这里改成"把放不下的那块按行切开"：本页还能塞几行就先塞满，
+         剩下那一截作为新的一条接到下一页。这样页面永远是满的，框也不用缩。 */
+      var _mmF = galMetrics(bodyEl);
+      var _usedL = Math.max(0, Math.round(measureGalHeight(curText(), bodyEl) / _mmF.lh));
+      var _capL = Math.max(1, Math.floor(maxH / _mmF.lh));
+      var _remainL = _capL - _usedL;
+      var _filled = false;
+      if (_remainL >= 1) {
+        try {
+          var _bufF = galWrapLines(u.text, bodyEl);
+          if (_bufF.length > _remainL) {
+            var _headTxt = _bufF.slice(0, _remainL).join('');
+            var _tailTxt = _bufF.slice(_remainL).join('');
+            if (_headTxt && _tailTxt) {
+              cur.push({ name: u.name, text: _headTxt });
+              flush();
+              u = { name: u.name, text: _tailTxt };
+              _filled = true;
+            }
+          }
+        } catch (eSplF) {}
+      }
+      if (!_filled) flush();
+    }
     cur.push(u);
     /* 单独一个单位就装不下（一长段旁白）：
        ★ v90：改用 galWrapLines——按像素宽度折行，并在标点处断，
