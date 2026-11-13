@@ -15823,6 +15823,20 @@ function fitDialogueStageToContent(shell) {
     body.style.setProperty('overflow-y', 'hidden', 'important');
     stage.style.setProperty('height', 'auto', 'important');
     stage.style.setProperty('max-height', dialogueMaxHeightPx(body) + 'px', 'important');
+    /* 诊断：手机端如果还有空档，这三个数一比就知道空在哪儿 */
+    try {
+      window.__TH_DLG_DBG__ = {
+        scale: (function () { try { return getComputedStyle(shell).getPropertyValue('--ui-scale').trim(); } catch (e) { return '?'; } })(),
+        lh: +lh.toFixed(2),
+        lines: cap,
+        bodyH: bodyH,
+        bodyClientH: body.clientHeight,
+        bodyScrollH: body.scrollHeight,
+        stageH: stage.clientHeight,
+        nameH: (function () { var n = stage.querySelector('.th-gal-dialogue-name'); return n && !n.hasAttribute('hidden') ? n.offsetHeight : 0; })(),
+        vpH: dialogueViewportMetrics(body).vpH
+      };
+    } catch (eDbg3) {}
   } catch (eFC) {}
 }
 
@@ -15976,8 +15990,12 @@ function galBodyAvailW(bodyEl) {
       var pr = parseFloat(cs.paddingRight) || 0;
       var bl = parseFloat(cs.borderLeftWidth) || 0;
       var br = parseFloat(cs.borderRightWidth) || 0;
-      /* 再減 10px：给可能出现的滚动条留位，别等滚动条冒出来才发现装不下 */
-      var w = bodyEl.clientWidth - pl - pr - bl - br - 10;
+      /* ★ 06:16 真凶：这里原来还减了 10px 给"可能出现的滚动条"。
+         但对话框早就改成 overflow:hidden，压根没有滚动条 ——
+         这 10px 白白把可用宽算窄，每行被当成少放一个字，
+         于是"一页装得下的行数"被低估，页页都留一截空白。
+         框越宽、字号越大，误差越明显（所以只有电脑端「小」时看着刚好）。 */
+      var w = bodyEl.clientWidth - pl - pr - bl - br;
       if (w > 40) return w;
     }
   } catch (e) {}
@@ -15990,13 +16008,12 @@ function galBodyAvailW(bodyEl) {
 }
 var _galMetricsCache = { at: 0, vpW: 0, v: null };
 function galMetrics(bodyEl) {
-  /* 同一轮分页里反复问同一件事：缓存 400ms，不再每块都去问浏览器要计算样式 */
-  try {
-    var nowC = Date.now();
-    var vpWc = dialogueViewportMetrics(bodyEl).vpW || 0;
-    if (_galMetricsCache.v && (nowC - _galMetricsCache.at) < 400 && _galMetricsCache.vpW === vpWc) return _galMetricsCache.v;
-  } catch (eC) {}
-  var fs = 13, lh = 19, font = '';
+  /* ★ 06:14 作者定位：只有字号「小」时框刚好，中/大都会空一大截。
+     根因就在这个缓存 —— 它的键**只有视口宽度**，没有字号。
+     切到中/大之后，400ms 内拿到的还是小号那套 fs/lh，
+     分页按"小号每行字数"切页 ⇒ 一页塞的字比框能装的少 ⇒ 空。
+     现在把 fs/lh/宽度一起做键；字号一变键就变，绝不可能返回旧尺寸。 */
+  var fs = 13, lh = 19, font = '', availW = 0;
   try {
     if (bodyEl) {
       var cs = window.getComputedStyle(bodyEl);
@@ -16007,11 +16024,19 @@ function galMetrics(bodyEl) {
            + Math.round(fs) + 'px ' + (cs.fontFamily || 'sans-serif');
     }
   } catch (e) {}
-  var availW = galBodyAvailW(bodyEl);
+  var vpWc = 0;
+  try { vpWc = dialogueViewportMetrics(bodyEl).vpW || 0; } catch (eW) {}
+  var key = fs + '|' + lh + '|' + vpWc;
+  try {
+    if (_galMetricsCache.v && (Date.now() - _galMetricsCache.at) < 400 && _galMetricsCache.key === key) {
+      return _galMetricsCache.v;
+    }
+  } catch (eC) {}
+  availW = galBodyAvailW(bodyEl);
   /* cpl 只当粗略兜底（Canvas 测宽失败时才用得上）：中文一个字约等于一个字宽 */
   var cpl = Math.max(4, Math.floor(availW / Math.max(1, fs)));
   var out = { fs: fs, lh: lh, availW: availW, font: font, cpl: cpl };
-  try { _galMetricsCache = { at: Date.now(), vpW: (dialogueViewportMetrics(bodyEl).vpW || 0), v: out }; } catch (e3) {}
+  try { _galMetricsCache = { at: Date.now(), key: key, vpW: vpWc, v: out }; } catch (e3) {}
   return out;
 }
 /* ★ v90：找一个好看的断点。二分找出「宽度刚好装得下」的最长前缀，
@@ -16075,7 +16100,9 @@ function measureGalHeight(text, bodyEl) {
     if (w > 0) {
       /* × 1.02：中文标点禁则（行首不能是逗号句号）和英文整词换行会多占一点点。
          以前是 1.04，偏保守，每页会少装半行到一行。 */
-      n = Math.ceil((w * 1.02) / mm.availW);
+      /* 1.02 → 1.005：原来那 2% 是给"滚动条 + 标点禁则"预留的，
+         现在没有滚动条了，2% 就变成纯浪费（10 行会少算 0.2 行，累计起来就是一整行空白）。 */
+      n = Math.ceil((w * 1.005) / mm.availW);
     } else {
       n = Math.ceil(seg.length / mm.cpl);
     }
@@ -20609,6 +20636,8 @@ function setupInteractions(shell) {
     var lv = fontLevel(fontPref);
     var v = Math.min(FONT_TOTAL_MAX, auto * lv.mul);
     shell.style.setProperty('--ui-scale', String(Math.round(v * 1000) / 1000));
+    /* ★ 06:14：字号一变，量尺缓存必须作废，否则下一次分页还按旧字号算 */
+    try { _galMetricsCache = { at: 0, key: '', vpW: 0, v: null }; } catch (eMC) {}
     if (btnFontSize) {
       btnFontSize.textContent = '🔤 字号:' + (fontPref === 'auto' ? '自动' : lv.name);
     }
