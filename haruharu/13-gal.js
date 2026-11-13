@@ -1831,9 +1831,173 @@
   /* -------------------------------------------------------------
      挂载与观测
      ------------------------------------------------------------- */
+  /* ══ 外置插图：接住 st-chatu8 这类生图插件产出的图 ══════════════════
+     插件把生成的图插进 mes_text（<img> 或 iframe 里的画布/背景图），
+     GAL 壳会把消息区盖住，玩家看不见。这里把它们抓出来，铺在壳的背景层，
+     层级压过内置插图（2147483631），并且给一个开关：默认关，点一下显示，再点关掉。 */
+  var EXT_ID = 'gal-ext-illust';
+  var EXT_BTN = 'gal-ext-illust-btn';
+  var EXT_MAX = 12;
+  var extQueue = [];
+  var extIdx = 0;
+  var extOn = false;
+  var extTimer = null;
+
+  function extDoc() { try { return getDoc(); } catch (e) { return null; } }
+
+  function extVp() {
+    var doc = extDoc();
+    if (!doc) return null;
+    var shell = doc.getElementById('th-gal-shell-root');
+    if (!shell || !shell.querySelector) return null;
+    return shell.querySelector('.th-gal-shell-viewport');
+  }
+
+  function extToast(msg) {
+    try {
+      var doc = extDoc(); if (!doc || !doc.body) return;
+      var t = doc.getElementById('gal-ext-toast');
+      if (!t) {
+        t = doc.createElement('div');
+        t.id = 'gal-ext-toast';
+        t.setAttribute('style', 'position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:2147483647;padding:7px 16px;border-radius:8px;background:rgba(12,10,8,.9);border:1px solid rgba(217,187,122,.5);color:#f2e9dc;font:600 13px/1.5 system-ui,"Microsoft YaHei",sans-serif;pointer-events:none;transition:opacity .25s;');
+        doc.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.style.opacity = '1';
+      clearTimeout(t.__h);
+      t.__h = setTimeout(function () { try { t.style.opacity = '0'; } catch (e) {} }, 1800);
+    } catch (e) {}
+  }
+
+  function extLayer() {
+    var doc = extDoc(), vp = extVp();
+    if (!doc || !vp) return null;
+    var el = doc.getElementById(EXT_ID);
+    if (!el) {
+      el = doc.createElement('div');
+      el.id = EXT_ID;
+      vp.appendChild(el);
+    }
+    el.setAttribute('style', 'position:absolute;inset:0;z-index:2147483636;pointer-events:none;opacity:0;transition:opacity .25s ease;background:#000 center/contain no-repeat;');
+    return el;
+  }
+
+  function extRender() {
+    var el = extLayer();
+    if (!el) return;
+    if (!extOn || !extQueue.length) { el.style.opacity = '0'; return; }
+    var src = extQueue[extIdx] || '';
+    el.style.backgroundImage = src ? 'url("' + src + '")' : 'none';
+    el.style.opacity = '1';
+  }
+
+  function extAdd(src) {
+    if (!src || extQueue.indexOf(src) >= 0) return false;
+    extQueue.push(src);
+    if (extQueue.length > EXT_MAX) extQueue.shift();
+    extIdx = extQueue.length - 1;
+    return true;
+  }
+
+  function extPick(img) {
+    if (!img || img.tagName !== 'IMG') return '';
+    try {
+      if (img.closest && img.closest('.mes_avatar, .avatar, .mes_avatar_img, .expression-holder, .avatar img')) return '';
+    } catch (e0) {}
+    var src = img.currentSrc || img.getAttribute('src') || '';
+    if (!src || !/^(https?:\/\/|blob:|data:image\/)/i.test(src)) return '';
+    var w = img.naturalWidth || 0, h = img.naturalHeight || 0;
+    if (w && h && (w < 200 || h < 200)) return '';    /* 图标 / 表情 */
+    return src;
+  }
+
+  function extScan() {
+    var doc = extDoc();
+    if (!doc) return 0;
+    var added = 0, s, i, j, k;
+    var list = doc.querySelectorAll('#chat img, .mes_text img, .mes img');
+    for (i = 0; i < list.length; i++) { s = extPick(list[i]); if (s && extAdd(s)) added++; }
+    /* 插件把图装 iframe 的情况 */
+    var fr = doc.querySelectorAll('#chat iframe, .mes_text iframe, .mes iframe');
+    for (j = 0; j < fr.length; j++) {
+      try {
+        var inner = fr[j].contentDocument;
+        if (!inner) continue;
+        var il = inner.querySelectorAll('img');
+        for (k = 0; k < il.length; k++) { s = extPick(il[k]); if (s && extAdd(s)) added++; }
+        /* iframe 内用背景图渲染的情况 */
+        var all = inner.querySelectorAll('div,span,section,p');
+        for (k = 0; k < all.length; k++) {
+          var bg = '';
+          try { bg = inner.defaultView.getComputedStyle(all[k]).backgroundImage || ''; } catch (eB) { bg = ''; }
+          var mm = bg.match(/url\(["']?([^"')]+)["']?\)/);
+          if (mm && /^(https?:\/\/|blob:|data:image\/)/i.test(mm[1])) { if (extAdd(mm[1])) added++; }
+        }
+      } catch (eF) {}
+    }
+    if (added) { extIdx = extQueue.length - 1; extRender(); }
+    return added;
+  }
+
+  function extBtn() {
+    var doc = extDoc(), vp = extVp();
+    if (!doc || !vp) return null;
+    var b = doc.getElementById(EXT_BTN);
+    if (!b) {
+      b = doc.createElement('button');
+      b.id = EXT_BTN;
+      b.type = 'button';
+      b.textContent = '🖼';
+      b.title = '外置插图（生图插件产出）：点一下显示 / 再点关掉';
+      b.setAttribute('style', 'position:absolute;top:10px;right:10px;z-index:2147483637;width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(217,187,122,.55);background:rgba(14,12,10,.72);color:#e6c884;font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);');
+      b.addEventListener('click', function (ev) { ev.stopPropagation(); extToggle(); });
+      vp.appendChild(b);
+    }
+    return b;
+  }
+
+  function extPaintBtn() {
+    var b = extBtn();
+    if (!b) return;
+    b.style.borderColor = extOn ? 'rgba(230,200,132,.95)' : 'rgba(217,187,122,.55)';
+    b.style.background = extOn ? 'rgba(60,44,20,.85)' : 'rgba(14,12,10,.72)';
+    b.textContent = extOn ? '🖼' : '🖼';
+    b.title = extOn
+      ? ('外置插图：开（' + (extQueue.length ? (extIdx + 1) + '/' + extQueue.length : '还没抓到图') + '）· 点一下关掉')
+      : '外置插图（生图插件产出）：点一下显示 / 再点关掉';
+  }
+
+  function extToggle() {
+    extOn = !extOn;
+    if (extOn) { extScan(); extIdx = Math.max(0, extQueue.length - 1); }
+    extRender();
+    extPaintBtn();
+    try { HOST.localStorage.setItem('SPR_EXT_ILLUST', extOn ? 'on' : 'off'); } catch (e) {}
+    extToast(extOn
+      ? (extQueue.length ? '🖼 外置插图：开（' + extQueue.length + ' 张）' : '🖼 外置插图：开 —— 还没抓到图，等插件出图')
+      : '🖼 外置插图：关');
+  }
+
+  function extBoot() {
+    try { if (HOST.localStorage.getItem('SPR_EXT_ILLUST') === 'on') extOn = true; } catch (e) {}
+    try {
+      HOST.__sprExtIllust = {
+        toggle: extToggle,
+        scan: extScan,
+        count: function () { return extQueue.length; },
+        list: function () { return extQueue.slice(); },
+        next: function () { if (extQueue.length) { extIdx = (extIdx + 1) % extQueue.length; extRender(); extPaintBtn(); } }
+      };
+    } catch (e2) {}
+    extScan();
+    if (!extTimer) extTimer = setInterval(function () { try { extScan(); extPaintBtn(); } catch (e3) {} }, 1500);
+  }
+
   function init() {
     try { ensureStyles(); } catch (eS) {}
     try { ensureDOM(); } catch (eD) {}
+    try { extBoot(); } catch (eX) {}
     var doc = getDoc();
     var target = doc.getElementById('chat') || doc.body;
     try {
@@ -1847,7 +2011,7 @@
       }
       /* ★ v100：观察器全局只留一份 —— 脚本热更不刷页面时不会叠出一堆旧实例 */
       try { if (HOST.__galObserver) HOST.__galObserver.disconnect(); } catch (eOb) {}
-      var ob = new MutationObserver(function () { scheduleParseAndRender(); });
+      var ob = new MutationObserver(function () { scheduleParseAndRender(); try { extScan(); } catch (eI) {} });
       ob.observe(target, { childList: true, subtree: true, characterData: true });
       HOST.__galObserver = ob;
     } catch (e) {}
