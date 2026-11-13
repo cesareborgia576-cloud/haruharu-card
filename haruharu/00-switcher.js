@@ -28,7 +28,7 @@
 
   var KEY = 'SPR_UNIFIED_MODE';
   var LOCK = '__SPR_SWITCHER_LOCK__';
-  var CFG = {"defaultMode":"game","gameFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","textFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","bookOffInText":["连携判定","内置思维链","格式","[mvu_update]变量更新规则","[mvu_update]变量输出格式","[InitVar]初始变量","小地图与快速跳转","插图版本","人物速查"],"bookNonOnly":["格式·非同层","[mvu_update]变量更新规则·非同层","[InitVar]初始变量·非同层","插图系统·非同层","人物速查·非同层","user身份·非同层","主要角色行为·非同层","暴露机制·非同层","关系·非同层","人物总览·非同层","[mvu_update]变量输出格式强调"]};
+  var CFG = {"defaultMode":"game","gameFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","textFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","bookOffInText":["连携判定","内置思维链","格式","[mvu_update]变量更新规则","[mvu_update]变量输出格式","[InitVar]初始变量","小地图与快速跳转","插图版本","人物速查"],"bookNonOnly":["内置思维链·非同层","格式·非同层","[mvu_update]变量更新规则·非同层","[InitVar]初始变量·非同层","插图系统·非同层","人物速查·非同层","user身份·非同层","主要角色行为·非同层","暴露机制·非同层","关系·非同层","人物总览·非同层","[mvu_update]变量输出格式强调"]};
   var GAME = 'game', TEXT = 'text';
 
   /* ── 宿主 window / document（脚本跑在酒馆助手 iframe 里） ────────── */
@@ -43,17 +43,26 @@
   if (!HD) return;
 
   function readMode() {
-    /* ★ v10.4：酒馆助手的开关真值在 script_trees（角色对象 settings.scripts，
-       持久化在 SillyTavern 的 settings.json），卡数据只是导出用的备份。
-       悬浮球必须读真值，否则会出现「实际是游戏版、球还显示文字版」。
-       顺序：script_trees → 卡数据 → localStorage → 默认。 */
+    /* ★ v10.9：先读玩家自己选的那个。
+       旧逻辑靠「[同层] 脚本里有 enabled=true」判模式，但热更卡把 13 个业务脚本
+       全部设成冷备 enabled=false —— 这个判据永远返回 false，
+       于是不管在游戏版还是文字版，嗅探一律返回文字版（球显示错、加载错脚本）。
+       现在：localStorage 优先；script_trees / 卡数据只在「确实存在启用的 [同层]」
+       时才判 GAME，全禁用视为热更卡正常态，跳过不判。 */
+    try {
+      var vL = HW.localStorage.getItem(KEY);
+      if (vL === GAME || vL === TEXT) return vL;
+    } catch (eL) {}
+
     var TH = pickTH();
     if (TH && typeof TH.getScriptTrees === 'function') {
       try {
         var trees = TH.getScriptTrees({ type: 'character' });
         var flat = flattenTrees(trees);
-        var same0 = flat.filter(function (s) { return String(s.name || '').indexOf('[同层]') === 0; });
-        if (same0.length) return same0.some(function (s) { return s.enabled; }) ? GAME : TEXT;
+        var on0 = flat.filter(function (s) {
+          return String(s.name || '').indexOf('[同层]') === 0 && s.enabled;
+        });
+        if (on0.length) return GAME;
       } catch (e0) {}
     }
     try {
@@ -62,15 +71,13 @@
         var cid0 = chidOf(ctx0, TH);
         if (cid0 !== null && ctx0.characters[cid0]) {
           var ss0 = (ctx0.characters[cid0].data.extensions.tavern_helper.scripts) || [];
-          var same1 = ss0.filter(function (s) { return String(s.name || '').indexOf('[同层]') === 0; });
-          if (same1.length) return same1.some(function (s) { return s.enabled; }) ? GAME : TEXT;
+          var on1 = ss0.some(function (s) {
+            return String(s.name || '').indexOf('[同层]') === 0 && s.enabled;
+          });
+          if (on1) return GAME;
         }
       }
     } catch (e1) {}
-    try {
-      var v0 = HW.localStorage.getItem(KEY);
-      if (v0 === GAME || v0 === TEXT) return v0;
-    } catch (e2) {}
     return CFG.defaultMode;
   }
   function flattenTrees(list, out) {
