@@ -5552,6 +5552,47 @@ var STYLE = `<style id="th-gal-shell-style">
   }
   ::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
   ::-webkit-scrollbar-corner { background: transparent !important; }
+  /* ★ 11-14 05:26：对话框的滚动条一直"没美化"，是因为真正的滚动容器
+     不一定是 .th-gal-dialogue-body —— 分页后可能套了一层内部 div，
+     LCS 又会插一层美化容器。这里把**舞台下面任何一层滚动条**全部接管，
+     并且用高优先级把系统灰条彻底压掉。 */
+  .th-gal-dialogue-stage::-webkit-scrollbar,
+  .th-gal-dialogue-stage *::-webkit-scrollbar,
+  .th-gal-dialogue-body::-webkit-scrollbar,
+  .th-gal-dialogue-body *::-webkit-scrollbar {
+    width: 7px !important;
+    height: 7px !important;
+    background: transparent !important;
+  }
+  .th-gal-dialogue-stage::-webkit-scrollbar-track,
+  .th-gal-dialogue-stage *::-webkit-scrollbar-track,
+  .th-gal-dialogue-body::-webkit-scrollbar-track,
+  .th-gal-dialogue-body *::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.045) !important;
+    border-radius: 999px !important;
+  }
+  .th-gal-dialogue-stage::-webkit-scrollbar-thumb,
+  .th-gal-dialogue-stage *::-webkit-scrollbar-thumb,
+  .th-gal-dialogue-body::-webkit-scrollbar-thumb,
+  .th-gal-dialogue-body *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(232, 202, 138, 0.85), rgba(186, 146, 78, 0.75)) !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 246, 220, 0.2) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  }
+  .th-gal-dialogue-stage::-webkit-scrollbar-thumb:hover,
+  .th-gal-dialogue-stage *::-webkit-scrollbar-thumb:hover,
+  .th-gal-dialogue-body *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(245, 220, 160, 0.95), rgba(205, 165, 95, 0.9)) !important;
+  }
+  .th-gal-dialogue-stage::-webkit-scrollbar-button,
+  .th-gal-dialogue-stage *::-webkit-scrollbar-button,
+  .th-gal-dialogue-body *::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
+  .th-gal-dialogue-stage, .th-gal-dialogue-stage *,
+  .th-gal-dialogue-body, .th-gal-dialogue-body * {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(200, 165, 100, 0.85) rgba(255, 255, 255, 0.05) !important;
+  }
 
   .th-gal-dialogue-body {
     display: block !important;
@@ -5570,8 +5611,8 @@ var STYLE = `<style id="th-gal-shell-style">
     font-family: "PingFang SC", "HarmonyOS Sans SC", "Source Han Sans SC",
                  "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei",
                  system-ui, -apple-system, sans-serif !important;
-    font-size: calc(12.5px * var(--ui-scale, 1)) !important;
-    line-height: 1.8 !important;
+    font-size: calc(12px * var(--ui-scale, 1)) !important;
+    line-height: 1.7 !important;
     letter-spacing: 0.01em !important;
     font-weight: 400 !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
@@ -15730,7 +15771,15 @@ function computeGalAvailH(bodyEl) {
       }
     } catch (en) {}
     /* 再留 3px：贴着底边的那一撇一捺不算被切 */
-    var avail = h - pt - pb - bt - bb - nameH - 3;
+    /* ★ 11-14：原来只留 3px。行高 22.5px 时，3px 根本不够 —— 最后一行的
+       下沿会贴到边框外，浏览器就冒出滚动条，看起来像"有字藏在下面"。
+       改成留「整整一行 + 4px」，宁可少装一行，也绝不出现滚动条。 */
+    var _lhNow = 22;
+    try {
+      var _l0 = parseFloat(window.getComputedStyle(bodyEl).lineHeight);
+      if (_l0 > 0) _lhNow = _l0;
+    } catch (eLH) {}
+    var avail = h - pt - pb - bt - bb - nameH - Math.ceil(_lhNow) - 4;
     if (!(avail > 40)) return fallback;
     avail = avail * (1 - _galOverflowPenalty);
     return Math.max(40, Math.floor(avail));
@@ -18578,6 +18627,20 @@ var DialogueReader = {
     /* ★ v42：按钮跟着亮 */
     if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
     var curPageText = this.pages[this.currentIndex] || '';
+    /* ★ 11-14 05:25：**渲染前再剥一次换行**。
+       thJoinLines 只在「旁白单位」那条路上做了拼接，走 HTML/LCS 或单句分页时
+       文本里仍然带着 \n —— 于是框很宽却一句一行，下面空一大片，还容易溢出。
+       这里把「单个换行」直接删掉（中文不需要空格），连续两个换行才算分段。 */
+    try {
+      var _pg = String(curPageText);
+      if (_pg.indexOf('\n') >= 0 && !/^\s*\{/.test(_pg)) {
+        _pg = _pg.replace(/\r/g, '')
+                 .replace(/\n{2,}/g, '\u0001')
+                 .replace(/\n/g, '')
+                 .replace(/\u0001/g, '\n');
+        curPageText = _pg;
+      }
+    } catch (eJp) {}
     /* LCS：放行模式把正文里的 <style> 提到 <head>（CSS 不进消息 DOM，绕开酒馆净化） */
     try { lcsInjectFloorCss(curPageText); } catch (eCss) {}
     /* LCS：含标签时按真实 HTML 渲染，纯文本仍走 textContent 防误解析 */
@@ -19281,7 +19344,9 @@ function thBuildHudPanel(shell) {
        外层不吃点击（pointer-events:none），只有卡片自己接事件，
        免得整块屏幕中间变成一堵点不动的墙。 */
     card.setAttribute('style',
-      'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.96);' +
+      /* ★ 11-14 05:26 作者：不要放屏幕正中，会压住顶栏那个「📜 版本」按钮，
+         点都点不到。改成贴屏幕最上方居中，宽 430 封顶。 */
+      'position:fixed;top:8px;left:50%;transform:translateX(-50%) scale(.96);' +
       'z-index:2147483640;pointer-events:auto;' +
       'width:min(430px,92vw);box-sizing:border-box;padding:14px 16px;' +
       'background:linear-gradient(160deg,rgba(28,24,36,.98),rgba(14,12,18,.98));' +
