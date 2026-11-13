@@ -15831,6 +15831,22 @@ function nextDlgHPref() { return 'n' + setDlgLines(dlgLinesPref() + 1); }
      · 正文真实占了几行（scrollHeight / 行高，向上取整）
      · 把框高收成「名牌边框 + 这几行」
    一行不多少一行不补，肉眼上永远没有空档。 */
+/* 用 Range 的 client rects 数"屏幕上真实占了几行" */
+function doc_createRangeLines(el) {
+  try {
+    if (!el) return 0;
+    var r = document.createRange();
+    r.selectNodeContents(el);
+    var rects = r.getClientRects();
+    var tops = {}, n = 0;
+    for (var i = 0; i < rects.length; i++) {
+      var t = Math.round(rects[i].top);
+      if (!tops[t]) { tops[t] = 1; n++; }
+    }
+    return n;
+  } catch (e) { return 0; }
+}
+
 function fitDialogueStageToContent(shell) {
   try {
     if (!shell) return;
@@ -15856,6 +15872,25 @@ function fitDialogueStageToContent(shell) {
     body.style.setProperty('overflow-y', 'hidden', 'important');
     stage.style.setProperty('height', 'auto', 'important');
     stage.style.setProperty('max-height', dialogueMaxHeightPx(body) + 'px', 'important');
+
+    /* ★ 07:22：数真实渲染行数（Range 的 client rects 按 top 去重），
+       实际比容量少 ⇒ 说明估算又把字算宽了，记偏差、下一轮补上容量。 */
+    try {
+      var _r = doc_createRangeLines(body);
+      if (_r > 0 && cap - _r >= 1 && _galCapBias < 3) {
+        var _txt = String(body.textContent || '');
+        var _key = _txt.length + '|' + _txt.slice(0, 16) + '|' + _txt.slice(-16);
+        if (_galBiasKey !== _key) {
+          _galBiasKey = _key;
+          _galCapBias += (cap - _r);
+          if (_galCapBias > 3) _galCapBias = 3;
+          /* ★ 07:24：这里别强开对话框 —— 之前那句 isOpen=true 会让"切场景自动弹框"。
+             只重排，不动开合状态。 */
+          try { DialogueReader.setRawText(DialogueReader.lastRaw, false); } catch (eRS) {}
+          return;
+        }
+      }
+    } catch (eBias) {}
     /* 诊断：手机端如果还有空档，这三个数一比就知道空在哪儿 */
     try {
       window.__TH_DLG_DBG__ = {
@@ -15913,6 +15948,10 @@ function galNoteFit() {
    这说明装箱容量和框高之间有一个固定差值（整行级），不是比例误差。
    与其继续猜这个差从哪来，不如直接校准掉：容量和框同时减一行。 */
 var GAL_LINE_ADJUST = -1;
+/* ★ 07:22：纸面算不准，就让运行时自己纠。渲染完数一下**真实渲染出几行**，
+   比容量少就记一笔偏差，下一轮把容量补上去。只增不改减，封顶 3 行，防止抖动。 */
+var _galCapBias = 0;
+var _galBiasKey = '';
 
 function computeGalAvailH(bodyEl) {
   /* ★ 05:45 作者定位：分页算得没错，但那 4~6px 的余量正好落在**半透明圆角边**上，
@@ -15923,7 +15962,7 @@ function computeGalAvailH(bodyEl) {
   var lh = galLineH(bodyEl);
   /* ★ 06:03：直接用「有效行数」，和框高同一把尺子。
      以前这里按视口再截一次，而框高没截 ⇒ 框里空半截 / 字跑框外，两个症状都从这来。 */
-  var lines = dlgEffLines(bodyEl) + GAL_LINE_ADJUST;
+  var lines = dlgEffLines(bodyEl) + GAL_LINE_ADJUST + _galCapBias;
   if (lines < 1) lines = 1;
   return Math.max(lh, Math.floor(lines * lh));
 }
