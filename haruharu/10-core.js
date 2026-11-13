@@ -12546,15 +12546,24 @@ function thImgUrlsCritical(arc) {
          理由跟上面立绘一样：闸门是为了「第一屏不白」，不是把整个仓库搬下来。
          当下是夏天白天就只等 summer_day，冬天黑夜就只等 winter_night。 */
       try {
-        var seNow = '';
-        try { seNow = thSeasonOf(); } catch (eS) {}
+        /* ★ 06:47：以前这里读的是 thSeasonOf()（入局后才有的变量），
+           开局闸门跑在入局**之前**，读不到就回落夏 —— 于是永远在拉夏天那套。
+           现在改用 thSeasonForPreload()（开局页选中就记下了）。 */
+        var seNow = thSeasonForPreload();
         var fset = CONVENIENCE_FRONT_SETS[seNow] || CONVENIENCE_FRONT_SETS['夏'];
         pickB(fset); pickB(CONVENIENCE_INNER_SETS);
       } catch (eConvB) {}
     } else if (a === '神社') {
       /* 神社篇第一屏是鸟居长廊 / 大院 */
       var g1 = (SHRINE_IMG_SETS || {})['tunnel'], g2 = (SHRINE_IMG_SETS || {})['yard'];
-      pickB(g1); pickB(g2);
+      /* ★ 06:47 关键：这里以前直接把 g1 丢给 pickB —— 那是**基础档**（夏天）。
+         神社的场景图是「基础档=夏 + seasons 里放春/秋/冬」，
+         所以无论玩家选哪个季节，闸门都会去拉夏天的图。
+         现在先按当前季节取子档，没有子档才退回基础档。 */
+      var _seC = thSeasonForPreload();
+      var _s1 = (g1 && g1.seasons && g1.seasons[_seC]) || g1;
+      var _s2 = (g2 && g2.seasons && g2.seasons[_seC]) || g2;
+      pickB(_s1); pickB(_s2);
     } else {
       /* 夏越村第一屏是开场白 / 乡村小路 / 自家前院 */
       push(SCENE_IMGS['乡村小路']);
