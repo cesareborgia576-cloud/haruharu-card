@@ -23444,6 +23444,18 @@ async function updateContainer(shell) {
     var av = thPendingArt;
     var st = thPendingStartType;
     var pi = thNormPlayerInfo(thPendingPlayerInfo);
+    /* ★ 和 sessionStorage 对一次。标题页每次 applyTitleState 都会重建 DOM，
+       按钮的 onclick 绑在旧节点上会失效 —— 那种情况下 chooseMode 里的
+       `thPendingMode = ...` 根本没执行，只有 sessionStorage 那行落了。
+       这里补读，保证「玩家点过什么」就是「开局用什么」。 */
+    try {
+      var _svGm = sessionStorage.getItem('thGalPendingModeChoice');
+      if (_svGm) gm = thNormGameMode(_svGm);
+      var _svSe = sessionStorage.getItem('thGalPendingSeasonChoice');
+      if (_svSe) se = thNormSeason(_svSe);
+      var _svAv = sessionStorage.getItem('thGalPendingArtChoice');
+      if (_svAv) av = thNormArt(_svAv);
+    } catch (eSv2) {}
     /* 先写全部变量，再开局；梦幻开局的好感由 arcInitPatch 落库 */
     thSetGameMode(gm, { skipPeerSync: true });
     thSetSeason(se, true);
