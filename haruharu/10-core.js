@@ -5340,9 +5340,18 @@ var STYLE = `<style id="th-gal-shell-style">
     /* ★ 固定高度（比例先给个默认值，脚本会再用 px 写死），一页一句也不会扁 */
     height: var(--th-dlg-h, 40%) !important;
     min-height: calc(46px * var(--ui-scale, 1)) !important;
-    background: rgba(18, 20, 26, 0.62) !important;
-    border: 1px solid rgba(160, 168, 185, 0.35) !important;
-    border-radius: 8px !important;
+    /* ★ gal 主题扁框：深色底渐变 + 双层描边（外金内暗）+ 顶部金色高光 + 柔和大投影。
+       圆角加大到 14px，四角有暗角晕染，正文读起来像 galgame 的立绘对话框。 */
+    background:
+      linear-gradient(180deg, rgba(30, 26, 20, 0.18) 0%, rgba(0, 0, 0, 0) 14%),
+      linear-gradient(165deg, rgba(24, 22, 30, 0.78) 0%, rgba(16, 15, 20, 0.72) 55%, rgba(22, 18, 14, 0.74) 100%) !important;
+    border: 1px solid rgba(217, 187, 122, 0.55) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(230, 200, 132, 0.22),
+      0 10px 30px rgba(0, 0, 0, 0.55),
+      0 0 22px rgba(217, 187, 122, 0.10) !important;
+    border-radius: 14px !important;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
