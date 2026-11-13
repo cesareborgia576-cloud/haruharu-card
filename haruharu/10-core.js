@@ -18409,7 +18409,6 @@ var DialogueReader = {
       try {
         var src = this.lastSource === 'dom' ? 'DOM'
                 : this.lastSource === 'parse' ? '解析'
-                : this.lastSource === 'raw' ? 'TXT'
                 : '';
         if (src) {
           srcTag = ' · ' + src;
@@ -18417,7 +18416,12 @@ var DialogueReader = {
           if (diag && diag.fallback) srcTag += '⚠';
         }
       } catch (eTag) {}
-      indicator.textContent = (this.currentIndex + 1) + ' / ' + this.pages.length + srcTag;
+      /* ★ 兜底的话放页数左边：玩家第一眼要先知道「这楼没标签、看到的是原文」，
+         而不是先看到 1/1 再自己猜为什么只有一页。正常来源的标记仍挂右边。 */
+      var _pgTxt = (this.currentIndex + 1) + ' / ' + this.pages.length;
+      indicator.textContent = (this.lastSource === 'raw')
+        ? ('未检测到正文标签已展示原文 · ' + _pgTxt)
+        : (_pgTxt + srcTag);
       try {
         indicator.title = '正文来源：' + (this.lastSource === 'dom'
           ? '酒馆渲染后的 DOM（机制判据已跑）'
