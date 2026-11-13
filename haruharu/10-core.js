@@ -23465,6 +23465,16 @@ async function updateContainer(shell) {
   }
   function renderConfirm() {
     if (!confirmList) return;
+    /* ★ 以 window 上那份为准。标题页重建成新闭包时 thPendingMode 会回到初始值，
+       而 window.__SPR_PICK 是玩家真正点过的东西，跨闭包唯一可信。 */
+    try {
+      var _pk = window.__SPR_PICK || {};
+      if (_pk.mode) thPendingMode = _pk.mode;
+      if (_pk.season) thPendingSeason = _pk.season;
+      if (_pk.art) thPendingArt = _pk.art;
+      if (_pk.startType) thPendingStartType = _pk.startType;
+      if (_pk.pi) thPendingPlayerInfo = _pk.pi;
+    } catch (ePk) {}
     var pi = thNormPlayerInfo(thPendingPlayerInfo);
     var rows = [
       /* ★ arcDisplayName 自带「篇」字（神社篇 / 幸福公寓篇 / 夏越村篇），
@@ -23499,6 +23509,15 @@ async function updateContainer(shell) {
     /* 诊断：点「牛头」时这行必须出现。没出现就是按钮绑定失效（DOM 被重建过）。 */
     try { console.log('[SPR] chooseMode =', mode); } catch (eDg1) {}
     thPendingMode = thNormGameMode(mode);
+    /* ★ 关键：同时写一份到 window。
+       确认页 renderConfirm 和开局 beginGameConfirmed 用的是**另一个闭包**里的
+       thPendingMode（标题页每重建一次就是一套新闭包），只改本闭包那个变量，
+       确认页永远读到初始值「纯爱」—— 这就是「点了牛头、确认页仍是纯爱」的根因。 */
+    try {
+      window.__SPR_PICK = window.__SPR_PICK || {};
+      window.__SPR_PICK.mode = thPendingMode;
+      console.info('[SPR] 记录选择 mode =', thPendingMode);
+    } catch (ePick) {}
     try { sessionStorage.setItem('thGalPendingModeChoice', thPendingMode); } catch (eM) {}
     writeTitleState('season');
     applyTitleState();
@@ -23563,12 +23582,14 @@ async function updateContainer(shell) {
   } catch (eTd) {}
   function chooseSeason(season) {
     thPendingSeason = thNormSeason(season);
+    try { window.__SPR_PICK = window.__SPR_PICK || {}; window.__SPR_PICK.season = thPendingSeason; } catch (ePS) {}
     try { sessionStorage.setItem('thGalPendingSeasonChoice', thPendingSeason); } catch (eS) {}
     writeTitleState('art');
     applyTitleState();
   }
   function chooseArt(art) {
     thPendingArt = thNormArt(art);
+    try { window.__SPR_PICK = window.__SPR_PICK || {}; window.__SPR_PICK.art = thPendingArt; } catch (ePA) {}
     try { sessionStorage.setItem('thGalPendingArtChoice', thPendingArt); } catch (eAr) {}
     thPiFill(thPendingPlayerInfo);
     thSyncArcLabels();
@@ -23582,6 +23603,7 @@ async function updateContainer(shell) {
   }
   function chooseStartType(st) {
     thPendingStartType = thNormStartType(st);
+    try { window.__SPR_PICK = window.__SPR_PICK || {}; window.__SPR_PICK.startType = thPendingStartType; } catch (ePSt) {}
     /* 和其它几屏一样落一份 sessionStorage：按钮绑定被 DOM 重建冲掉时，
        只剩这一行还能证明玩家点过什么。 */
     try { sessionStorage.setItem('thGalPendingStartTypeChoice', thPendingStartType); } catch (eSt) {}
@@ -23599,6 +23621,15 @@ async function updateContainer(shell) {
     var av = thPendingArt;
     var st = thPendingStartType;
     var pi = thNormPlayerInfo(thPendingPlayerInfo);
+    /* ★ 同上：闭包里的变量可能是初始值，window 上那份才是玩家点过的。 */
+    try {
+      var _pk2 = window.__SPR_PICK || {};
+      if (_pk2.mode) gm = thNormGameMode(_pk2.mode);
+      if (_pk2.season) se = thNormSeason(_pk2.season);
+      if (_pk2.art) av = thNormArt(_pk2.art);
+      if (_pk2.startType) st = thNormStartType(_pk2.startType);
+      if (_pk2.pi) pi = thNormPlayerInfo(_pk2.pi);
+    } catch (ePk2) {}
     /* ★ 和 sessionStorage 对一次。标题页每次 applyTitleState 都会重建 DOM，
        按钮的 onclick 绑在旧节点上会失效 —— 那种情况下 chooseMode 里的
        `thPendingMode = ...` 根本没执行，只有 sessionStorage 那行落了。
