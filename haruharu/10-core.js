@@ -11544,7 +11544,8 @@ function buildShellDOM() {
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-deduce" title="后台推演外置 AI：点开面板（切场景会自动推演）">🎲 推演</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-reopen-dialogue" title="打开或收起剧情对话框">📜 对话框</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-music-toggle is-playing" title="开关背景音乐">🎵 音乐:开</button>' +
-        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h" title="调整对话框高度（小/中/大/特大）：框变大后一页能装更多行，不用手动滑下去">↕ 高度:中</button>' +
+        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h" title="对话框加高一行（每点一次正好多一行字）">↕ 行数:9 ＋</button>' +
+        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h-dec" title="对话框降低一行（每点一次正好少一行字）">↕ 行数 －</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-page" title="框有多高就塞多少行（铺满）／或每页只放一句">📄 分页:铺满</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-font-size" title="调整界面字号大小">🔤 字号:自动</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-toggle-options" title="呼出或隐藏当前前往选项">🧭 选项</button>' +
@@ -19080,7 +19081,7 @@ function thBuildHudPanel(shell) {
   var GROUPS = [
     { t: '人物', keys: ['th-gal-btn-hero', 'th-gal-btn-history', 'th-gal-btn-cheat'] },
     { t: '剧情', keys: ['th-gal-btn-deduce', 'th-gal-btn-reopen-dialogue', 'th-gal-btn-toggle-options'] },
-    { t: '对话', keys: ['th-gal-btn-dlg-h', 'th-gal-btn-dlg-page', 'th-gal-btn-font-size', 'th-gal-btn-music-toggle'] },
+    { t: '对话', keys: ['th-gal-btn-dlg-h', 'th-gal-btn-dlg-h-dec', 'th-gal-btn-dlg-page', 'th-gal-btn-font-size', 'th-gal-btn-music-toggle'] },
     /* ★ v150 新增：原顶栏按钮（篇章 / 季节 / 天气 / 插图 / 地图 / 村历 / 背包 / 回家） */
     { t: '世界', keys: ['th-gal-btn-arc', 'th-gal-btn-season', 'th-gal-btn-weather', 'th-gal-btn-art',
                         'th-gal-btn-map', 'th-gal-btn-calendar', 'th-gal-btn-bag', 'th-gal-btn-home'] },
@@ -20692,7 +20693,7 @@ function setupInteractions(shell) {
 
   /* ★ v43：这个循环会把所有 .th-gal-shell-act-btn 的 onclick 重写成 data-quick 处理。
      新加的「主角信息」按钮没有 data-quick，落在里面就等于点了没反应 ， 必须排除。 */
-  qa('.th-gal-shell-act-btn:not(.th-gal-btn-reopen-dialogue):not(.th-gal-btn-music-toggle):not(.th-gal-btn-font-size):not(.th-gal-btn-toggle-options):not(.th-gal-btn-hero):not(.th-gal-btn-history):not(.th-gal-btn-deduce):not(.th-gal-btn-cheat):not(.th-gal-btn-beautify):not(.th-gal-btn-dlg-h)', shell).forEach(function(btn) {
+  qa('.th-gal-shell-act-btn:not(.th-gal-btn-reopen-dialogue):not(.th-gal-btn-music-toggle):not(.th-gal-btn-font-size):not(.th-gal-btn-toggle-options):not(.th-gal-btn-hero):not(.th-gal-btn-history):not(.th-gal-btn-deduce):not(.th-gal-btn-cheat):not(.th-gal-btn-beautify):not(.th-gal-btn-dlg-h):not(.th-gal-btn-dlg-h-dec)', shell).forEach(function(btn) {
     btn.onclick = function() {
       var q = btn.getAttribute('data-quick');
       if (q) doSend(q);
@@ -20747,11 +20748,16 @@ function setupInteractions(shell) {
 
   /* ★ 对话框高度档位（小 / 中 / 大 / 特大）：点击轮换并立刻重写高度与重新分页！ */
   var btnDlgH = shell.querySelector('.th-gal-btn-dlg-h');
+  var btnDlgHD = shell.querySelector('.th-gal-btn-dlg-h-dec');
   function syncDlgHBtn() {
     /* 显示的是「几行」，不是「小/中/大」——高度已经是行数的结果 */
     if (btnDlgH) {
-      btnDlgH.textContent = '↕ 行数:' + dlgLinesPref();
-      btnDlgH.title = '左键 +1 行 / 右键 −1 行。框高 = 行数 × 行高，字号变了会自己跟着变';
+      btnDlgH.textContent = '↕ 行数:' + dlgLinesPref() + ' ＋';
+      btnDlgH.title = '加高一行（每点一次正好多一行字）';
+    }
+    if (btnDlgHD) {
+      btnDlgHD.textContent = '↕ 行数 －';
+      btnDlgHD.title = '降低一行（每点一次正好少一行字）· 当前 ' + dlgLinesPref() + ' 行';
     }
     try { shell.style.setProperty('--th-dlg-h', dialogueHeightPx(shell.querySelector('.th-gal-dialogue-body')) + 'px'); } catch (eV) {}
   }
@@ -20770,11 +20776,19 @@ function setupInteractions(shell) {
     btnDlgH.onclick = function (e) {
       e.stopPropagation();
       try { PixelAudio.playSelect(); } catch (eA) {}
-      _stepLines(e.shiftKey ? -1 : 1);      /* Shift+左键 = 减少一行，触控板也能用 */
+      _stepLines(1);
     };
+    /* Shift+左键 / 右键 仍然可以减，但**主入口是旁边那颗独立按钮** */
     btnDlgH.oncontextmenu = function (e) {
       e.preventDefault(); e.stopPropagation();
       try { PixelAudio.playSelect(); } catch (eA2) {}
+      _stepLines(-1);
+    };
+  }
+  if (btnDlgHD) {
+    btnDlgHD.onclick = function (e) {
+      e.stopPropagation();
+      try { PixelAudio.playSelect(); } catch (eA3) {}
       _stepLines(-1);
     };
   }
