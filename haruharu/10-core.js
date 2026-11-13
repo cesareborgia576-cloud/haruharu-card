@@ -15818,10 +15818,10 @@ function fitDialogueStageToContent(shell) {
          ① 正文高度固定为「有效行数 × 行高」（页与页之间不跳）
          ② 框 height:auto，由名牌 + 正文自己撑开（永远不会比内容高）
        空档的物理来源就是"框比内容高"，② 直接从根上掐掉，不再依赖任何估算。 */
-    var cap = dlgEffLines(body);
-    /* ★ 06:50 作者：字少的那一段会把框自己压扁 —— 不要这个行为。
-       框高是玩家用「行数」设定的，页与页之间必须一样高；
-       字少的页就让它空着，绝不缩。所以这里固定 cap 行，不再按内容收。 */
+    var cap = dlgEffLines(body) + GAL_LINE_ADJUST;
+    if (cap < 1) cap = 1;
+    /* ★ 06:54：框高 = 容量，两个数必须完全一致，否则又会空出一行。
+       （容量见 computeGalAvailH，那里减了同一行。） */
     var bodyH = Math.floor(cap * lh);
     body.style.setProperty('flex', '0 0 auto', 'important');
     body.style.setProperty('height', bodyH + 'px', 'important');
@@ -15882,6 +15882,11 @@ function galNoteFit() {
   if (_galOverflowPenalty > 0) _galOverflowPenalty = Math.max(0, _galOverflowPenalty - 0.03);
   return _galOverflowPenalty;
 }
+/* ★ 06:54 作者实测：不管框多高，底部**永远只空一行**，不多不少。
+   这说明装箱容量和框高之间有一个固定差值（整行级），不是比例误差。
+   与其继续猜这个差从哪来，不如直接校准掉：容量和框同时减一行。 */
+var GAL_LINE_ADJUST = -1;
+
 function computeGalAvailH(bodyEl) {
   /* ★ 05:45 作者定位：分页算得没错，但那 4~6px 的余量正好落在**半透明圆角边**上，
      下一行的上半截就露在那条透明带里，看着像"字卡在边边"。
@@ -15891,7 +15896,8 @@ function computeGalAvailH(bodyEl) {
   var lh = galLineH(bodyEl);
   /* ★ 06:03：直接用「有效行数」，和框高同一把尺子。
      以前这里按视口再截一次，而框高没截 ⇒ 框里空半截 / 字跑框外，两个症状都从这来。 */
-  var lines = dlgEffLines(bodyEl);
+  var lines = dlgEffLines(bodyEl) + GAL_LINE_ADJUST;
+  if (lines < 1) lines = 1;
   return Math.max(lh, Math.floor(lines * lh));
 }
 /* 数出一条消息当前实际能放多少行（给日志 / 调试用 */
