@@ -5538,18 +5538,21 @@ var STYLE = `<style id="th-gal-shell-style">
      实际滚动容器可能是它内部的 LCS 美化容器、或者分页后又套了一层 div，
      于是「滑轮美化」看起来掉了。这里给壳里**所有**滚动容器统一上同样的金色细条，
      不管正文最终长在哪一层，都不会再退回系统灰条。 */
-  #th-gal-shell-root ::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
-  #th-gal-shell-root ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05) !important; border-radius: 4px !important; }
-  #th-gal-shell-root ::-webkit-scrollbar-thumb {
+  /* ★ 11-14：改成**全局**。上一版限定 #th-gal-shell-root 之内，但实测真正带滚动条的
+     容器不在壳里面（酒馆的 .mes_text / 聊天区 / 某些预设自己的容器都可能），
+     于是看上去「美化又掉了」。全局这条不挑容器，哪一层滚就美化哪一层。 */
+  ::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05) !important; border-radius: 4px !important; }
+  ::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, rgba(232,202,138,0.78) 0%, rgba(186,146,78,0.68) 100%) !important;
     border-radius: 4px !important;
     border: 1px solid rgba(255,246,220,0.22) !important;
   }
-  #th-gal-shell-root ::-webkit-scrollbar-thumb:hover {
+  ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg, rgba(250,224,164,0.95) 0%, rgba(210,168,96,0.85) 100%) !important;
   }
-  #th-gal-shell-root ::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
-  #th-gal-shell-root ::-webkit-scrollbar-corner { background: transparent !important; }
+  ::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
+  ::-webkit-scrollbar-corner { background: transparent !important; }
 
   .th-gal-dialogue-body {
     display: block !important;
@@ -18419,6 +18422,16 @@ var DialogueReader = {
     try { if (this.lastRaw) this.setRawText(this.lastRaw, false); } catch (e) {}
   },
   reopen: function() {
+    /* ★ 11-14：**先信自己手里的**。
+       下面那段会用 getMsgRawText 再判一次「这一楼有没有正文」，可它跟真正渲染用的
+       getLatestAIRawText 不是同一个来源 —— 渲染明明有字，它读到空，于是把
+       this.pages 清掉，玩家关一次再打开就看到空框。
+       手里已经有页、且来源不是兜底原文，就直接展开，不再重判。 */
+    if (this.pages && this.pages.length && this.lastSource && this.lastSource !== 'raw') {
+      this.isOpen = true;
+      this.render();
+      return;
+    }
     /* ★ v110：**不信任 this.pages** —— pages 非空只说明「某一楼曾经有过正文」，
        不代表「当前这一楼有正文」。所以这里回到原始契约上再判一次：
        当前这一楼没有 <对话框显示> 就不许展开，一句都不许显示。
