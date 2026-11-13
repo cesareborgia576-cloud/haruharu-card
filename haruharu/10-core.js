@@ -19097,19 +19097,27 @@ function thBuildHudPanel(shell) {
     try { seen = localStorage.getItem(KEY) || ''; } catch (eN3) {}
 
     var mark = stale ? ('stale:' + tag) : String(tag || '');
-    if (mark && mark === seen) return;          /* 这一版已经通知过了 */
-    try { localStorage.setItem(KEY, mark); } catch (eN4) {}
+    if (mark && mark === seen) return;          /* 玩家已经点过「去看更新」，这一版就放过 */
     if (!stale && !tag) return;
+    /* ★ 不在这里记账。玩家的要求是「没更新之前不准消失」——
+       所以只要他没点过按钮，这一版每次开机都要再弹出来一次。
+       记账（SPR_SEEN_TAG）挪到点按钮那一刻，由 ack() 写。 */
+    function ack() { try { localStorage.setItem(KEY, mark); } catch (eN4) {} }
 
     var card = doc.createElement('div');
     card.id = 'th-hotnotify';
+    /* ★ 屏幕正中间常驻。玩家原话：「把通知常驻悬浮在屏幕正中间，没更新之前不准消失。」
+       所以：不自动收、不给「知道了」、点关闭也不走 —— 只有点「去看更新」才放行。
+       外层不吃点击（pointer-events:none），只有卡片自己接事件，
+       免得整块屏幕中间变成一堵点不动的墙。 */
     card.setAttribute('style',
-      'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2147483640;' +
-      'width:min(430px,92vw);box-sizing:border-box;padding:12px 14px;' +
-      'background:linear-gradient(160deg,rgba(28,24,36,.97),rgba(14,12,18,.97));' +
-      'border:1px solid rgba(200,170,110,.45);border-radius:12px;' +
-      'box-shadow:0 14px 40px rgba(0,0,0,.7);color:#e8e2d6;' +
-      'font-size:13px;line-height:1.6;backdrop-filter:blur(6px);' +
+      'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.96);' +
+      'z-index:2147483640;pointer-events:auto;' +
+      'width:min(430px,92vw);box-sizing:border-box;padding:14px 16px;' +
+      'background:linear-gradient(160deg,rgba(28,24,36,.98),rgba(14,12,18,.98));' +
+      'border:1px solid rgba(200,170,110,.55);border-radius:14px;' +
+      'box-shadow:0 18px 50px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.4) inset;color:#e8e2d6;' +
+      'font-size:13px;line-height:1.6;backdrop-filter:blur(8px);' +
       'opacity:0;transition:opacity .28s ease,transform .28s ease;');
 
     var head, sub, actions;
@@ -19144,6 +19152,7 @@ function thBuildHudPanel(shell) {
           : 'border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#b8b0a2;'));
       b.addEventListener('click', function (ev) {
         ev.preventDefault(); ev.stopPropagation();
+        ack();                     /* 只有点按钮才算「看过了」，同一版不再弹 */
         try { fn(); } catch (eB) {}
         close();
       });
@@ -19153,17 +19162,15 @@ function thBuildHudPanel(shell) {
     function close() {
       try {
         card.style.opacity = '0';
-        card.style.transform = 'translateX(-50%) translateY(-8px)';
+        card.style.transform = 'translate(-50%,-50%) scale(.96)';
         setTimeout(function () { try { if (card.parentNode) card.parentNode.removeChild(card); } catch (eC) {} }, 300);
       } catch (eC2) {}
     }
 
     if (stale) {
       actions.appendChild(mkBtn('刷新页面', true, function () { try { location.reload(); } catch (eR) {} }));
-      actions.appendChild(mkBtn('知道了', false, function () {}));
     } else {
       actions.appendChild(mkBtn('看看更新了啥', true, function () { try { thOpenChangelog(); } catch (eO) {} }));
-      actions.appendChild(mkBtn('知道了', false, function () {}));
     }
     card.appendChild(actions);
 
@@ -19171,12 +19178,13 @@ function thBuildHudPanel(shell) {
     try {
       requestAnimationFrame(function () {
         card.style.opacity = '1';
-        card.style.transform = 'translateX(-50%) translateY(0)';
+        card.style.transform = 'translate(-50%,-50%) scale(1)';
       });
     } catch (eRaf) { card.style.opacity = '1'; }
-    /* 20 秒自己收，不挡操作；关掉之后这一版不再弹（已记进 SPR_SEEN_TAG） */
-    setTimeout(close, 20000);
-    try { console.info('[通知] 热更通知：' + (stale ? '探测失败' : ('新版本 ' + String(tag).slice(0, 10)))); } catch (eL) {}
+    /* ★ 不再 setTimeout(close)。玩家要求「没更新之前不准消失」——
+       这条通知会一直挂在屏幕正中间，直到他点「看看更新了啥」。
+       刷新页面也还在（因为记账只在点按钮时发生）。 */
+    try { console.info('[通知] 常驻通知：' + (stale ? '探测失败' : ('新版本 ' + String(tag).slice(0, 10)))); } catch (eL) {}
   }
   try {
     if (typeof document !== 'undefined' && document.readyState === 'loading') {
