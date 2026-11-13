@@ -15816,11 +15816,27 @@ function fitDialogueStageToContent(shell) {
          ② 框 height:auto，由名牌 + 正文自己撑开（永远不会比内容高）
        空档的物理来源就是"框比内容高"，② 直接从根上掐掉，不再依赖任何估算。 */
     var cap = dlgEffLines(body);
-    var bodyH = Math.floor(cap * lh);
+    /* ★ 06:18：先给足 cap 行，让浏览器排完版；再量**实际内容**占了几行。
+       作者说空白只有"两种高度"—— 那就是整行级的：一页实际只装了 N-1 或 N-2 行。
+       估算再怎么调都会差，所以直接按量出来的行数收，差一行就收一行。 */
+    var capH = Math.floor(cap * lh);
     body.style.setProperty('flex', '0 0 auto', 'important');
-    body.style.setProperty('height', bodyH + 'px', 'important');
-    body.style.setProperty('max-height', bodyH + 'px', 'important');
+    body.style.setProperty('max-height', capH + 'px', 'important');
     body.style.setProperty('overflow-y', 'hidden', 'important');
+    /* ★ 06:20：scrollHeight 在"内容比容器矮"时只会返回容器高度，量不出空行。
+       必须先 height:auto，让 body 被内容撑开，读 offsetHeight 才是真实内容高度。
+       （作者说空白"正好是字体高度"⇒ 内容比框少一行，这一量就准。） */
+    var used = 0;
+    try {
+      body.style.setProperty('height', 'auto', 'important');
+      var contentH = body.offsetHeight || 0;
+      if (contentH > 0) used = Math.ceil((contentH - 1) / lh);
+    } catch (eU0) { used = 0; }
+    if (!(used > 0)) used = cap;
+    if (used > cap) used = cap;
+    if (used < 1) used = 1;
+    var bodyH = Math.floor(used * lh);
+    body.style.setProperty('height', bodyH + 'px', 'important');
     stage.style.setProperty('height', 'auto', 'important');
     stage.style.setProperty('max-height', dialogueMaxHeightPx(body) + 'px', 'important');
     /* 诊断：手机端如果还有空档，这三个数一比就知道空在哪儿 */
