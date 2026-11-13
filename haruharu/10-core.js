@@ -3986,8 +3986,22 @@ var STYLE = `<style id="th-gal-shell-style">
   }
 
   /* ★ v68：原生那一层正文只做视觉隐藏，DOM 里留着（reader 要读它，屏幕上只有游戏画面） */
+  /* ★ 原来这里是 display:none —— 元素直接退出渲染树，st-chatu8 这类生图插件
+     检测到不可见就跳过不处理，图也就永远出不来（文字版没有这层隐藏，所以那边正常）。
+     改成「视觉隐藏但保留渲染树」：1px + clip，玩家看不到，插件照常能扫到标签。 */
   body.th-gal-shell-live .th-pinned-game-floor .mes_text > *:not(.th-gal-shell-root):not(script):not(style) {
-    display: none !important;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
   #th-gal-shell-root {
     --ui-scale: 1;
