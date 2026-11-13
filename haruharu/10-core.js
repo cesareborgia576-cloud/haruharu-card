@@ -15735,6 +15735,30 @@ function galLineH(bodyEl) {
   if (!(lh > 0)) lh = 22;
   return lh;
 }
+/* ★ 06:03 手机端：用户设 10 行，但小屏最多只能放 7 行 —— 以前两边各算各的：
+   框高按 10 行撑（于是超出视口，字跑到框下面看不见），
+   正文又按视口截断（于是框里空出一截）。
+   现在统一成「有效行数」：想要的行数和屏幕能放的行数取小，框高与正文都用它。 */
+/* ★ 06:05 作者定位：框高有物理上限（视口 84%），但行数还能一直加，
+   于是「框不再变高、字继续变多」，多出来的全挤到框外看不见。
+   这里先把上限算出来：这块屏幕最多能放几行。 */
+function dlgMaxLines(bodyEl) {
+  var lh = galLineH(bodyEl);
+  var m = dialogueViewportMetrics(bodyEl);
+  if (!(lh > 0)) return DLG_LINES_MAX;
+  if (!m.vpH) return DLG_LINES_MAX;
+  var maxH = Math.round(m.vpH * 0.84) - galChromeH(bodyEl);
+  var byH = Math.floor(maxH / lh);
+  return Math.max(1, Math.min(DLG_LINES_MAX, byH));
+}
+
+function dlgEffLines(bodyEl) {
+  var lines = dlgLinesPref();
+  var cap = dlgMaxLines(bodyEl);
+  if (lines > cap) lines = cap;
+  return Math.max(1, lines);
+}
+
 function dlgLinesPref() {
   var n = 0;
   try { n = parseInt(localStorage.getItem(DLG_LINES_KEY), 10); } catch (e) {}
@@ -15772,10 +15796,7 @@ function dlgHRatio() { return 0.4; }          /* 只剩指纹在用，不参与�
 function nextDlgHPref() { return 'n' + setDlgLines(dlgLinesPref() + 1); }
 
 function dialogueHeightPx(bodyEl) {
-  var h = galChromeH(bodyEl) + dlgLinesPref() * galLineH(bodyEl);
-  var m = dialogueViewportMetrics(bodyEl);
-  if (m.vpH) h = Math.min(h, m.vpH - 10);
-  return Math.max(64, Math.round(h));
+  return Math.max(64, Math.round(galChromeH(bodyEl) + dlgEffLines(bodyEl) * galLineH(bodyEl)));
 }
 function dialogueViewportMetrics(bodyEl) {
   var vpEl = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-shell-viewport') : null;
@@ -15817,15 +15838,10 @@ function computeGalAvailH(bodyEl) {
        正文区多高 = 你能看几行，一行都不多给。
      （框本身的高度 = 边框 + 名牌 + 这个值，由 dialogueHeightPx 负责。） */
   var lh = galLineH(bodyEl);
-  var lines = dlgLinesPref();
-  var want = lines * lh;
-  /* 视口装不下时再往下收，绝不溢出到框外 */
-  var m = dialogueViewportMetrics(bodyEl);
-  if (m.vpH) {
-    var hardCap = m.vpH - 10 - galChromeH(bodyEl);
-    if (hardCap > lh) want = Math.min(want, hardCap);
-  }
-  return Math.max(lh, Math.floor(want));
+  /* ★ 06:03：直接用「有效行数」，和框高同一把尺子。
+     以前这里按视口再截一次，而框高没截 ⇒ 框里空半截 / 字跑框外，两个症状都从这来。 */
+  var lines = dlgEffLines(bodyEl);
+  return Math.max(lh, Math.floor(lines * lh));
 }
 /* 数出一条消息当前实际能放多少行（给日志 / 调试用 */
 function galLinesPerPage(bodyEl) {
@@ -15850,6 +15866,9 @@ function fitDialogueStage(shell) {
     stage.style.setProperty('min-height', Math.max(46, Math.round(h * 0.6)) + 'px', 'important');
     /* ★ v90：正文区高度用真实可用高度，不再拍脑袋减 22（那 22 不够，正好差半行）。 */
     var avail = computeGalAvailH(body);
+    /* flex 子项默认可以伸缩，手机上会被拉长（空白）或压扁（切字）——钉死它 */
+    body.style.setProperty('flex', '0 0 auto', 'important');
+    body.style.setProperty('height', avail + 'px', 'important');
     body.style.setProperty('max-height', avail + 'px', 'important');
     /* ★ 05:45：这里原来是 auto。auto 会把"多出来的几像素"也画出来，
        正好压在框底的半透明圆角上 —— 玩家看到的就是"字卡在透明边边"。
@@ -20831,7 +20850,16 @@ function setupInteractions(shell) {
 
     var _stepLines = function (delta) {
       var before = dlgLinesPref();
-      var after = setDlgLines(before + delta);
+      var _bEl0 = shell.querySelector('.th-gal-dialogue-body');
+      var _cap = dlgMaxLines(_bEl0);
+      /* ★ 06:05：先问"这块屏幕最多几行"。到顶再加就不是"框变高"，而是"字溢出去" */
+      if (delta > 0 && before >= _cap) {
+        if (before > _cap) setDlgLines(_cap);
+        syncDlgHBtn();
+        popToast('已经到顶：这块屏幕最多 ' + _cap + ' 行（框的高度有上限）');
+        return;
+      }
+      var after = setDlgLines(Math.min(before + delta, _cap));
       if (after === before) { popToast('已经是' + (delta > 0 ? '最多' : '最少') + ' ' + after + ' 行'); return; }
       /* 一句一页模式下，框多高都不影响每页几个字 —— 那这个按钮就等于没反应。
          玩家按了加减行，意图显然是"框高决定字数"，所以自动切回「装满」。 */
