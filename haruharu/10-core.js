@@ -18836,13 +18836,9 @@ function thBuildHudPanel(shell) {
       '<button type="button" class="th-gal-shell-act-btn" data-th-extillopen="1" title="重新打开外置插图（生图插件产出的那张图）">🖼 重新打开插图</button>' +
     '</div></div>';
 
-  /* ★ v150：顶栏永久隐藏后，精力值没地方看了 —— 在面板顶部补一条状态条。
-     数值每 1.2 秒从原 .th-gal-energy-val 抄过来（见 thSyncHudMirror 的姊妹函数）。 */
-  html = '<div class="th-gal-hud-stat">' +
-      '<span class="hs-item">⏰ <b data-th-hud-time>--:--</b></span>' +
-      '<span class="hs-item">📍 <b data-th-hud-place>—</b></span>' +
-      '<span class="hs-item">⚡ <b data-th-hud-energy>100</b></span>' +
-    '</div>' + html;
+  /* ★ 状态条（时间 / 地点 / 精力）已按玩家要求整个移除，不再插到面板顶部。
+     原 v150 那段「精力值没地方看」的补条在这里，现在正文区自然可见精力。 */
+  try { window.__thHudStatRemoved = true; } catch (eStat) {}
 
   host.innerHTML = html;
   host.__thBuilt = true;
