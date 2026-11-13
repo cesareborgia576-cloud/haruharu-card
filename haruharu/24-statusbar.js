@@ -21,6 +21,112 @@
     try { if (window.document && window.document.body) return window.document; } catch (e2) {}
     return null;
   }
+  /* ── 更新记录（同天元录：版本页一个入口，点开是可滚动弹层） ───────────── */
+  var CHG_URLS = [
+    'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/main/haruharu/changelog.json',
+    'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+    'https://gcore.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json'
+  ];
+  var CHG_CACHE = null;
+
+  function chgEsc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+
+  function chgFetch(cb) {
+    if (CHG_CACHE) { cb(CHG_CACHE); return; }
+    var i = 0;
+    function next() {
+      if (i >= CHG_URLS.length) { cb(null); return; }
+      var url = CHG_URLS[i++] + (CHG_URLS[i - 1].indexOf('raw.') >= 0 ? '' : '') + (CHG_URLS[i - 1].indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+      var done = false;
+      var to = setTimeout(function () { if (!done) { done = true; next(); } }, 8000);
+      try {
+        fetch(url).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        }).then(function (j) {
+          if (done) return;
+          done = true; clearTimeout(to); CHG_CACHE = j; cb(j);
+        }, function () {
+          if (done) return;
+          done = true; clearTimeout(to); next();
+        });
+      } catch (e) { if (!done) { done = true; clearTimeout(to); next(); } }
+    }
+    next();
+  }
+
+  function openChg() {
+    var doc = hostDoc(); if (!doc || !doc.body) return;
+    if (doc.getElementById('haru-chg-mask')) return;
+
+    var mask = doc.createElement('div');
+    mask.id = 'haru-chg-mask';
+    mask.setAttribute('style', 'position:fixed;inset:0;z-index:2147483600;background:rgba(8,8,12,.72);display:flex;align-items:center;justify-content:center;padding:20px;');
+    mask.addEventListener('click', function (e) { if (e.target === mask) { try { mask.remove(); } catch (e0) {} } });
+
+    var box = doc.createElement('div');
+    box.setAttribute('style', 'width:min(560px,94vw);max-height:76vh;display:flex;flex-direction:column;background:linear-gradient(160deg,#16131c,#211a28);border:1px solid rgba(217,187,122,.45);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.7);overflow:hidden;font-family:system-ui,"Microsoft YaHei",sans-serif;color:#f2e9dc;');
+
+    var head = doc.createElement('div');
+    head.setAttribute('style', 'display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(217,187,122,.22);flex:0 0 auto;');
+    head.innerHTML = '<b style="flex:1;font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>';
+    var x = doc.createElement('button');
+    x.type = 'button';
+    x.textContent = '✕';
+    x.setAttribute('style', 'background:none;border:0;color:#9a8f80;font-size:16px;cursor:pointer;padding:2px 6px;');
+    x.onclick = function () { try { mask.remove(); } catch (e1) {} };
+    head.appendChild(x);
+
+    var body = doc.createElement('div');
+    body.setAttribute('style', 'padding:14px 16px;overflow-y:auto;flex:1 1 auto;font-size:13px;line-height:1.75;');
+    body.innerHTML = '<div style="padding:26px;text-align:center;color:#8b8175;">读取更新记录…</div>';
+
+    box.appendChild(head); box.appendChild(body); mask.appendChild(box);
+    doc.body.appendChild(mask);
+
+    chgFetch(function (data) {
+      if (!data || !data.entries || !data.entries.length) {
+        body.innerHTML = '<div style="padding:26px;text-align:center;color:#c98b8b;">读不到更新记录（网络或远端文件暂不可用）</div>';
+        return;
+      }
+      var html = '';
+      data.entries.forEach(function (e, i) {
+        html += '<div style="margin:' + (i ? '18px' : '0') + ' 0 0;padding:0 0 0 12px;border-left:2px solid rgba(217,187,122,' + (i ? '.22' : '.55') + ');">';
+        html += '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">';
+        html += '<b style="color:#e6c884;font-size:14px;">' + chgEsc(e.ver || '') + '</b>';
+        html += '<span style="color:#7d7469;font-size:11px;">' + chgEsc(e.date || '') + '</span>';
+        html += '</div>';
+        if (e.title) html += '<div style="color:#f2e9dc;font-weight:600;margin-bottom:5px;">' + chgEsc(e.title) + '</div>';
+        html += '<ul style="margin:0;padding-left:18px;color:#c9c0b4;">';
+        (e.items || []).forEach(function (t) { html += '<li style="margin:3px 0;">' + chgEsc(t) + '</li>'; });
+        html += '</ul></div>';
+      });
+      body.innerHTML = html;
+    });
+  }
+
+  function injectChg(f) {
+    var d;
+    try { d = f.contentDocument; } catch (e) { return; }
+    if (!d || d.getElementById('haru-chg-btn')) return;
+    var page = d.getElementById('page-version');
+    if (!page) return;
+    var bar = d.createElement('div');
+    bar.setAttribute('style', 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;');
+    var btn = d.createElement('button');
+    btn.id = 'haru-chg-btn';
+    btn.type = 'button';
+    btn.className = 'ver-btn';
+    btn.textContent = '📜 更新记录';
+    btn.onclick = openChg;
+    bar.appendChild(btn);
+    page.appendChild(bar);
+  }
+
   function mount(mesEl) {
     if (!mesEl) return;
     try { if (mesEl.getAttribute && mesEl.getAttribute('is_user') === 'true') return; } catch (e) {}
@@ -43,6 +149,7 @@
     try {
       f.addEventListener('load', function () {
         try { var bd = f.contentDocument && f.contentDocument.body; if (bd) f.style.height = '600px'; } catch (e2) {}
+        try { injectChg(f); } catch (e4) {}
       });
     } catch (e3) {}
   }
