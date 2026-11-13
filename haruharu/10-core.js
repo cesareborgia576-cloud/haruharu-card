@@ -18244,7 +18244,12 @@ var DialogueReader = {
         content = fromDom;
         this.lastSource = 'dom';
       } else {
-        this.lastSource = 'raw';
+        /* ★ 11-14 修正：这里以前写 'raw'，于是**已经正常解析出正文**的楼层
+           也被打上「未检测到正文标签已展示原文」的标签 —— 玩家看到的
+           就是「明明在放正文，却说你没检测到正文」。
+           这一支的真实语义是：解析器有结果，只是 DOM 那份不干净、没采用。
+           所以标 'parse'（提示条显示「解析」），不是 'raw'。 */
+        this.lastSource = 'parse';
         try { window.__thDomRejected = { ratio: 'low', dom: String(fromDom).length, raw: content.length }; } catch (eRej) {}
       }
     } else {
