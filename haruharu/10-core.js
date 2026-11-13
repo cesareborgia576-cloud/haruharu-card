@@ -18836,16 +18836,88 @@ function thBuildHudPanel(shell) {
     });
   }
 
-  /* ★ v150 补：版本 / 本版更新。真正干活的是 24-statusbar.js 的 openChg()，
-     它按 changelog.json（CDN 三镜像）渲染可滚动弹层。 */
+  /* ★ 版本弹层：在 10-core 里自己实现。
+     以前这里转发给 24-statusbar.js 的 openChg()，但那条脚本只在**文字版**的
+     FILES 里（loader 的 TEXT 数组），游戏模式根本不加载它 —— 于是点击永远掉进
+     「等两秒再点一次」的兜底，点了跟没点一样。自己读 changelog.json 最省事。 */
+  function thOpenChangelog() {
+    var doc = getDoc();
+    if (!doc || !doc.body) return;
+    var oldMask = doc.getElementById('th-verlog-mask');
+    if (oldMask) { try { oldMask.parentNode.removeChild(oldMask); } catch (e0) {} }
+
+    var mask = doc.createElement('div');
+    mask.id = 'th-verlog-mask';
+    mask.setAttribute('style', 'position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px;');
+    mask.addEventListener('click', function (ev) { if (ev.target === mask) { try { mask.parentNode.removeChild(mask); } catch (e1) {} } });
+
+    var box = doc.createElement('div');
+    box.setAttribute('style', 'width:min(560px,94vw);max-height:76vh;display:flex;flex-direction:column;background:linear-gradient(160deg,#16131c,#0d0b11);border:1px solid rgba(200,170,110,.35);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.75);overflow:hidden;');
+
+    var head = doc.createElement('div');
+    head.setAttribute('style', 'display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(200,170,110,.18);');
+    head.innerHTML = '<b style="flex:1;font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>';
+    var xBtn = doc.createElement('button');
+    xBtn.type = 'button';
+    xBtn.textContent = '✕';
+    xBtn.setAttribute('style', 'width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#cbd5e1;cursor:pointer;font-size:13px;line-height:1;');
+    xBtn.addEventListener('click', function () { try { mask.parentNode.removeChild(mask); } catch (e2) {} });
+    head.appendChild(xBtn);
+
+    var body = doc.createElement('div');
+    body.setAttribute('style', 'padding:14px 16px;overflow-y:auto;flex:1 1 auto;font-size:13px;line-height:1.75;color:#cbd5e1;');
+    body.innerHTML = '<div style="padding:26px;text-align:center;color:#8b8175;">读取更新记录…</div>';
+
+    box.appendChild(head); box.appendChild(body); mask.appendChild(box); doc.body.appendChild(mask);
+
+    function escChg(s) {
+      return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+      });
+    }
+
+    /* raw 优先（无 CDN 缓存），jsDelivr 兜底 —— 和 loader 同一套顺序 */
+    var chgUrls = [
+      'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/main/haruharu/changelog.json',
+      'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+      'https://gcore.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json'
+    ];
+    var ui = 0;
+    function tryNext() {
+      if (ui >= chgUrls.length) {
+        body.innerHTML = '<div style="padding:26px;text-align:center;color:#c98b8b;">读不到更新记录（网络或远端文件暂不可用）</div>';
+        return;
+      }
+      var url = chgUrls[ui++];
+      var settled = false;
+      var tm = setTimeout(function () { if (!settled) { settled = true; tryNext(); } }, 8000);
+      fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
+        if (settled) return;
+        settled = true; clearTimeout(tm);
+        var html = '';
+        (data.entries || []).forEach(function (e) {
+          html += '<div style="margin-bottom:16px;">';
+          html += '<b style="color:#e6c884;font-size:14px;">' + escChg(e.ver) + '</b>';
+          html += ' <span style="color:#6f6a63;font-size:12px;">' + escChg(e.date) + '</span>';
+          if (e.title) html += '<div style="color:#d8cfc0;margin:3px 0 5px;">' + escChg(e.title) + '</div>';
+          html += '<ul style="margin:0;padding-left:18px;">';
+          (e.items || []).forEach(function (it) { html += '<li style="margin:3px 0;">' + escChg(it) + '</li>'; });
+          html += '</ul></div>';
+        });
+        body.innerHTML = html || '<div style="padding:26px;text-align:center;color:#8b8175;">这份更新记录是空的</div>';
+      }).catch(function () { if (!settled) { settled = true; clearTimeout(tm); tryNext(); } });
+    }
+    tryNext();
+  }
+
   var verBtn = host.querySelector('[data-th-verlog]');
   if (verBtn) {
     verBtn.addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation();
-      try {
-        if (typeof window.__thOpenChg === 'function') { window.__thOpenChg(); thHudArmAutoClose(shell); return; }
-      } catch (eC) {}
-      try { if (typeof showToast === 'function') showToast('更新记录还没加载好，等两秒再点一次', 3000); } catch (eT) {}
+      try { thOpenChangelog(); } catch (eC) {
+        try { if (typeof showToast === 'function') showToast('更新记录打不开：' + (eC && eC.message ? eC.message : '未知'), 3000); } catch (eT) {}
+      }
+      thHudArmAutoClose(shell);
     });
   }
 
