@@ -15687,32 +15687,68 @@ function parseIllustrationTag(rawText) {
    量不到的时候甚至只剩几十像素，框直接塌成一根、正文还被 overflow:hidden 切掉。
    现在一律走这里：量视口 → 算成 px → 分页与 CSS 用同一把尺子。
    视口量不出来（刚搬进弹窗、display:none 那一瞬间）就用窗口高度兜底，绝不拿 0 去算。 */
-/* ★ 对话框高度：小 / 中 / 大 / 特大（按钮循环切换，记在浏览器缓存里）
-   以前框高是 height:auto，改成「一页一句」之后框就被压成一条，所以现在改成固定高度。 */
-var DLG_H_KEY = 'thGalDialogueHeight';
-var DLG_H_LEVELS = [
-  { k: 's',  name: '小',   ratio: 0.28 },
-  { k: 'm',  name: '中',   ratio: 0.40 },
-  { k: 'l',  name: '大',   ratio: 0.54 },
-  { k: 'xl', name: '特大', ratio: 0.68 }
-];
-function dlgHLevel(k) {
-  for (var i = 0; i < DLG_H_LEVELS.length; i++) { if (DLG_H_LEVELS[i].k === k) return DLG_H_LEVELS[i]; }
-  return DLG_H_LEVELS[1];
+/* ══ ★ 11-14 05:30：框高改成「按行数」定义，不再按视口百分比 ══
+   以前：高度 = 视口高 × ratio（小/中/大/特大 = 0.28/0.40/0.54/0.68）。
+        比例跟字号毫无关系 —— 字号一变大，同样高的框就装不下原来那么多行，
+        多出来的字被挤到框外，浏览器就冒出滚动条。这就是「字藏在下面」的根。
+   现在：height = 边框 + 名牌 + 行数 × 行高。
+     · 按钮：左键 +1 行、右键 −1 行（一次正好一行，不再是小/中/大那种粗档）
+     · 字号变了 ⇒ 行高变了 ⇒ 高度自动跟着变，行数保持不变
+     · 分页直接拿「行数」当容量，和显示用同一把尺子，不会多算也不会少算 */
+var DLG_LINES_KEY = 'thGalDialogueLines';
+var DLG_LINES_MIN = 3, DLG_LINES_MAX = 26, DLG_LINES_DEFAULT = 9;
+
+/* 正文实际行高（px）：分页、框高、按钮三处共用 */
+function galLineH(bodyEl) {
+  var lh = 0;
+  try { if (bodyEl) lh = parseFloat(window.getComputedStyle(bodyEl).lineHeight); } catch (e0) {}
+  if (!(lh > 0)) {
+    try { lh = parseFloat(window.getComputedStyle(document.body).lineHeight); } catch (e1) {}
+  }
+  if (!(lh > 0)) lh = 22;
+  return lh;
 }
-function dlgHPref() { var k = 'm'; try { k = localStorage.getItem(DLG_H_KEY) || 'm'; } catch (e) {} return k; }
-function dlgHRatio() { return dlgHLevel(dlgHPref()).ratio; }
-function nextDlgHPref() {
-  var cur = dlgHPref();
-  var idx = 0;
-  for (var i = 0; i < DLG_H_LEVELS.length; i++) { if (DLG_H_LEVELS[i].k === cur) { idx = i; break; } }
-  return DLG_H_LEVELS[(idx + 1) % DLG_H_LEVELS.length].k;
+function dlgLinesPref() {
+  var n = 0;
+  try { n = parseInt(localStorage.getItem(DLG_LINES_KEY), 10); } catch (e) {}
+  if (!(n >= DLG_LINES_MIN)) n = DLG_LINES_DEFAULT;
+  return Math.min(DLG_LINES_MAX, n);
 }
-/* 对话框固定高度（px）：视口高 × 当前档位比例 */
+function setDlgLines(n) {
+  var v = Math.max(DLG_LINES_MIN, Math.min(DLG_LINES_MAX, Math.round(n)));
+  try { localStorage.setItem(DLG_LINES_KEY, String(v)); } catch (e) {}
+  return v;
+}
+/* 名牌 + 上下内边距 + 边框 + 一点余量：这些不属于"行" */
+function galChromeH(bodyEl) {
+  var chrome = 14;
+  try {
+    var stage = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-dialogue-stage') : null;
+    if (stage) {
+      var cs = window.getComputedStyle(stage);
+      chrome = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+             + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+      var nameEl = stage.querySelector('.th-gal-dialogue-name');
+      if (nameEl && !nameEl.hasAttribute('hidden')) {
+        var ncs = window.getComputedStyle(nameEl);
+        chrome += (nameEl.offsetHeight || 0)
+                + (parseFloat(ncs.marginTop) || 0) + (parseFloat(ncs.marginBottom) || 0);
+      }
+      chrome += 6;
+    }
+  } catch (e2) {}
+  return chrome;
+}
+/* 旧函数名保留（有别的分支还在调），语义换成"行数" */
+function dlgHPref() { return 'n' + dlgLinesPref(); }
+function dlgHRatio() { return 0.4; }          /* 只剩指纹在用，不参与任何计算 */
+function nextDlgHPref() { return 'n' + setDlgLines(dlgLinesPref() + 1); }
+
 function dialogueHeightPx(bodyEl) {
+  var h = galChromeH(bodyEl) + dlgLinesPref() * galLineH(bodyEl);
   var m = dialogueViewportMetrics(bodyEl);
-  if (!m.vpH) return 0;
-  return Math.max(64, Math.round(m.vpH * dlgHRatio()));
+  if (m.vpH) h = Math.min(h, m.vpH - 10);
+  return Math.max(64, Math.round(h));
 }
 function dialogueViewportMetrics(bodyEl) {
   var vpEl = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-shell-viewport') : null;
@@ -15779,7 +15815,9 @@ function computeGalAvailH(bodyEl) {
       var _l0 = parseFloat(window.getComputedStyle(bodyEl).lineHeight);
       if (_l0 > 0) _lhNow = _l0;
     } catch (eLH) {}
-    var avail = h - pt - pb - bt - bb - nameH - Math.ceil(_lhNow) - 4;
+    /* ★ 05:30：框高已经是「行数 × 行高 + 名牌边框」，这里就**不能再多扣一行**，
+       否则每页永远少装一行（正是"框很大却字很少"的观感）。只留 2px 抗亚像素。 */
+    var avail = h - pt - pb - bt - bb - nameH - 2;
     if (!(avail > 40)) return fallback;
     avail = avail * (1 - _galOverflowPenalty);
     return Math.max(40, Math.floor(avail));
@@ -15788,7 +15826,10 @@ function computeGalAvailH(bodyEl) {
 /* 数出一条消息当前实际能放多少行（给日志 / 调试用 */
 function galLinesPerPage(bodyEl) {
   var mm = galMetrics(bodyEl);
-  return Math.max(1, Math.floor(computeGalAvailH(bodyEl) / mm.lh));
+  var byH = Math.max(1, Math.floor(computeGalAvailH(bodyEl) / mm.lh));
+  /* ★ 05:31：容量以「按钮设的行数」为准，高度不够时再往下收（不会永远少一行） */
+  var want = dlgLinesPref();
+  return Math.max(1, Math.min(byH, want));
 }
 /* ★ 框高改成固定值（不再是 auto）：一页一句也不会被压成一条 */
 function fitDialogueStage(shell) {
@@ -20707,21 +20748,34 @@ function setupInteractions(shell) {
   /* ★ 对话框高度档位（小 / 中 / 大 / 特大）：点击轮换并立刻重写高度与重新分页！ */
   var btnDlgH = shell.querySelector('.th-gal-btn-dlg-h');
   function syncDlgHBtn() {
-    if (btnDlgH) btnDlgH.textContent = '↕ 高度:' + dlgHLevel(dlgHPref()).name;
-    try { shell.style.setProperty('--th-dlg-h', Math.round(dlgHRatio() * 100) + '%'); } catch (eV) {}
+    /* 显示的是「几行」，不是「小/中/大」——高度已经是行数的结果 */
+    if (btnDlgH) {
+      btnDlgH.textContent = '↕ 行数:' + dlgLinesPref();
+      btnDlgH.title = '左键 +1 行 / 右键 −1 行。框高 = 行数 × 行高，字号变了会自己跟着变';
+    }
+    try { shell.style.setProperty('--th-dlg-h', dialogueHeightPx(shell.querySelector('.th-gal-dialogue-body')) + 'px'); } catch (eV) {}
   }
   syncDlgHBtn();
   try { fitDialogueStage(shell); } catch (eF0) {}
   if (btnDlgH) {
-    btnDlgH.onclick = function (e) {
-      e.stopPropagation();
-      try { PixelAudio.playSelect(); } catch (eA) {}
-      var nextK = nextDlgHPref();
-      try { localStorage.setItem(DLG_H_KEY, nextK); } catch (eL) {}
+    var _stepLines = function (delta) {
+      var before = dlgLinesPref();
+      var after = setDlgLines(before + delta);
+      if (after === before) { popToast('已经是' + (delta > 0 ? '最多' : '最少') + ' ' + after + ' 行'); return; }
       syncDlgHBtn();
       try { fitDialogueStage(shell); } catch (eF) {}
       try { DialogueReader.refit(); } catch (eR) {}
-      popToast('对话框高度已切为：【' + dlgHLevel(nextK).name + '】（视口 ' + Math.round(dlgHLevel(nextK).ratio * 100) + '%）');
+      popToast('对话框：' + after + ' 行（' + (delta > 0 ? '+' : '') + delta + '）');
+    };
+    btnDlgH.onclick = function (e) {
+      e.stopPropagation();
+      try { PixelAudio.playSelect(); } catch (eA) {}
+      _stepLines(e.shiftKey ? -1 : 1);      /* Shift+左键 = 减少一行，触控板也能用 */
+    };
+    btnDlgH.oncontextmenu = function (e) {
+      e.preventDefault(); e.stopPropagation();
+      try { PixelAudio.playSelect(); } catch (eA2) {}
+      _stepLines(-1);
     };
   }
 
