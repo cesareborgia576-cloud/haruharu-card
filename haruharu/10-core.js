@@ -5534,6 +5534,22 @@ var STYLE = `<style id="th-gal-shell-style">
   .th-gal-dialogue-body::-webkit-scrollbar-corner {
     background: transparent !important;
   }
+  /* ★ 11-14：上面那套只认 .th-gal-dialogue-body 一个选择器。
+     实际滚动容器可能是它内部的 LCS 美化容器、或者分页后又套了一层 div，
+     于是「滑轮美化」看起来掉了。这里给壳里**所有**滚动容器统一上同样的金色细条，
+     不管正文最终长在哪一层，都不会再退回系统灰条。 */
+  #th-gal-shell-root ::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
+  #th-gal-shell-root ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05) !important; border-radius: 4px !important; }
+  #th-gal-shell-root ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(232,202,138,0.78) 0%, rgba(186,146,78,0.68) 100%) !important;
+    border-radius: 4px !important;
+    border: 1px solid rgba(255,246,220,0.22) !important;
+  }
+  #th-gal-shell-root ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(250,224,164,0.95) 0%, rgba(210,168,96,0.85) 100%) !important;
+  }
+  #th-gal-shell-root ::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
+  #th-gal-shell-root ::-webkit-scrollbar-corner { background: transparent !important; }
 
   .th-gal-dialogue-body {
     display: block !important;
@@ -18282,14 +18298,7 @@ var DialogueReader = {
         this._fbSig = _fbSig;
         if (this._fbDone === _fbSig) return;   /* 同一段已经铺好了，别再 render 一次 */
         this._fbDone = _fbSig;
-        /* ★ 11-14：兜底时把「为什么没认出正文」直接印在第一页。
-           玩家不用开控制台，截一张图就能定位断点。 */
-        var _diagLine = '';
-        try {
-          _diagLine = '〔诊断〕原文' + String(rawText||'').length + '字 / DOM'
-            + String(this._diagDom || 0) + '字 / 标签:' + String(this._diagTags || '?') + '\n\n';
-        } catch (eDgLine) {}
-        this.pages = [_diagLine + _fbText];
+        this.pages = [_fbText];
         this.speakers = [''];
         this.currentIndex = 0;
         this.lastSig = '';
@@ -18593,17 +18602,9 @@ var DialogueReader = {
       /* ★ 兜底的话放页数左边：玩家第一眼要先知道「这楼没标签、看到的是原文」，
          而不是先看到 1/1 再自己猜为什么只有一页。正常来源的标记仍挂右边。 */
       var _pgTxt = (this.currentIndex + 1) + ' / ' + this.pages.length;
-      /* ★ 11-14 诊断缀：原文多少字 / DOM 抽到多少字 / 认出了哪些正文标签。
-         这几项决定「未检测到正文」到底是没读到、被过滤、还是被校验否掉。 */
-      var _dm = '';
-      try {
-        if (this._diagRaw !== undefined) {
-          _dm = ' 〔原' + this._diagRaw + '·DOM' + this._diagDom + '·' + (this._diagTags || '无') + '〕';
-        }
-      } catch (eDm) {}
       indicator.textContent = (this.lastSource === 'raw')
-        ? ('未检测到正文标签已展示原文 · ' + _pgTxt + _dm)
-        : (_pgTxt + srcTag + _dm);
+        ? ('未检测到正文标签已展示原文 · ' + _pgTxt)
+        : (_pgTxt + srcTag);
       try {
         indicator.title = '正文来源：' + (this.lastSource === 'dom'
           ? '酒馆渲染后的 DOM（机制判据已跑）'
@@ -19081,7 +19082,13 @@ function thBuildHudPanel(shell) {
        两个都在，你自己就能判断跑的是卡里那份还是线上那份。 */
     var _cardVer = '', _liveTag = '', _chgVer = '';
     try { _cardVer = window.__SPR_CARD_VER || (HOST && HOST.__SPR_CARD_VER) || ''; } catch (eCv) {}
-    try { _liveTag = window.__SPR_HOT_TAG__ || (HOST && HOST.__SPR_HOT_TAG__) || ''; } catch (eLt) {}
+    /* ★ 11-14：卡钉 sha 时 applyRef 不会执行，__SPR_HOT_TAG__ 一直是空，
+       弹层就显示「（未热更）」—— 但实际跑的就是那一版，白白让人以为没更新。
+       回落 __SPR_ACTIVE_TAG（loader 初始化时就写了），有值就说明当前用的是哪一份。 */
+    try {
+      _liveTag = window.__SPR_HOT_TAG__ || (HOST && HOST.__SPR_HOT_TAG__)
+              || window.__SPR_ACTIVE_TAG || (HOST && HOST.__SPR_ACTIVE_TAG) || '';
+    } catch (eLt) {}
     try { _chgVer = (window.__SPR_CHG_VER || ''); } catch (eGv) {}
     head.innerHTML = '<div style="flex:1;min-width:0;">'
       + '<b style="font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>'
