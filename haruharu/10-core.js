@@ -5557,9 +5557,25 @@ var STYLE = `<style id="th-gal-shell-style">
     display: block !important;
     margin: 0 !important;
     padding: 0 46px 0 0 !important;
-    font-size: calc(11px * var(--ui-scale, 1)) !important;
-    line-height: 1.42 !important;
-    color: #ffffff !important;
+    /* ★ 11-14 05:20 排版美化：
+       · 字号 11 → 12.5，行高 1.42 → 1.86（原来挤成一坨，看着累）
+       · 中文正文优先明朝/宋体系（衬线），gal 的旁白感强很多；取不到才回落系统字体
+       · 字距 +0.02em、轻微文字投影，压住背景图的花纹
+       · 首行缩进 2 字、段落之间留白（中文小说的排法）
+       分页用的是 getComputedStyle(bodyEl).lineHeight，读的是实际行高，改字号不会算错页。 */
+    /* ★ 不用宋体/明朝 —— 那套在屏幕上发糊、显旧，像扫描件。
+       走现代无衬线（苹方 / 鸿蒙 / 思源黑 / 雅黑），字重 400 不描粗。
+       行高 1.42 → 1.8、字号 11 → 12.5，读起来不挤；字距只放 0.01em，
+       再大就散了。正文用暖白，不用纯白，压背景图不刺眼。 */
+    font-family: "PingFang SC", "HarmonyOS Sans SC", "Source Han Sans SC",
+                 "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei",
+                 system-ui, -apple-system, sans-serif !important;
+    font-size: calc(12.5px * var(--ui-scale, 1)) !important;
+    line-height: 1.8 !important;
+    letter-spacing: 0.01em !important;
+    font-weight: 400 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
+    color: #f7f2e8 !important;
     /* ★ v90：以前这里是 overflow:hidden，只要分页多算了一行，最后一行就被生生切掉半个字。
        现在 y 轴一律可滚（分页算准之后本来也滚不动），兜底绝不再切字。 */
     overflow-x: hidden !important;
@@ -19132,7 +19148,8 @@ function thBuildHudPanel(shell) {
       + '<div style="margin-top:4px;font-size:11px;line-height:1.6;color:#8b8175;">'
       +   '卡版本 <b style="color:#c9bfae;">' + escChg(_cardVer || '（未知）') + '</b>'
       +   ' · 线上 <b style="color:#86efac;">' + escChg(_liveVer ? ('v' + String(_liveVer).replace(/^v/i, '') + ' · ' + String(_liveTag || '').slice(0, 8)) : (_liveTag ? String(_liveTag).slice(0, 10) : '（未热更）')) + '</b>'
-      +   (_newVer ? (' · <b style="color:#f0a95c;">已有 ' + escChg(_newVer) + '，刷新后生效</b>') : '')
+      +   (_newVer ? (' · <b style="color:#f0a95c;">已有 ' + escChg(_newVer) + '</b>'
+                      + '<button type="button" id="th-vlog-reload" style="margin-left:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,150,150,.6);background:linear-gradient(160deg,#b91c1c,#7f1d1d);color:#fff;font-size:11px;cursor:pointer;">点击刷新</button>') : '')
       + '</div>'
       + '</div>';
     var xBtn = doc.createElement('button');
@@ -19147,6 +19164,11 @@ function thBuildHudPanel(shell) {
     body.innerHTML = '<div style="padding:26px;text-align:center;color:#8b8175;">读取更新记录…</div>';
 
     box.appendChild(head); box.appendChild(body); mask.appendChild(box); doc.body.appendChild(mask);
+    /* 有新版本时头部那颗「点击刷新」—— 刷的是顶层窗口，不是这个 iframe */
+    try {
+      var _rl = doc.getElementById('th-vlog-reload');
+      if (_rl) _rl.onclick = function (e) { try { e.stopPropagation(); } catch (e0) {} __thDoReload(); };
+    } catch (eRl) {}
 
     function escChg(s) {
       return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -25333,24 +25355,80 @@ function __thLiveVerCur() {
   return v;
 }
 
-function __thLiveVerShow(v) {
-  var doc = document, d;
-  try { if (doc.getElementById('th-newver-badge')) return; } catch (e0) { return; }
-  d = doc.createElement('div');
-  d.id = 'th-newver-badge';
-  d.setAttribute('style',
-    'position:fixed;right:14px;bottom:14px;z-index:2147483635;' +
-    'padding:8px 12px;border-radius:10px;font-size:12px;line-height:1.5;' +
-    'background:linear-gradient(160deg,rgba(38,32,22,.97),rgba(18,15,12,.97));' +
-    'border:1px solid rgba(200,170,110,.55);color:#e8dcbf;' +
-    'box-shadow:0 10px 28px rgba(0,0,0,.6);pointer-events:none;font-family:inherit;');
-  d.innerHTML = '🆕 线上已有 <b style="color:#86efac;">'
-    + String(v).replace(/[<>&]/g, '') + '</b>'
-    + '<br><span style="color:#9c9385;">刷新页面后生效</span>';
-  try { (doc.body || doc.documentElement).appendChild(d); } catch (e2) {}
+/* ★ 刷新：在酒馆的脚本 iframe 里 location.reload() 只会把这一小块刷成白板
+   （srcdoc/blob 环境没有可重新加载的地址），必须刷**顶层窗口**。 */
+function __thDoReload() {
+  try {
+    if (window.top && window.top !== window) { window.top.location.reload(); return; }
+  } catch (e0) {}
+  try { location.reload(); } catch (e1) {}
 }
 
+/* 左上角/顶栏那个「📜 版本」按钮 —— 有新版本就整颗变红，玩家一眼看到就点进去 */
+function __thMarkVerBadge(on) {
+  try {
+    var list = document.querySelectorAll('[data-th-verlog]');
+    for (var i = 0; i < list.length; i++) {
+      var b = list[i];
+      if (on) {
+        b.style.background = 'linear-gradient(160deg,#7f1d1d,#b91c1c)';
+        b.style.borderColor = 'rgba(255,140,140,.85)';
+        b.style.color = '#fff';
+        b.style.boxShadow = '0 0 12px rgba(220,38,38,.65)';
+        b.style.fontWeight = '700';
+        b.setAttribute('data-newver', '1');
+        if (!b.querySelector('.th-newver-dot')) {
+          var dot = document.createElement('span');
+          dot.className = 'th-newver-dot';
+          dot.setAttribute('style', 'display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5252;margin-left:5px;vertical-align:middle;box-shadow:0 0 6px #ff5252;');
+          b.appendChild(dot);
+        }
+      } else {
+        b.style.background = ''; b.style.borderColor = ''; b.style.color = '';
+        b.style.boxShadow = ''; b.style.fontWeight = '';
+        b.removeAttribute('data-newver');
+        try { var d0 = b.querySelector('.th-newver-dot'); if (d0) d0.remove(); } catch (eD) {}
+      }
+    }
+  } catch (e1) {}
+}
+
+/* ★ 顶部常驻横幅：读到有新版就挂在最上方，**没有关闭按钮、不会自动消失**。
+   玩家点它 = 刷新到新版；刷新完版本就对上了，横幅自然不再出现。 */
+function __thLiveVerShow(v) {
+  var doc = document, d;
+  try { if (!doc || !doc.body) return; } catch (e0) { return; }
+  try { d = doc.getElementById('th-newver-banner'); } catch (e1) { d = null; }
+  if (!d) {
+    d = doc.createElement('div');
+    d.id = 'th-newver-banner';
+    d.setAttribute('style',
+      'position:fixed;top:0;left:50%;transform:translateX(-50%);' +
+      'z-index:2147483642;padding:9px 18px;border-radius:0 0 12px 12px;' +
+      'font-size:13px;line-height:1.4;letter-spacing:.02em;cursor:pointer;' +
+      'background:linear-gradient(160deg,#b91c1c,#7f1d1d);' +
+      'border:1px solid rgba(255,150,150,.6);border-top:0;color:#fff;' +
+      'box-shadow:0 10px 26px rgba(120,0,0,.55);font-family:inherit;' +
+      'display:flex;align-items:center;gap:8px;white-space:nowrap;');
+    d.onclick = function (e) { try { e.stopPropagation(); } catch (eS) {} __thDoReload(); };
+    try { doc.body.appendChild(d); } catch (e2) { return; }
+  }
+  d.innerHTML = '<span style="font-size:15px;">🔔</span>'
+    + '<span>有新版本 <b style="font-family:monospace;">' + String(v).replace(/[<>&]/g, '') + '</b></span>'
+    + '<span style="padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);font-size:12px;">点击刷新</span>';
+  __thMarkVerBadge(true);
+}
+
+
+/* 每 20 秒真去问一次：<script> 读 COS 的 ver.js（不走 XHR ⇒ 不需要 CORS）。
+   拿到的号比当前在跑的版本大 ⇒ 顶部挂横幅 + 版本按钮变红。
+   ⚠ 只看不刷：刷不刷由玩家点，绝不自动 reload。 */
 function __thLiveVerTick() {
+  /* 面板重绘会把内联红色冲掉，每次进来先补一次 */
+  try {
+    var _nv0 = String(window.__SPR_LIVE_NEW__ || '');
+    if (_nv0) __thLiveVerShow(_nv0);
+  } catch (eNv0) {}
   try { if (document.visibilityState === 'hidden') return; } catch (e0) {}
   var done = false;
   function fin(v) {

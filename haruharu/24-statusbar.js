@@ -22,6 +22,9 @@
   }
   /* ── 更新记录（同天元录：版本页一个入口，点开是可滚动弹层） ───────────── */
   var CHG_URLS = [
+    /* ★ 11-14：COS 排第一。其余三条都是 @main / raw —— 实测 @main 是 12 小时缓存，
+       推完十分钟看到的还是旧记录。 */
+    'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/changelog.json',
     'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/main/haruharu/changelog.json',
     'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
     'https://gcore.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json'
@@ -77,7 +80,29 @@
 
     var head = doc.createElement('div');
     head.setAttribute('style', 'display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(217,187,122,.22);flex:0 0 auto;');
-    head.innerHTML = '<b style="flex:1;font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>';
+    /* ★ 文字版状态栏的版本页：跟游戏版一样显示卡版本/线上版本，
+       且线上有新版时给一颗「点击刷新」。 */
+    var _cv = '', _lv = '', _nv = '';
+    try { _cv = String(window.__SPR_CARD_VER || (TOP && TOP.__SPR_CARD_VER) || ''); } catch (eCV) {}
+    try { _lv = String(window.__SPR_HOT_VER__ || (TOP && TOP.__SPR_HOT_VER__) || ''); } catch (eLV) {}
+    try { _nv = String(window.__SPR_LIVE_NEW__ || (TOP && TOP.__SPR_LIVE_NEW__) || ''); } catch (eNV) {}
+    head.innerHTML = '<b style="flex:1;min-width:0;font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>'
+      + '<span style="flex:0 0 auto;font-size:11px;color:#8b8175;line-height:1.5;text-align:right;">'
+      +   '卡版本 <b style="color:#c9bfae;">' + chgEsc(_cv || '（未知）') + '</b>'
+      +   '<br>线上 <b style="color:#86efac;">' + chgEsc(_lv || '（未热更）') + '</b>'
+      + '</span>';
+    if (_nv) {
+      var _rb = doc.createElement('button');
+      _rb.type = 'button';
+      _rb.textContent = '点击刷新 ' + _nv;
+      _rb.setAttribute('style', 'flex:0 0 auto;padding:5px 11px;border-radius:999px;border:1px solid rgba(255,150,150,.6);background:linear-gradient(160deg,#b91c1c,#7f1d1d);color:#fff;font-size:11.5px;cursor:pointer;white-space:nowrap;');
+      _rb.onclick = function (e) {
+        try { e.stopPropagation(); } catch (e0) {}
+        try { if (TOP && TOP !== window) { TOP.location.reload(); return; } } catch (e1) {}
+        try { location.reload(); } catch (e2) {}
+      };
+      head.appendChild(_rb);
+    }
     var x = doc.createElement('button');
     x.type = 'button';
     x.textContent = '✕';
