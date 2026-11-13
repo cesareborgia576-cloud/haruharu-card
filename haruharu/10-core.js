@@ -19209,7 +19209,19 @@ function thBuildHudPanel(shell) {
 
     var mask = doc.createElement('div');
     mask.id = 'th-verlog-mask';
-    mask.setAttribute('style', 'position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px;');
+    /* ★ 05:56：遮罩也挂进游戏界面（absolute inset:0），不再铺满整个网页。
+       手机端 fixed 遮罩会盖到聊天框以外，看着像"卡住不动"，其实是遮罩在页面层。 */
+    var _cShell = null;
+    try { _cShell = doc.querySelector('#th-gal-shell-root'); } catch (eCS) { _cShell = null; }
+    if (_cShell) {
+      try {
+        var _cp = window.getComputedStyle(_cShell).position;
+        if (!_cp || _cp === 'static') _cShell.style.setProperty('position', 'relative', 'important');
+      } catch (eCP) {}
+    }
+    mask.setAttribute('style', (_cShell ? 'position:absolute;' : 'position:fixed;')
+      + 'inset:0;z-index:2147483646;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);'
+      + 'display:flex;align-items:center;justify-content:center;padding:14px;');
     mask.addEventListener('click', function (ev) { if (ev.target === mask) { try { mask.parentNode.removeChild(mask); } catch (e1) {} } });
 
     var box = doc.createElement('div');
@@ -19261,7 +19273,8 @@ function thBuildHudPanel(shell) {
     body.setAttribute('style', 'padding:14px 16px;overflow-y:auto;flex:1 1 auto;font-size:13px;line-height:1.75;color:#cbd5e1;');
     body.innerHTML = '<div style="padding:26px;text-align:center;color:#8b8175;">读取更新记录…</div>';
 
-    box.appendChild(head); box.appendChild(body); mask.appendChild(box); doc.body.appendChild(mask);
+    box.appendChild(head); box.appendChild(body); mask.appendChild(box);
+    try { (_cShell || doc.body).appendChild(mask); } catch (eAppM) { doc.body.appendChild(mask); }
     /* 有新版本时头部那颗「点击刷新」—— 刷的是顶层窗口，不是这个 iframe */
     try {
       var _rl = doc.getElementById('th-vlog-reload');
@@ -19380,12 +19393,23 @@ function thBuildHudPanel(shell) {
        所以：不自动收、不给「知道了」、点关闭也不走 —— 只有点「去看更新」才放行。
        外层不吃点击（pointer-events:none），只有卡片自己接事件，
        免得整块屏幕中间变成一堵点不动的墙。 */
+    /* ★ 05:55：这条通知以前是 position:fixed 挂在页面 body 上 —— 手机端等于
+       "浮在游戏界面之上"，会被地址栏/安全区挤偏，也会盖住界面外的东西。
+       现在跟顶部红条一样：挂进 #th-gal-shell-root，用 absolute。
+       界面是手机上的那张"画布"，弹什么都在画布里。 */
+    var _nShell = null;
+    try { _nShell = doc.querySelector('#th-gal-shell-root'); } catch (eNS0) { _nShell = null; }
+    if (_nShell) {
+      try {
+        var _np = window.getComputedStyle(_nShell).position;
+        if (!_np || _np === 'static') _nShell.style.setProperty('position', 'relative', 'important');
+      } catch (eNP) {}
+    }
     card.setAttribute('style',
-      /* ★ 11-14 05:26 作者：不要放屏幕正中，会压住顶栏那个「📜 版本」按钮，
-         点都点不到。改成贴屏幕最上方居中，宽 430 封顶。 */
-      'position:fixed;top:8px;left:50%;transform:translateX(-50%) scale(.96);' +
+      (_nShell ? 'position:absolute;' : 'position:fixed;') +
+      'top:8px;left:50%;transform:translateX(-50%) scale(.96);' +
       'z-index:2147483640;pointer-events:auto;' +
-      'width:min(430px,92vw);box-sizing:border-box;padding:14px 16px;' +
+      'width:min(430px,94%);max-width:94%;box-sizing:border-box;padding:14px 16px;' +
       'background:linear-gradient(160deg,rgba(28,24,36,.98),rgba(14,12,18,.98));' +
       'border:1px solid rgba(200,170,110,.55);border-radius:14px;' +
       'box-shadow:0 18px 50px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.4) inset;color:#e8e2d6;' +
@@ -19453,7 +19477,7 @@ function thBuildHudPanel(shell) {
     }
     card.appendChild(actions);
 
-    doc.body.appendChild(card);
+    try { (_nShell || doc.body).appendChild(card); } catch (eAppN) { doc.body.appendChild(card); }
     try {
       requestAnimationFrame(function () {
         card.style.opacity = '1';
