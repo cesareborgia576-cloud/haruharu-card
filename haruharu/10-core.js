@@ -14349,10 +14349,20 @@ function v147StripAllTags(inner) {
     out = out.replace(/<([a-zA-Z0-9_\u4e00-\u9fa5]+)(?:\s[^>]*)?>[\s\S]*?<\/\1\s*>/gi, '');
     guard++;
   }
-  /* 未闭合的开标签：从这里砍到结尾（流式生成到一半时常见） */
-  out = out.replace(/<([a-zA-Z0-9_\u4e00-\u9fa5]+)(?:\s[^>]*)?>[\s\S]*$/, '');
+  /* 未闭合的开标签：只砍「已知的非正文块」。
+     ★ 旧写法是 /<([a-zA-Z0-9_\u4e00-\u9fa5]+)(?:\s[^>]*)?>[\s\S]*$/ —— 无差别匹配任意 <tag>，
+     正文里只要有一个没闭合的 <br> / <i> / <b>，从这里到结尾的字全被砍掉，
+     对话框只剩前半段，玩家还看不出为什么少了。
+     正文标签和普通 HTML 标签一律不砍，交给下面的「脱壳」和孤立尖括号清理。 */
+  out = out.replace(/<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|在场人物|重要记忆|连携转移|地点|thinking|think|thought|reasoning|cot|scratchpad|antmlThinking)(?=[\s>])[^>]*>[\s\S]*$/i, '');
+  /* 未闭合的正文标签：只去掉标签本身，后面的内容保留 */
+  for (var _ku = 0; _ku < V153_KEEP_INNER_TAGS.length; _ku++) {
+    out = out.replace(new RegExp('<' + V153_KEEP_INNER_TAGS[_ku] + '(?=[\\s>])[^>]*>', 'gi'), '');
+  }
   /* 残余的孤立尖括号 */
   out = out.replace(/<[^>]*>/g, '');
+  /* 残缺到没有 > 的标签尾巴（例如 "</content" 后面就断了），否则会当正文显示出来 */
+  out = out.replace(/<\/?[a-zA-Z0-9_\u4e00-\u9fa5]+[^>]*$/g, '');
   return out;
 }
 
