@@ -23129,6 +23129,27 @@ async function updateContainer(shell) {
       else if (setupInteractions && typeof setupInteractions.switchSceneLocation === 'function') setupInteractions.switchSceneLocation(dest, { free: true });
       else if (typeof HOST !== 'undefined' && HOST && typeof HOST.__thSwitchScene === 'function') HOST.__thSwitchScene(dest, { free: true });
     } catch (eSw) { try { console.warn('⚠️ 切场景失败：' + eSw); } catch (eSw2) {} }
+
+    /* ══ ★ 开局后核对：不管向导哪一环断了，1.2 秒后强制对齐模式 ══
+       玩家的原话：「选牛头，开局还是纯爱」。前面 chooseMode → beginGameConfirmed
+       → arcInitPatch 三级传递，任何一环哑了最终都读不到值（读不到默认纯爱）。
+       这里是最后一道闸：以 opts.gameMode 为准，读回来的不对就补写一次。
+       1.2 秒延迟是给 MVU 落库留的空窗，之前读过它写完立刻读还是旧值。 */
+    try {
+      (function (_wantArc, _wantGm) {
+        setTimeout(function () {
+          try {
+            var now = thGameModeOf();
+            if (now !== _wantGm) {
+              try { console.warn('[SPR] 开局核对：应为 ' + _wantGm + '、读到 ' + now + '，强制补写'); } catch (eW1) {}
+              thSetGameMode(_wantGm);
+            } else {
+              try { console.info('[SPR] 开局核对通过：' + now); } catch (eW2) {}
+            }
+          } catch (eG1) {}
+        }, 1200);
+      })(arc, opts.gameMode || '纯爱');
+    } catch (eGm0) {}
     var jumpOk = false;
     if (rewriteGreeting) {
       try { jumpOk = jumpToGreeting(idx); } catch (eJ) {}
