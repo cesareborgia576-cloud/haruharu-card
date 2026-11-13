@@ -25577,19 +25577,38 @@ function __thLiveVerShow(v) {
   if (!doc) { try { doc = document; } catch (eG2) { doc = null; } }
   try { if (!doc || !doc.body) return; } catch (e0) { return; }
   try { d = doc.getElementById('th-newver-banner'); } catch (e1) { d = null; }
+  /* ★ 05:50 作者要求：提示要挂进**游戏界面自己的最上方**，不是浏览器视口顶部。
+     理由很实在 —— 手机端视口顶部可能被状态栏/地址栏吃掉，fixed 定位在不同容器里
+     还容易被 overflow / transform 裁掉。挂进 #th-gal-shell-root 之后，
+     它跟界面同生共死：界面在哪儿它就在哪儿，缩放、全屏、移动端都不会漂。 */
+  var _shell = null;
+  try { _shell = doc.querySelector('#th-gal-shell-root'); } catch (eSh) { _shell = null; }
   if (!d) {
     d = doc.createElement('div');
     d.id = 'th-newver-banner';
     d.setAttribute('style',
-      'position:fixed;top:0;left:50%;transform:translateX(-50%);' +
-      'z-index:2147483642;padding:9px 18px;border-radius:0 0 12px 12px;' +
-      'font-size:13px;line-height:1.4;letter-spacing:.02em;cursor:pointer;' +
+      (_shell ? 'position:absolute;' : 'position:fixed;') +
+      'top:0;left:50%;transform:translateX(-50%);' +
+      'z-index:2147483642;padding:8px 16px;border-radius:0 0 12px 12px;' +
+      'font-size:12.5px;line-height:1.4;letter-spacing:.02em;cursor:pointer;' +
       'background:linear-gradient(160deg,#b91c1c,#7f1d1d);' +
       'border:1px solid rgba(255,150,150,.6);border-top:0;color:#fff;' +
       'box-shadow:0 10px 26px rgba(120,0,0,.55);font-family:inherit;' +
-      'display:flex;align-items:center;gap:8px;white-space:nowrap;');
+      'display:flex;align-items:center;gap:7px;white-space:nowrap;' +
+      'max-width:96%;box-sizing:border-box;');
     d.onclick = function (e) { try { e.stopPropagation(); } catch (eS) {} __thDoReload(); };
-    try { doc.body.appendChild(d); } catch (e2) { return; }
+    /* absolute 定位需要一个已定位的祖先。壳本身没写 position 的话，
+       banner 会跑到别的地方去 —— 这里兜一层。 */
+    if (_shell) {
+      try {
+        var _sp = window.getComputedStyle(_shell).position;
+        if (!_sp || _sp === 'static') _shell.style.setProperty('position', 'relative', 'important');
+      } catch (ePos) {}
+    }
+    try { (_shell || doc.body).appendChild(d); } catch (e2) { return; }
+  } else if (_shell && d.parentNode !== _shell) {
+    /* 界面重绘后 banner 可能被搬走/丢掉，挪回最上层 */
+    try { _shell.appendChild(d); } catch (eMv) {}
   }
   d.innerHTML = '<span style="font-size:15px;">🔔</span>'
     + '<span>有新版本 <b style="font-family:monospace;">' + String(v).replace(/[<>&]/g, '') + '</b></span>'
