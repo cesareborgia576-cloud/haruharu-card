@@ -14361,7 +14361,8 @@ function stripInnerTags(text) {
 /* ★ v153：把「对话框显示」也列进正文标签。
    它是本卡开场白 / 历史楼层最常用的容器，以前只当「普通成对标签」被吞掉；
    现在既保留内容，也可以在没有 <content> 的外层包裹时直接被认成正文。 */
-var V147_TEXT_TAGS = ['content', '对话框显示', 'gametext', 'game', 'maintext', '正文', 'text'];
+var V147_TEXT_TAGS = ['content', '对话框显示', 'gametext', 'game', 'maintext', '正文', '正文内容', 'text',
+                      'galgame', 'game_text', 'narrative', 'story', 'scene', '对话'];
 
 /* 思维链收尾标签：取「最靠后」的那一个之后的全部内容 */
 var V147_THINK_CLOSERS = ['</thought>', '</thinking>', '</think>'];
@@ -18047,8 +18048,13 @@ var DialogueReader = {
        那就宁可只用解析器给的那份干净正文。
        ★ 为什么不干脆全禁 DOM：流式生成中 <content> 常常只有半个闭标签，
          这时 DOM 的换行信息是唯一的排版依据，全禁会把正文挤成一整段。 */
+    /* ★ 和 V147_TEXT_TAGS 同源。以前这里手抄了一份同样的列表，加标签时改一处漏一处，
+       就会出现「解析器认得 <game>、这里却说没有正文标签」的自相矛盾。 */
     var hasBodyTag = false;
-    try { hasBodyTag = /<(content|对话框显示|gametext|game|maintext|正文|text)(?=[\s>])[^>]*>/i.test(String(rawText || '')); } catch (eTagChk) {}
+    try {
+      var _tagAlt = V147_TEXT_TAGS.join('|');
+      hasBodyTag = new RegExp('<(?:' + _tagAlt + ')(?=[\\s>])[^>]*>', 'i').test(String(rawText || ''));
+    } catch (eTagChk) {}
     var fromDom = (content && hasBodyTag) ? renderedProseFromDom() : '';
     if (fromDom && fromDom.length > 24) {
       /* 重合度校验：DOM 版与解析器版，取较短的那份做子序列比对。
