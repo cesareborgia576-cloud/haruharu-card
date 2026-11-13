@@ -19458,9 +19458,13 @@ function syncStatusCard(shell) {
     var t = sd.时间 || {};
     var pi = sd.主角信息 || sd.玩家信息 || {};
 
+    /* ★ 11-14 05:15：这里以前**先**读酒馆 persona 名（context.name1），
+       而备用字段写的是 pi.姓名 —— 变量里存的键是「玩家姓名」，
+       于是两条路都拿不到，界面上不是 persona 名就是「旅人」。
+       现在改成：**变量里的玩家姓名优先**（玩家在确认页亲手填的），persona 只做兜底。 */
     var nm = '';
-    try { var c = getStContext(); if (c && c.name1) nm = String(c.name1); } catch (eN) {}
-    if (!nm) { try { nm = String(pi.姓名 || ''); } catch (eN2) {} }
+    try { nm = String(pi.玩家姓名 || pi.姓名 || '').trim(); } catch (eN0) { nm = ''; }
+    if (!nm) { try { var c = getStContext(); if (c && c.name1) nm = String(c.name1); } catch (eN) {} }
     if (!nm) nm = '旅人';
     var nameEl = card.querySelector('[data-ts-name]');
     if (nameEl) nameEl.textContent = nm;
