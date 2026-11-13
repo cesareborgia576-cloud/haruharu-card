@@ -8889,8 +8889,19 @@ function thTimeAdvance(minutes, patch) {
   var _hmRaw = '';
   try { _hmRaw = String(_merged.精确时间 || ''); } catch (eM3) { _hmRaw = ''; }
   if (!/^\s*\d{1,2}\s*[:：]\s*\d{1,2}/.test(_hmRaw)) {
-    try { console.warn('[时间] 存档和补丁里都没有可用的时刻，本轮不推进'); } catch (eM4) {}
-    return thTimeRead(_merged);
+    /* ★ 07:17：这里是"移动也不改写时间"的原因 —— 时间对象存在、但里面只有日期没有时刻
+       （schema 默认给了 07:40，模型常常不回写时刻），我上一版直接 return 了。
+       现在分两种情况：
+         · 时间对象整体存在（有年/月/日）→ 用默认 07:40 当起点照常推进，
+           这跟玩家屏幕上看到的时刻是一致的，不会"凭空"；
+         · 连时间对象都没有 → 才真的不写。 */
+    var _hasDate = (_merged.年份 !== undefined || _merged.月份 !== undefined || _merged.日期 !== undefined);
+    if (!_hasDate) {
+      try { console.warn('[时间] 存档和补丁里都没有时间对象，本轮不推进'); } catch (eM4) {}
+      return thTimeRead(_merged);
+    }
+    try { _merged.精确时间 = '07:40'; } catch (eM5) {}
+    _hmRaw = '07:40';
   }
   var t = thTimeRead(_merged);
   var y = t.年份, mo = t.月份, d = t.日期;
@@ -16123,7 +16134,10 @@ var _galCheapModeLegacy = false;   /* 保留占位：极端情况下强切开粗
 /* ★ v90：量一段文字到底占多少行——改用像素宽度算，不再按「字数 ÷ 每行几个字」估。
    中文一行能放几个字，跟标点、数字、英文缩写都有关，只有真量宽度才准。 */
 function measureGalHeight(text, bodyEl) {
-  var t = String(text || '');
+  /* ★ 07:17：首尾多余的换行会被 split 成空段，**每页固定多算一行** ——
+     这就是"不管框多高、底部永远空一行"的另一个来源。
+     段内的空行（真正的分段）保留，只削首尾。 */
+  var t = String(text || '').replace(/^[\s]*\n+/, '').replace(/\n+[\s]*$/, '');
   if (!t) return 0;
   var mm = galMetrics(bodyEl);
   var lines = 0;
@@ -25910,6 +25924,7 @@ function __thLiveVerTick() {
    所以挂进 #th-gal-shell-root，absolute 居中，跟界面同生共死。
    结束态留 2.5 秒再收，让玩家看见"这一轮完了"。 */
 var __thGenHideTimer = null;
+var __thGenWasOn = false;
 function __thGenBanner(on) {
   try {
     var d = getDoc();
@@ -25931,7 +25946,13 @@ function __thGenBanner(on) {
       try { shell.appendChild(el); } catch (eA) { return; }
     }
     if (__thGenHideTimer) { try { clearTimeout(__thGenHideTimer); } catch (eT) {} __thGenHideTimer = null; }
+    if (!on && __thGenWasOn !== true) {
+      /* 不是"刚刚结束"，就别再弹一次 —— 否则心跳每次调 false 都重新显示 2.5 秒，永远不消失 */
+      try { el.style.display = 'none'; } catch (eH0) {}
+      return;
+    }
     if (on) {
+      __thGenWasOn = true;
       el.textContent = '⏳ 正在推进中…';
       el.style.background = 'linear-gradient(160deg,rgba(120,53,15,.96),rgba(69,26,3,.96))';
       el.style.border = '1px solid rgba(251,191,36,.55)';
@@ -25939,6 +25960,7 @@ function __thGenBanner(on) {
       el.style.color = '#fde68a';
       el.style.display = 'block';
     } else {
+      __thGenWasOn = false;
       el.textContent = '✅ 推进结束';
       el.style.background = 'linear-gradient(160deg,rgba(20,83,45,.96),rgba(6,46,26,.96))';
       el.style.border = '1px solid rgba(74,222,128,.5)';
@@ -25976,7 +25998,8 @@ function __thMountReroll() {
   try {
     var d = getDoc();
     if (!d) return false;
-    var card = d.querySelector('.th-gal-status-card');
+    /* ★ 07:16 作者：挪到对话框右边的空白处（正文右边本来就留了 46px 给页码按钮） */
+    var card = d.querySelector('.th-gal-dialogue-stage');
     if (!card) return false;
     if (d.getElementById('th-reroll-btn')) return true;
     var b = d.createElement('button');
@@ -25985,10 +26008,12 @@ function __thMountReroll() {
     b.textContent = '🔄';
     b.title = '重 roll 这一楼（重新生成）';
     b.setAttribute('style',
-      'flex:0 0 auto;margin-left:6px;width:20px;height:20px;border-radius:50%;' +
-      'border:1px solid rgba(226,184,87,.55);background:rgba(255,255,255,.10);' +
-      'color:#f2e9dc;font-size:11px;line-height:1;cursor:pointer;pointer-events:auto;' +
-      'display:inline-flex;align-items:center;justify-content:center;padding:0;');
+      'position:absolute;right:8px;top:50%;transform:translateY(-50%);' +
+      'width:26px;height:26px;border-radius:50%;z-index:86;' +
+      'border:1px solid rgba(226,184,87,.55);background:rgba(16,14,20,.72);' +
+      'color:#f2e9dc;font-size:13px;line-height:1;cursor:pointer;pointer-events:auto;' +
+      'display:inline-flex;align-items:center;justify-content:center;padding:0;' +
+      'backdrop-filter:blur(6px);');
     b.onclick = function (e) {
       try { e.stopPropagation(); } catch (eS) {}
       __thDoReroll();
