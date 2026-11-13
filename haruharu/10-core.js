@@ -15941,6 +15941,11 @@ function fitDialogueStage(shell) {
        分页已经保证一页正好是 N 行，所以这里 hidden 不会切字，
        只切掉那截本不该存在的残行。 */
     body.style.setProperty('overflow-y', 'hidden', 'important');
+    /* ★ 06:22 关键：这里是"调完高度一瞬间是满的、随后又空了"的答案。
+       本函数被 6 个地方调用（心跳 / resize / 切场景 / 全屏 / 按钮…），
+       每次都用**估算值**把正文高度写回去，于是刚量好的框又被撑大一行。
+       现在每次写完都立刻按真实内容量一次并收掉 —— 谁调都收。 */
+    try { fitDialogueStageToContent(shell); } catch (eFCall) {}
     return h;
   } catch (e) { return 0; }
 }
