@@ -5446,28 +5446,47 @@ var STYLE = `<style id="th-gal-shell-style">
 
   .th-gal-dialogue-floating-tools {
     position: absolute !important;
-    top: 5px !important;
+    top: 6px !important;
     right: 8px !important;
     display: flex !important;
     align-items: center !important;
-    gap: 5px !important;
+    gap: 6px !important;
     z-index: 85 !important;
+    padding: 3px 7px !important;
+    border-radius: 999px !important;
+    background: rgba(10, 12, 18, 0.42) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(160, 168, 185, 0.18) !important;
   }
   .th-gal-dialogue-page-indicator {
-    font-size: calc(8.5px * var(--ui-scale, 1)) !important;
-    color: #cbd5e1 !important;
+    /* 等宽数字：页码从 9 变 10 时不会把后面的按钮推来推去 */
+    font-variant-numeric: tabular-nums !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+    font-size: calc(9px * var(--ui-scale, 1)) !important;
+    letter-spacing: 0.06em !important;
+    color: #e2e8f0 !important;
+    padding: 0 2px !important;
   }
   .th-gal-dialogue-btn {
-    background: rgba(255, 255, 255, 0.14) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    color: #f1f5f9 !important;
-    border-radius: 3px !important;
-    padding: 1px 5px !important;
-    font-size: calc(8px * var(--ui-scale, 1)) !important;
+    height: calc(17px * var(--ui-scale, 1)) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    color: #e2e8f0 !important;
+    border-radius: 999px !important;
+    padding: 0 8px !important;
+    font-size: calc(8.5px * var(--ui-scale, 1)) !important;
     cursor: pointer !important;
     line-height: 1 !important;
+    white-space: nowrap !important;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease !important;
   }
-  .th-gal-dialogue-btn:hover { background: #475569 !important; }
+  .th-gal-dialogue-btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(230, 200, 132, 0.55) !important;
+    color: #fff !important;
+  }
   
   .th-gal-dialogue-body {
     display: block !important;
@@ -14294,6 +14313,13 @@ function compactProse(text) {
     .replace(/[ ]{2,}/g, ' ')
     .replace(/ *\n */g, '\n')
     .replace(/\n{3,}/g, '\n\n')
+    /* ★ 剥离行内换行。玩家原话：「它是根据了分行，我需要你剥离分行。」
+       模型写的正文经常一句话一行（硬折行），分页器按 \n 切段 → 每段就短一截，
+       框再大也只显示那几行。这里把行内换行压成空格，让文字自然折行。
+       两种换行必须留：
+         · 下一行以 { 开头 —— 说话人边界，删了会把九句台词并成一句（v30 踩过）；
+         · 空行 —— 段落边界，留着才有段落感。 */
+    .replace(/\n(?![{\n])/g, ' ')
     .trim();
 }
 
