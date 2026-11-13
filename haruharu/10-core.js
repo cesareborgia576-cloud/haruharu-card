@@ -14609,6 +14609,31 @@ function thStripOutsideBody(decoded, tagName) {
   return d;    /* 一个正文标签都没有：原样返回，交给后面的层去判 */
 }
 
+/* ★ 11-14：认不出名字也认内容。
+   穷举永远追不上模型自造的容器名（<对话正文>、<正文输出>、<galgame正文>、
+   <narrative_text>…）。既然玩家明确说「我写了正文标签」，
+   那就不该因为名字不在名单里就整楼判死。
+   做法：扫出**所有成对标签**，排除确定不是正文的那几个，取「内部文字最多」的一个。
+   返回 null 表示真的一个像正文的标签都没有，交给下一层。 */
+function v147AnyTagBlock(decoded) {
+  var d = String(decoded == null ? '' : decoded);
+  /* 只匹配「名字 2~12 个字、成对闭合」的标签；单标签（<br>/<img>）天然不匹配 */
+  var re = /<([a-zA-Z0-9_\u4e00-\u9fa5]{2,20})(?=[\s>])[^>]*>([\s\S]*?)<\/\1\s*>/g;
+  /* 确定不是正文的：脚本/样式、思维链、变量补丁、推演块、以及纯排版空标签 */
+  var BLACK = /^(script|style|br|img|hr|input|meta|link|think|thinking|thought|reasoning|cot|scratchpad|antmlThinking|后台推演|UpdateVariable|Analysis|JSONPatch|在场人物|重要记忆|连携转移|地点)$/i;
+  var best = null, m;
+  while ((m = re.exec(d)) !== null) {
+    if (BLACK.test(m[1])) continue;
+    var txt = '';
+    try { txt = v147StripAllTags(m[2]); } catch (e0) { txt = ''; }
+    if (!txt || !txt.trim()) continue;
+    /* 取最长的那一段：正文一定比「顺手包一下」的装饰块长 */
+    if (!best || txt.length > best.text.length) best = { text: txt, tag: m[1] };
+  }
+  if (best && best.text.trim().length >= 6) return best;
+  return null;
+}
+
 /* 总闸：返回 { text, layer, tag }。layer 1=正文标签 2=思维链尾部 0=没读到 */
 function parseContentWithLayer(rawText) {
   var decoded = decodeEntities(rawText);
@@ -14628,6 +14653,20 @@ function parseContentWithLayer(rawText) {
   if (hit) {
     var packed1 = compactProse(hit.text);
     if (packed1) return { text: packed1, layer: 1, tag: hit.tag };
+  }
+
+  /* ★ 11-14 第一·五层：名字不认识，但只要它是成对标签、里面有字，就认。
+     模型自造的容器名（<对话正文> 之类）以前会一路掉到兜底，
+     玩家看到的就是「明明有正文标签，却报没检测到」。 */
+  var anyTag = null;
+  try { anyTag = v147AnyTagBlock(onlyBody); } catch (eAny) { anyTag = null; }
+  if (!anyTag && onlyBody !== cleaned) {
+    /* onlyBody 剪不出东西时，用剪之前那份再扫一遍 */
+    try { anyTag = v147AnyTagBlock(cleaned); } catch (eAny2) { anyTag = null; }
+  }
+  if (anyTag) {
+    var packed15 = compactProse(anyTag.text);
+    if (packed15) return { text: packed15, layer: 1, tag: anyTag.tag };
   }
 
   /* 第二层：思维链尾部之后（★ 用剪之前的 cleaned —— 这一层本来就没有正文标签，
@@ -18238,7 +18277,14 @@ var DialogueReader = {
         this._fbSig = _fbSig;
         if (this._fbDone === _fbSig) return;   /* 同一段已经铺好了，别再 render 一次 */
         this._fbDone = _fbSig;
-        this.pages = [_fbText];
+        /* ★ 11-14：兜底时把「为什么没认出正文」直接印在第一页。
+           玩家不用开控制台，截一张图就能定位断点。 */
+        var _diagLine = '';
+        try {
+          _diagLine = '〔诊断〕原文' + String(rawText||'').length + '字 / DOM'
+            + String(this._diagDom || 0) + '字 / 标签:' + String(this._diagTags || '?') + '\n\n';
+        } catch (eDgLine) {}
+        this.pages = [_diagLine + _fbText];
         this.speakers = [''];
         this.currentIndex = 0;
         this.lastSig = '';
@@ -19218,7 +19264,14 @@ function thBuildHudPanel(shell) {
     }
 
     if (stale) {
-      actions.appendChild(mkBtn('刷新页面', true, function () { try { location.reload(); } catch (eR) {} }));
+      /* ★ 这里原来是个「刷新页面」按钮，调 location.reload()。
+         这个卡跑在酒馆的 iframe 里，reload 一个 iframe 会把父子页面的消息通道
+         一起拽断，表现就是「一点就卡死」—— 玩家骂得对，这是我的锅。
+         现在不再动页面，只给一句手动提示。 */
+      var hint = doc.createElement('div');
+      hint.setAttribute('style', 'flex:1;padding:6px 2px;color:#c9bfae;font-size:12px;');
+      hint.textContent = '按 F5 或重新打开页面即可';
+      actions.appendChild(hint);
     } else {
       actions.appendChild(mkBtn('看看更新了啥', true, function () { try { thOpenChangelog(); } catch (eO) {} }));
     }
