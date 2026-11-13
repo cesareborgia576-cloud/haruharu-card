@@ -23428,11 +23428,46 @@ async function updateContainer(shell) {
       __tdDoc.addEventListener('click', function (ev) {
         var t = ev.target;
         if (!t || !t.closest) return;
-        var card = t.closest('#th-mode-card-love, #th-mode-card-bull');
-        if (!card) return;
-        ev.preventDefault(); ev.stopPropagation();
-        var m = (card.id === 'th-mode-card-bull') ? '牛头' : '纯爱';
-        try { if (typeof window.__thChooseMode === 'function') window.__thChooseMode(m); } catch (eC1) {}
+        var card = null;
+
+        /* 模式 */
+        card = t.closest('#th-mode-card-love, #th-mode-card-bull');
+        if (card) {
+          ev.preventDefault(); ev.stopPropagation();
+          try { window.__thChooseMode(card.id === 'th-mode-card-bull' ? '牛头' : '纯爱'); } catch (eC1) {}
+          return;
+        }
+        /* 季节：spring / summer / autumn / winter */
+        card = t.closest('#th-season-card-spring, #th-season-card-summer, #th-season-card-autumn, #th-season-card-winter');
+        if (card) {
+          ev.preventDefault(); ev.stopPropagation();
+          var seMap = { 'th-season-card-spring': '春', 'th-season-card-summer': '夏', 'th-season-card-autumn': '秋', 'th-season-card-winter': '冬' };
+          try { window.__thChooseSeason(seMap[card.id] || '夏'); } catch (eC2) {}
+          return;
+        }
+        /* 插图版本：old / new / mix */
+        card = t.closest('#th-art-card-old, #th-art-card-new, #th-art-card-mix');
+        if (card) {
+          ev.preventDefault(); ev.stopPropagation();
+          var arMap = { 'th-art-card-old': '旧插图', 'th-art-card-new': '新插图', 'th-art-card-mix': '新旧融合' };
+          try { window.__thChooseArt(arMap[card.id] || '新插图'); } catch (eC3) {}
+          return;
+        }
+        /* 开局类型：这两颗没有 id，只能按文案认 */
+        card = t.closest('.th-gal-branch-card, .th-gal-starttype-card, button');
+        if (card) {
+          var tx = String(card.textContent || '');
+          if (tx.indexOf('梦幻开局') >= 0 && tx.length < 40) {
+            ev.preventDefault(); ev.stopPropagation();
+            try { window.__thChooseStartType('梦幻开局'); } catch (eC4) {}
+            return;
+          }
+          if (tx.indexOf('正常开局') >= 0 && tx.length < 40) {
+            ev.preventDefault(); ev.stopPropagation();
+            try { window.__thChooseStartType('正常开局'); } catch (eC5) {}
+            return;
+          }
+        }
       }, true);
     }
   } catch (eTd) {}
