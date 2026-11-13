@@ -5323,6 +5323,13 @@ var STYLE = `<style id="th-gal-shell-style">
   }
 
   /* 对话框：弹性贴合，彻底清除底部多余空白行 */
+  /* ★ 兜底模式：检测不到正文标签时，整段原文一页铺上去，框固定占半个视口。
+     选择器比下面的 .th-gal-dialogue-stage 多一级（带壳），两边都 !important 时
+     按特异性取高的，所以能压过 height: var(--th-dlg-h, 40%)。 */
+  .th-gal-shell-root.th-gal-dlg-fallback .th-gal-dialogue-stage {
+    height: 50% !important;
+    max-height: 50% !important;
+  }
   .th-gal-dialogue-stage {
     position: absolute !important;
     z-index: 80 !important;
@@ -18074,6 +18081,28 @@ var DialogueReader = {
     /* ★ v82：识别到第几层不再弹任何提示。踩到第几层是脚本自己的事，
        玩家想回看原始楼层，点按钮栏那颗「🕘 历史」就行。 */
     if (!content) {
+      /* ══ 兜底：检测不到正文白标签 → 原文整段铺满半屏，不分页 ══════════
+         玩家的要求：「当检测不到正文白标签，直接自动铺满游戏界面的一半高度，
+         完全显示原文，不再分页。」
+         和 v110「没标签一个字都不许留」不冲突：v110 防的是**上一楼的残留
+         pages 串到这一楼**，这里用的是这一楼自己的 rawText，来源清楚。
+         isGenerating 时不做 —— 流式还没写完，每 700ms 铺一次会抖成筛子。 */
+      var _fbText = '';
+      try { _fbText = compactProse(sanitizeRawProse(String(rawText || ''))); } catch (eFb) { _fbText = ''; }
+      if (_fbText && !isGenerating) {
+        this.pages = [_fbText];
+        this.speakers = [''];
+        this.currentIndex = 0;
+        this.lastSig = '';
+        this.lastSource = 'raw';
+        try {
+          var _fbShell = getDoc().querySelector('#th-gal-shell-root');
+          if (_fbShell) _fbShell.classList.add('th-gal-dlg-fallback');
+        } catch (eFb2) {}
+        this.isOpen = true;
+        try { this.render(); } catch (eFb3) {}
+        return;
+      }
       /* ══ ★ v110 真凶修复：**没有 <对话框显示> 就没有正文，一个字都不许留** ══
          以前这里只 `this.isOpen = false; this.render();`，**从不清this.pages**。
          于是 this.pages 作为「跨楼层残留状态」活了下来：
@@ -18108,6 +18137,12 @@ var DialogueReader = {
       }
       return;
     }
+    /* 这一楼有正常正文了 → 撤掉兜底半屏，回到原来的高度档位 */
+    try {
+      var _okShell = getDoc().querySelector('#th-gal-shell-root');
+      if (_okShell) _okShell.classList.remove('th-gal-dlg-fallback');
+    } catch (eOk) {}
+
     /* ★ v87：每次进来先把对话框的高度按当前视口写死（进出全屏 / 拉窗口 / 换高度档位都跟着变） */
     try {
       var shellFit = getDoc().querySelector('#th-gal-shell-root');
