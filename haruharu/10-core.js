@@ -18951,11 +18951,17 @@ function thBuildHudPanel(shell) {
       });
     }
 
-    /* raw 优先（无 CDN 缓存），jsDelivr 兜底 —— 和 loader 同一套顺序 */
+    /* ★ 顺序：GitHub API 第一。
+       实测 raw 国内常不通、jsDelivr 四个镜像对 changelog.json 有 12 小时缓存
+       （推完 10 分钟仍是旧版本），只有 API 是「推完立刻能读到」的。
+       API 返回 {content, encoding:'base64'}，下面统一拆一层。 */
     var chgUrls = [
-      'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/main/haruharu/changelog.json',
-      'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
-      'https://gcore.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json'
+      'https://api.github.com/repos/cesareborgia576-cloud/haruharu-card/contents/haruharu/changelog.json?ref=main&t=' + Date.now(),
+      'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/main/haruharu/changelog.json?t=' + Date.now(),
+      'https://gcore.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+      'https://testingcf.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+      'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json'
     ];
     var ui = 0;
     function tryNext() {
@@ -18965,10 +18971,22 @@ function thBuildHudPanel(shell) {
       }
       var url = chgUrls[ui++];
       var settled = false;
-      var tm = setTimeout(function () { if (!settled) { settled = true; tryNext(); } }, 8000);
+      var tm = setTimeout(function () { if (!settled) { settled = true; next2(); } }, 6000);
+      function next2() { try { tryNext(); } catch (eN) {} }
       fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
         if (settled) return;
         settled = true; clearTimeout(tm);
+        /* GitHub API 的 base64 包装 */
+        if (data && data.content && data.encoding === 'base64') {
+          try {
+            var bin = atob(String(data.content).replace(/\s/g, ''));
+            var bytes = new Uint8Array(bin.length);
+            for (var bi = 0; bi < bin.length; bi++) bytes[bi] = bin.charCodeAt(bi);
+            data = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+          } catch (eB64) { data = null; }
+        }
+        if (!data || !data.entries || !data.entries.length) { tryNext(); return; }
+        try { window.__SPR_CHG_VER = data.version || ''; } catch (eV) {}
         var html = '';
         (data.entries || []).forEach(function (e) {
           html += '<div style="margin-bottom:16px;">';
@@ -18979,7 +18997,7 @@ function thBuildHudPanel(shell) {
           (e.items || []).forEach(function (it) { html += '<li style="margin:3px 0;">' + escChg(it) + '</li>'; });
           html += '</ul></div>';
         });
-        body.innerHTML = html || '<div style="padding:26px;text-align:center;color:#8b8175;">这份更新记录是空的</div>';
+        body.innerHTML = html;
       }).catch(function () { if (!settled) { settled = true; clearTimeout(tm); tryNext(); } });
     }
     tryNext();
