@@ -18150,6 +18150,25 @@ var DialogueReader = {
          · 没认出标签 → 只要 DOM 文本足够长、且这段字确实出现在原文里，就采信。
        宁可多认一段正文，也不要让玩家对着一句「未检测到正文」发呆。 */
     var fromDom = renderedProseFromDom();
+    /* ★ 11-14 诊断：把三个数挂到实例上，直接印在对话框左下角那行提示里。
+       玩家不用开控制台 —— 看数字就知道是哪一段断了：
+         原文 0 字        → 这一楼压根没读到文本（楼层元素没找到）
+         原文 N 字 / DOM 0 字 → 楼层读到了，但 DOM 抽取被过滤光了
+         原文 N 字 / DOM M 字 → DOM 有字却没被采用，是重合度校验把它否了 */
+    try {
+      this._diagRaw = String(rawText || '').length;
+      this._diagDom = String(fromDom || '').length;
+      this._diagHasTag = hasBodyTag;
+      this._diagTags = (function () {
+        try {
+          var hit = [];
+          for (var _i = 0; _i < V147_TEXT_TAGS.length; _i++) {
+            if (new RegExp('<' + V147_TEXT_TAGS[_i] + '(?=[\\s>])', 'i').test(String(rawText || ''))) hit.push(V147_TEXT_TAGS[_i]);
+          }
+          return hit.join(',') || '无';
+        } catch (eT2) { return '?'; }
+      })();
+    } catch (eDg2) {}
     if (fromDom && !hasBodyTag) {
       /* 无标签时的防呆：DOM 那段开头 18 个字必须真的出现在原始楼层里，
          否则说明读到的不是这一楼（或混进了界面自身的文字），放弃。 */
@@ -18523,9 +18542,17 @@ var DialogueReader = {
       /* ★ 兜底的话放页数左边：玩家第一眼要先知道「这楼没标签、看到的是原文」，
          而不是先看到 1/1 再自己猜为什么只有一页。正常来源的标记仍挂右边。 */
       var _pgTxt = (this.currentIndex + 1) + ' / ' + this.pages.length;
+      /* ★ 11-14 诊断缀：原文多少字 / DOM 抽到多少字 / 认出了哪些正文标签。
+         这几项决定「未检测到正文」到底是没读到、被过滤、还是被校验否掉。 */
+      var _dm = '';
+      try {
+        if (this._diagRaw !== undefined) {
+          _dm = ' 〔原' + this._diagRaw + '·DOM' + this._diagDom + '·' + (this._diagTags || '无') + '〕';
+        }
+      } catch (eDm) {}
       indicator.textContent = (this.lastSource === 'raw')
-        ? ('未检测到正文标签已展示原文 · ' + _pgTxt)
-        : (_pgTxt + srcTag);
+        ? ('未检测到正文标签已展示原文 · ' + _pgTxt + _dm)
+        : (_pgTxt + srcTag + _dm);
       try {
         indicator.title = '正文来源：' + (this.lastSource === 'dom'
           ? '酒馆渲染后的 DOM（机制判据已跑）'
