@@ -17472,7 +17472,8 @@ function setGeneratingState(isGen) {
     if (badge) badge.style.display = isGen ? 'inline-block' : 'none';
     if (isGen) shell.classList.add('th-gal-gen-on');
     else shell.classList.remove('th-gal-gen-on');
-    /* ★ 07:07：状态条先撤掉 —— 它的 DOM 插进 shell 会挤动布局，导致对话框又空一行。 */
+    /* ★ 07:13：状态条装回来。这次不再改 shell 的 position（上次怀疑是它挤动布局）。 */
+    try { __thGenBanner(isGen); } catch (eGB) {}
   } catch (eB) {}
   /* ★ v163：原写法只刷 shell.querySelector('.th-gal-shell-submit') —— 那拿到的是
      **控制舱里那颗**（display:none，玩家看不见）。面板里那颗真按钮永远显示「发送」，
@@ -25925,10 +25926,8 @@ function __thGenBanner(on) {
         'font-size:12px;line-height:1.4;letter-spacing:.03em;pointer-events:none;' +
         'font-family:inherit;white-space:nowrap;box-sizing:border-box;max-width:96%;' +
         'display:none;');
-      try {
-        var sp = window.getComputedStyle(shell).position;
-        if (!sp || sp === 'static') shell.style.setProperty('position', 'relative', 'important');
-      } catch (eP) {}
+      /* 不碰 shell 的 position：上次怀疑就是这句把绝对定位的基准改了，
+         导致对话框高度算错一行。static 也能挂，只是定位基准变成更上层容器。 */
       try { shell.appendChild(el); } catch (eA) { return; }
     }
     if (__thGenHideTimer) { try { clearTimeout(__thGenHideTimer); } catch (eT) {} __thGenHideTimer = null; }
@@ -25999,7 +25998,12 @@ function __thMountReroll() {
   } catch (eM) { return false; }
 }
 
-/* ★ 07:07：重 roll 按钮暂不自动挂载（会改动状态卡宽度→影响布局）。 */
+/* ★ 07:13：重 roll 按钮装回来 */
+try {
+  setTimeout(function () { __thMountReroll(); }, 1200);
+  setTimeout(function () { __thMountReroll(); }, 4000);
+  setInterval(function () { try { __thMountReroll(); } catch (eI) {} }, 8000);
+} catch (eBoot) {}
 
 try { setTimeout(__thLiveVerTick, 4000); setInterval(__thLiveVerTick, 20000); } catch (eLv) {}
 
