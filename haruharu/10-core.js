@@ -23413,6 +23413,29 @@ async function updateContainer(shell) {
     writeTitleState('season');
     applyTitleState();
   }
+  /* ★ 把选择函数挂到 window，供事件委托调用。
+     标题页每次 applyTitleState 都会重建 DOM，直接绑在节点上的 onclick 会
+     随旧节点一起失效 —— 玩家点了「牛头」什么也没发生，就是这么来的。
+     委托挂在 document 上，节点换了也照样命中。 */
+  try { window.__thChooseMode = chooseMode; } catch (eE1) {}
+  try { window.__thChooseSeason = chooseSeason; } catch (eE2) {}
+  try { window.__thChooseArt = chooseArt; } catch (eE3) {}
+  try { window.__thChooseStartType = chooseStartType; } catch (eE4) {}
+  try {
+    if (!window.__thTitleDelegate) {
+      window.__thTitleDelegate = 1;
+      var __tdDoc = getDoc();
+      __tdDoc.addEventListener('click', function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest) return;
+        var card = t.closest('#th-mode-card-love, #th-mode-card-bull');
+        if (!card) return;
+        ev.preventDefault(); ev.stopPropagation();
+        var m = (card.id === 'th-mode-card-bull') ? '牛头' : '纯爱';
+        try { if (typeof window.__thChooseMode === 'function') window.__thChooseMode(m); } catch (eC1) {}
+      }, true);
+    }
+  } catch (eTd) {}
   function chooseSeason(season) {
     thPendingSeason = thNormSeason(season);
     try { sessionStorage.setItem('thGalPendingSeasonChoice', thPendingSeason); } catch (eS) {}
