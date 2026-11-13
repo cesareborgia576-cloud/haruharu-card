@@ -901,9 +901,21 @@
     var dots = null;
     var cap = mk('span', 'thillu-cap');
 
+    /* ★ 图片超时：图床挂起时 onerror 不来，轮播会卡在同一张永远不换 */
+    var loadT = null;
+    function armLoadT() {
+      if (loadT) clearTimeout(loadT);
+      loadT = setTimeout(function () {
+        loadT = null;
+        try { img.removeAttribute('src'); } catch (e) {}
+        if (img.onerror) img.onerror();
+      }, 8000);
+    }
+
     function paint(i) {
       idx = ((i % urls.length) + urls.length) % urls.length;
       img.src = urls[idx];
+      armLoadT();
       cap.textContent = one ? item.act : (item.act + ' ' + (idx + 1) + '/' + urls.length);
       if (dots) {
         var ds = dots.childNodes;
@@ -932,7 +944,11 @@
       }, ROTATE_MS);
     }
 
+    img.onload = function () {
+      if (loadT) { clearTimeout(loadT); loadT = null; }
+    };
     img.onerror = function () {
+      if (loadT) { clearTimeout(loadT); loadT = null; }
       stopTimer();
       try {
         frame.innerHTML = '';

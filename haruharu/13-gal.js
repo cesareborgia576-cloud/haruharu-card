@@ -1496,7 +1496,14 @@
       }
       try {
         var probe = new (HOST.Image || Image)();
-        probe.onload = function () {
+        /* ★ 超时兜底：图床挂起时 onload / onerror 一个都不来，
+           原来 probe 会一直挂着，界面就卡在「图还没出来」的状态。
+           8 秒没结果一律按失败处理（走 onerror 的收尾）。 */
+        var settled = false, failT = null;
+        var settleOk = function () {
+          if (settled) return;
+          settled = true;
+          if (failT) { clearTimeout(failT); failT = null; }
           if (!probe.naturalWidth || !probe.naturalHeight) return;
           if (currentUrl() !== url) return;          /* 又推进 / 换动作了：这一张作废 */
           if (figEl) {
@@ -1508,18 +1515,25 @@
           setShellCgOn(true);
           doc.body.classList.add('gal-cg-active');
         };
-        probe.onerror = function () {
-          /* 图挂了：保持「什么都不亮」，场景图与立绘继续显示 —— 玩家至少还有画面。
-             ★ v101：原来这里是完全静默的，玩家只看到「插图没出来」，
-             分不清是标签没读到、图组没命中、还是图被删了。现在打醒目一条。 */
+        var settleFail = function (why) {
+          if (settled) return;
+          settled = true;
+          if (failT) { clearTimeout(failT); failT = null; }
+          /* 图挂了：保持「什么都不亮」，场景图与立绘继续显示 —— 玩家至少还有画面。 */
           try {
-            console.warn('⚠️[插图] 图片加载失败（不是标签问题）：' + url +
-              '\n     图床 a.imgckr.com（v102 已从已过期的 catbox 迁到这里）。' +
-              '若整组图都不出来 = 图本身没了，需要重新上传。');
+            console.warn('⚠️[插图] 图片没出来（' + (why || '加载失败') + '）：' + url +
+              '\n     图床挂起或图本身失效。超时会自动跳过，不会卡住界面。');
             var np2 = getDoc().getElementById(NAMEPLATE_ID);
-            if (np2) np2.title = '插图加载失败（图本身可能已失效）：' + url;
+            if (np2) np2.title = '插图没出来（挂起或已失效）：' + url;
           } catch (eErr) {}
         };
+        probe.onload = settleOk;
+        probe.onerror = function () { settleFail('加载失败'); };
+        failT = setTimeout(function () {
+          if (settled) return;
+          try { probe.src = ''; } catch (eAb) {}
+          settleFail('8 秒超时');
+        }, 8000);
         probe.src = url;
       } catch (ePr) {}
     }
