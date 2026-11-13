@@ -15919,6 +15919,24 @@ function splitPagesForGalInner(text, bodyEl) {
   }
   if (!raw.trim()) return { pages: [], speakers: [] };
 
+  /* ★ 剥离分行（玩家 11-13 23:21 原话：「它是根据了分行，我需要你剥离分行」）
+     模型写正文习惯一句一行，那些换行是**给人看的排版**，不是语义。
+     原样保留 ⇒ 那么窄的一行几个字，框明明很宽却永远填不满，
+     玩家看到的就是「一句话一行、下面空一大片」。
+     这里把连续旁白行拼成一条连续文本，交给 galWrapLines 按**真实字宽**折行 ——
+     框多宽就铺多宽，一屏能读多少字就是多少字。
+     中英混排时补一个空格，避免把英文单词粘死。 */
+  function thJoinLines(arr) {
+    var s = '';
+    for (var i = 0; i < arr.length; i++) {
+      var t = String(arr[i] == null ? '' : arr[i]).trim();
+      if (!t) continue;
+      if (s && /[A-Za-z0-9]$/.test(s) && /^[A-Za-z0-9]/.test(t)) s += ' ';
+      s += t;
+    }
+    return s;
+  }
+
   /* ① 切单位：{名字} 开头的一行 = 一句台词（名字记在单位上）；连续的旁白行 = 一个旁白单位 */
   var units = [];
   var paras = raw.split(/\n\s*\n/);
@@ -15934,7 +15952,7 @@ function splitPagesForGalInner(text, bodyEl) {
       if (mLcs) {
         var lcsPre = line.slice(0, mLcs.index).trim();
         if (lcsPre) {
-          if (buf.length) { units.push({ name: '', text: buf.join('\n').trim() }); buf = []; }
+          if (buf.length) { units.push({ name: '', text: thJoinLines(buf) }); buf = []; }
           var lcsPreClean = lcsPre.replace(/\{[^{}\n]{1,24}\}/g, '').trim();
           if (dlgPageMode() === 'one') { if (lcsPreClean) units.push({ name: '', text: lcsPreClean }); }
           else if (lcsPreClean) buf.push(lcsPreClean);
@@ -15942,19 +15960,19 @@ function splitPagesForGalInner(text, bodyEl) {
         m = mLcs;
       }
       if (m) {
-        if (buf.length) { units.push({ name: '', text: buf.join('\n').trim() }); buf = []; }
+        if (buf.length) { units.push({ name: '', text: thJoinLines(buf) }); buf = []; }
         units.push({ name: m[1].trim(), text: String(m[2] || '').replace(/\{[^{}\n]{1,24}\}/g, '').trim() });
       } else if (line) {
         var cleanLine = line.replace(/\{[^{}\n]{1,24}\}/g, '').trim();
         /* ★ 一句一页模式：旁白也一行一页（以前连续旁白合成一块，看着就像“单页没生效”） */
         if (dlgPageMode() === 'one') {
-          if (buf.length) { units.push({ name: '', text: buf.join('\n').trim() }); buf = []; }
+          if (buf.length) { units.push({ name: '', text: thJoinLines(buf) }); buf = []; }
           if (cleanLine) units.push({ name: '', text: cleanLine });
         } else {
           buf.push(cleanLine);
         }
       } else if (buf.length) {
-        units.push({ name: '', text: buf.join('\n').trim() });
+        units.push({ name: '', text: thJoinLines(buf) });
         buf = [];
       }
     }
@@ -18115,7 +18133,13 @@ var DialogueReader = {
       var _tagAlt = V147_TEXT_TAGS.join('|');
       hasBodyTag = new RegExp('<(?:' + _tagAlt + ')(?=[\\s>])[^>]*>', 'i').test(String(rawText || ''));
     } catch (eTagChk) {}
-    var fromDom = (content && hasBodyTag) ? renderedProseFromDom() : '';
+    /* ★ 11-14 修复：解析器空手而归时，**仍然必须去读 DOM**。
+       原来这里是 (content && hasBodyTag) —— content 一旦为空就直接判死，
+       DOM 里明明有字也不用，整楼掉进「未检测到正文标签已展示原文」兜底。
+       玩家看到的就是自相矛盾的一幕：有正文标签、提示说没识别到、却还能翻页（1/1）。
+       正确语义：**只要有正文标签**，就先信 DOM 那份渲染排版；
+       解析器也有结果时，再做下面那道重合度校验，防止 DOM 混进标签外的内容。 */
+    var fromDom = hasBodyTag ? renderedProseFromDom() : '';
     if (fromDom && fromDom.length > 24) {
       /* 重合度校验：DOM 版与解析器版，取较短的那份做子序列比对。
          只要 DOM 里多出超过 20 字「解析器没有的东西」，就判定它混进了标签外的内容。 */
@@ -23441,19 +23465,32 @@ async function updateContainer(shell) {
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function thPiCollect() {
+    /* ★ 每次现查活的 DOM（thEl 会跨 document 找）。
+       原来只用加载时抓的 piName / piBody / piAge / piMind 四个引用：
+       壳一重建，那几个节点就成了游离节点，.value 永远是空串 ——
+       玩家明明填了字，收上来全是空，确认页于是永远显示「未指定」，
+       而且它一声不吭，静默丢数据。 */
+    var n = thEl('th-pi-name') || piName;
+    var b = thEl('th-pi-body') || piBody;
+    var a = thEl('th-pi-age') || piAge;
+    var m = thEl('th-pi-mind') || piMind;
     return thNormPlayerInfo({
-      '玩家姓名': piName ? piName.value : '',
-      '玩家外貌身材': piBody ? piBody.value : '',
-      '玩家年龄': piAge ? piAge.value : '',
-      '玩家性格': piMind ? piMind.value : ''
+      '玩家姓名': n ? n.value : '',
+      '玩家外貌身材': b ? b.value : '',
+      '玩家年龄': a ? a.value : '',
+      '玩家性格': m ? m.value : ''
     });
   }
   function thPiFill(p) {
     p = thNormPlayerInfo(p);
-    if (piName) piName.value = p['玩家姓名'];
-    if (piBody) piBody.value = p['玩家外貌身材'];
-    if (piAge) piAge.value = p['玩家年龄'];
-    if (piMind) piMind.value = p['玩家性格'];
+    var n = thEl('th-pi-name') || piName;
+    var b = thEl('th-pi-body') || piBody;
+    var a = thEl('th-pi-age') || piAge;
+    var m = thEl('th-pi-mind') || piMind;
+    if (n) n.value = p['玩家姓名'];
+    if (b) b.value = p['玩家外貌身材'];
+    if (a) a.value = p['玩家年龄'];
+    if (m) m.value = p['玩家性格'];
   }
   function thSyncArcLabels() {
     var t = arcDisplayName(thPendingArc);   /* 已含「篇」，不要再拼 */
@@ -23598,6 +23635,16 @@ async function updateContainer(shell) {
   }
   function choosePlayerInfo() {
     thPendingPlayerInfo = thPiCollect();
+    /* ★ 必须和 mode / season / art / startType 一样落一份到 window.__SPR_PICK。
+       其它四个选择函数都写了，唯独这里漏了 —— 而 renderConfirm / beginGameConfirmed
+       都是「闭包里那份为空就以 __SPR_PICK 为准」。标题页重建成新闭包时
+       thPendingPlayerInfo 会回到 thNormPlayerInfo({})，
+       这时 __SPR_PICK.pi 又是 undefined，确认页就只能显示「未指定」。
+       少这一行，玩家填什么都不会出现在确认页上。 */
+    try {
+      window.__SPR_PICK = window.__SPR_PICK || {};
+      window.__SPR_PICK.pi = thPendingPlayerInfo;
+    } catch (ePPi) {}
     writeTitleState('starttype');
     applyTitleState();
   }
