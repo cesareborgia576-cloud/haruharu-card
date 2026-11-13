@@ -8876,23 +8876,23 @@ function thTimeWrite(t, patch) {
    ★ 拆出来的小时/分钟只在函数内部用，落库的永远是 "HH:MM" 一条。 */
 function thTimeAdvance(minutes, patch) {
   var add = Math.round(Number(minutes) || 0);
-  /* ★ 07:00 严重 bug：开局刚走一步，时间被强行拉到 07:50。
-     原因就在下面这几行 —— 读不到「精确时间」时会用一个**兜底 07:40**，
-     然后再 +10 分钟写回变量，于是真实时间（比如 21:40 或 08:12）被覆盖成 07:50。
-     现在加一道闸：**读不到真实时刻就压根不推进**，宁可这一次不动，
-     也不能凭空造一个时间写进存档。 */
-  var _srcTime = null;
-  try {
-    _srcTime = (patch && patch.stat_data && patch.stat_data.时间) || null;
-    if (!_srcTime) { try { _srcTime = stateTime(); } catch (eST) { _srcTime = null; } }
-  } catch (eST0) { _srcTime = null; }
+  /* ★ 07:09：这段闸门改过两版，第一版没闸（读不到就凭空造 07:40 再 +10 → 变 07:50），
+     第二版闸太死（patch 里没带「精确时间」就整轮不推进 → 时间永远卡在 07:40）。
+     正确做法是**合并**：时刻优先用 patch 里的，patch 没带就用当前存档里的；
+     日期同理。合并之后再推进，既不凭空造时间，也不会不动。 */
+  var _stateT = {};
+  try { _stateT = stateTime() || {}; } catch (eST) { _stateT = {}; }
+  var _patchT = (patch && patch.stat_data && patch.stat_data.时间) || null;
+  var _merged = {};
+  try { for (var _k1 in _stateT) _merged[_k1] = _stateT[_k1]; } catch (eM1) {}
+  try { if (_patchT) { for (var _k2 in _patchT) _merged[_k2] = _patchT[_k2]; } } catch (eM2) {}
   var _hmRaw = '';
-  try { _hmRaw = String((_srcTime && _srcTime.精确时间) || ''); } catch (eST1) { _hmRaw = ''; }
+  try { _hmRaw = String(_merged.精确时间 || ''); } catch (eM3) { _hmRaw = ''; }
   if (!/^\s*\d{1,2}\s*[:：]\s*\d{1,2}/.test(_hmRaw)) {
-    try { console.warn('[时间] 读不到当前时刻（精确时间=' + JSON.stringify(_hmRaw) + '），本轮不推进，避免写成默认 07:40'); } catch (eST2) {}
-    return thTimeRead(_srcTime);
+    try { console.warn('[时间] 存档和补丁里都没有可用的时刻，本轮不推进'); } catch (eM4) {}
+    return thTimeRead(_merged);
   }
-  var t = thTimeRead(patch ? (patch.stat_data || {}).时间 : null);
+  var t = thTimeRead(_merged);
   var y = t.年份, mo = t.月份, d = t.日期;
   /* 自包含解析（单测会把本函数整段切出来跑，不能依赖模块级 thHMParse） */
   var hm = { h: NaN, mi: NaN };
