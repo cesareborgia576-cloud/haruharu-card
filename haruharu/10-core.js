@@ -19211,8 +19211,11 @@ function thBuildHudPanel(shell) {
       + '<div style="margin-top:4px;font-size:11px;line-height:1.6;color:#8b8175;">'
       +   '卡版本 <b style="color:#c9bfae;">' + escChg(_cardVer || '（未知）') + '</b>'
       +   ' · 线上 <b style="color:#86efac;">' + escChg(_liveVer ? ('v' + String(_liveVer).replace(/^v/i, '') + ' · ' + String(_liveTag || '').slice(0, 8)) : (_liveTag ? String(_liveTag).slice(0, 10) : '（未热更）')) + '</b>'
-      +   (_newVer ? (' · <b style="color:#f0a95c;">已有 ' + escChg(_newVer) + '</b>'
-                      + '<button type="button" id="th-vlog-reload" style="margin-left:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,150,150,.6);background:linear-gradient(160deg,#b91c1c,#7f1d1d);color:#fff;font-size:11px;cursor:pointer;">点击刷新</button>') : '')
+      /* ★ 05:24：这里留一个常驻占位。实时嗅探是异步的（拉 ver.js 要 200ms），
+         以前只在"打开弹层那一刻"读一次 __SPR_LIVE_NEW__，于是开着弹层等到新版本
+         也不会变。现在 tick 一旦嗅到就写进这个 span，弹层不用重开。 */
+      +   '<span id="th-vlog-live">' + (_newVer ? (' · <b style="color:#f0a95c;">已有 ' + escChg(_newVer) + '</b>'
+                      + '<button type="button" id="th-vlog-reload" style="margin-left:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,150,150,.6);background:linear-gradient(160deg,#b91c1c,#7f1d1d);color:#fff;font-size:11px;cursor:pointer;">点击刷新</button>') : '') + '</span>'
       + '</div>'
       + '</div>';
     var xBtn = doc.createElement('button');
@@ -19291,6 +19294,8 @@ function thBuildHudPanel(shell) {
       }).catch(function () { if (!settled) { settled = true; clearTimeout(tm); tryNext(); } });
     }
     tryNext();
+    /* 打开版本页立刻嗅一次，不等 20 秒那一拍 */
+    try { __thLiveVerTick(); } catch (eTick0) {}
   }
 
   /* ══ ★ 推送通知 ═══════════════════════════════════════════════════════
@@ -25482,6 +25487,18 @@ function __thLiveVerShow(v) {
     + '<span>有新版本 <b style="font-family:monospace;">' + String(v).replace(/[<>&]/g, '') + '</b></span>'
     + '<span style="padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);font-size:12px;">点击刷新</span>';
   __thMarkVerBadge(true);
+  /* 弹层开着的话，把「已有 vX + 点击刷新」直接塞进去 */
+  try {
+    var slot = doc.getElementById('th-vlog-live');
+    if (slot) {
+      slot.innerHTML = ' · <b style="color:#f0a95c;">已有 ' + String(v).replace(/[<>&]/g, '') + '</b>'
+        + '<button type="button" id="th-vlog-reload" style="margin-left:8px;padding:3px 10px;border-radius:999px;'
+        + 'border:1px solid rgba(255,150,150,.6);background:linear-gradient(160deg,#b91c1c,#7f1d1d);color:#fff;'
+        + 'font-size:11px;cursor:pointer;">点击刷新</button>';
+      var rb2 = doc.getElementById('th-vlog-reload');
+      if (rb2) rb2.onclick = function (e) { try { e.stopPropagation(); } catch (e0) {} __thDoReload(); };
+    }
+  } catch (eSlot) {}
 }
 
 
@@ -25494,7 +25511,19 @@ function __thLiveVerTick() {
     var _nv0 = String(window.__SPR_LIVE_NEW__ || '');
     if (_nv0) __thLiveVerShow(_nv0);
   } catch (eNv0) {}
-  try { if (document.visibilityState === 'hidden') return; } catch (e0) {}
+  /* ★ 05:23 真凶：这一句原来判的是**脚本自己那个 iframe** 的 visibilityState。
+     酒馆助手把脚本塞在隐藏 iframe 里跑，那个 document 永远是 hidden
+     ⇒ 每次轮询都在这里 return，实时嗅探等于从来没跑过（刷新后才看到新版本）。
+     改成看**宿主页面**（TOP.document）——玩家真正在看的那一页。 */
+  var _vis = 'visible';
+  try {
+    if (window.top && window.top.document && window.top.document.visibilityState) {
+      _vis = String(window.top.document.visibilityState);
+    } else if (document.visibilityState) {
+      _vis = String(document.visibilityState);
+    }
+  } catch (eV0) {}
+  if (_vis === 'hidden') { try { window.__SPR_LIVE_DBG__ = 'skip:hidden'; } catch (eV1) {} return; }
   var done = false;
   function fin(v) {
     if (done) return;
@@ -25507,6 +25536,10 @@ function __thLiveVerTick() {
     try { curSeq = Number(window.__SPR_SEQ__ || (window.top && window.top.__SPR_SEQ__) || 0); } catch (eQS) {}
     var cur = __thLiveVerCur();
     var newer = (q && curSeq) ? (q > curSeq) : (cur && __thLiveVerCmp(v, cur) > 0);
+    /* 诊断出口：卡住时看这一段就知道是没拉到、还是判定成"不比卡内新" */
+    try {
+      window.__SPR_LIVE_DBG__ = { at: Date.now(), ossVer: v, ossSeq: q, runVer: cur, runSeq: curSeq, newer: !!newer };
+    } catch (eDbg) {}
     if (newer) {
       try { window.__SPR_LIVE_NEW__ = v; } catch (e1) {}
       try { if (window.top && window.top !== window) window.top.__SPR_LIVE_NEW__ = v; } catch (e2) {}
