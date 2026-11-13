@@ -18506,6 +18506,9 @@ var DialogueReader = {
   lastGeom: '',
   lastRaw: '',
   setRawText: function(rawText, isGenerating) {
+    /* ★ 07:38：只有**模型什么都没返回**（原文 trim 后为空）才算"回空了"。
+       标签缺失是另一回事，不归这条管。 */
+    try { this._emptyReply = (String(rawText == null ? '' : rawText).trim() === ''); } catch (eER) { this._emptyReply = false; }
     /* ★ 性能优化卫兵：非生成态且原文与生成状态完全未变时，先检查视口几何，未变则静默返回，避免每 700ms 强制重排 */
     if (!isGenerating && rawText === this.lastRaw && this.lastSource) {
       var bodyCheck = this.stage ? this.stage.querySelector('.th-gal-dialogue-body') : null;
@@ -18876,6 +18879,20 @@ var DialogueReader = {
     /* ★ v119：框开着、这一楼又没正文 → 说明条必须在。
          render 是被多处调用的（翻页、心跳、切场景、换字号），
          玩家开着框却看到一片空白的情况必须在这里兜住，不能指望调用方记得挂。 */
+    if (this.pages.length === 0 && this._emptyReply) {
+      /* 完全空值：不挂说明条，直接开框显示红字 */
+      stage.removeAttribute('hidden');
+      this.isOpen = true;
+      try { fitDialogueStage(shell); } catch (eFitE) {}
+      try {
+        body.innerHTML = '<div style="color:#ff6b6b;font-weight:700;font-size:12.5px;line-height:1.8;letter-spacing:.02em;">'
+          + '回空了，点击旁边的重roll按钮重新尝试</div>';
+      } catch (eClrE) {}
+      syncChoiceOverlayWithDialogue(false);
+      if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
+      try { syncDialogueStanding(shell); } catch (eDSE) {}
+      return;
+    }
     if (this.pages.length === 0 && !_noteOn) {
       try { showDialogueBrokenNote(); _noteOn = true; } catch (eNoteAuto) {}
     }
@@ -18886,10 +18903,15 @@ var DialogueReader = {
       try { hideDialogueBrokenNote(); showDialogueBrokenNote(); } catch (eReNote) {}
       syncChoiceOverlayWithDialogue(false);
       if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
-      /* ★ 07:35 作者要求：这一楼回空时，框里直接给一行红字，指明下一步点哪 */
+      /* ★ 07:38：**只有原文完全为空**才出这行红字（模型什么都没返回）。
+         标签缺失 / 解析不出正文 都走原来的说明条，不混在一起。 */
       try {
-        body.innerHTML = '<div style="color:#ff6b6b;font-weight:700;font-size:12.5px;line-height:1.8;letter-spacing:.02em;">'
-          + '回空了，点击旁边的重roll按钮重新尝试</div>';
+        if (this._emptyReply) {
+          body.innerHTML = '<div style="color:#ff6b6b;font-weight:700;font-size:12.5px;line-height:1.8;letter-spacing:.02em;">'
+            + '回空了，点击旁边的重roll按钮重新尝试</div>';
+        } else {
+          body.innerHTML = '';
+        }
       } catch (eClrBody) {}
       /* ★ v116：说明条不是正文，没人说话 → 立绘收回去 */
       try { syncDialogueStanding(shell); } catch (eDS3) {}
