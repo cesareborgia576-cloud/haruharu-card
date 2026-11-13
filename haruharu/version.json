@@ -1,0 +1,27 @@
+{
+  "version": "v10.6",
+  "updated": "2026-11-13T10:39:11.532Z",
+  "repo": "cesareborgia576-cloud/haruharu-card",
+  "dir": "haruharu/",
+  "files": {
+    "common": [
+      "02-schema.js",
+      "03-deduce.js",
+      "00-switcher.js"
+    ],
+    "game": [
+      "10-core.js",
+      "11-fullscreen.js",
+      "12-arc.js",
+      "13-gal.js",
+      "14-format.js"
+    ],
+    "text": [
+      "20-heal.js",
+      "21-avatar.js",
+      "22-illust.js",
+      "23-opening.js",
+      "24-statusbar.js"
+    ]
+  }
+}
