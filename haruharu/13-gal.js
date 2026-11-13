@@ -1842,7 +1842,10 @@
   var EXT_MAX = 12;
   var extQueue = [];
   var extIdx = 0;
-  var extOn = false;
+  /* 默认开。玩家的原话是「遇到那个格式就显示，没检测到就用我们的，默认显示，
+     而不是要自己打开」—— 所以这儿不读设置、不摆开关姿态，直接 true；
+     关掉是玩家主动做的事，关掉之后才有「重新打开插图」这一说。 */
+  var extOn = true;
   var extTimer = null;
 
   /* 内置插图总开关（状态栏「功能」页控制）。默认开。 */
@@ -1886,17 +1889,37 @@
       el.id = EXT_ID;
       vp.appendChild(el);
     }
-    el.setAttribute('style', 'position:absolute;inset:0;z-index:2147483636;pointer-events:none;opacity:0;transition:opacity .25s ease;background:#000 center/contain no-repeat;');
+    /* z-index 70：必须低于 .th-gal-dialogue-stage 的 80。
+       以前这里写的是 2147483636（顶到天），图一出来就把整块对话框连同名字条
+       一起埋了，玩家只能看图不能读字。降到 70 之后，图铺满视口，对话框浮在
+       图上面，靠它自己的半透明背景 + 毛玻璃透出底图，两者同时可见。 */
+    el.setAttribute('style', 'position:absolute;inset:0;z-index:70;pointer-events:none;opacity:0;transition:opacity .25s ease;background:#000 center/contain no-repeat;');
     return el;
   }
 
   function extRender() {
     var el = extLayer();
     if (!el) return;
-    if (!extOn || !extQueue.length) { el.style.opacity = '0'; return; }
+    var show = !!(extOn && extQueue.length);
+
+    /* 内置 CG 的让位 / 复位。只改 visibility，不碰 display、不动它的队列和推进按钮
+       —— 外置图关掉之后内置那套要能原地接着播，不能被我改成半死不活。 */
+    function yieldCg(hide) {
+      try {
+        var d = extDoc();
+        var ids = ['gal-cg-background', 'gal-cg-figure'];
+        for (var i = 0; i < ids.length; i++) {
+          var n = d.getElementById(ids[i]);
+          if (n) n.style.visibility = hide ? 'hidden' : '';
+        }
+      } catch (eY) {}
+    }
+
+    if (!show) { el.style.opacity = '0'; yieldCg(false); return; }
     var src = extQueue[extIdx] || '';
     el.style.backgroundImage = src ? 'url("' + src + '")' : 'none';
     el.style.opacity = '1';
+    yieldCg(true);
   }
 
   function extAdd(src) {
@@ -1955,9 +1978,10 @@
       b = doc.createElement('button');
       b.id = EXT_BTN;
       b.type = 'button';
-      b.textContent = '🖼';
-      b.title = '外置插图（生图插件产出）：点一下显示 / 再点关掉';
-      b.setAttribute('style', 'position:absolute;top:10px;right:10px;z-index:2147483637;width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(217,187,122,.55);background:rgba(14,12,10,.72);color:#e6c884;font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);');
+      b.textContent = '✕';
+      b.title = '关闭插图（关掉后可在齿轮面板 → 界面 → 重新打开插图）';
+      /* z-index 81：比对话框的 80 高一层，对话框不透明时也不会被压住 */
+      b.setAttribute('style', 'position:absolute;top:10px;right:10px;z-index:81;width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(217,187,122,.55);background:rgba(14,12,10,.72);color:#e6c884;font-size:16px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);');
       b.addEventListener('click', function (ev) { ev.stopPropagation(); extToggle(); });
       vp.appendChild(b);
     }
@@ -1967,27 +1991,25 @@
   function extPaintBtn() {
     var b = extBtn();
     if (!b) return;
-    b.style.borderColor = extOn ? 'rgba(230,200,132,.95)' : 'rgba(217,187,122,.55)';
-    b.style.background = extOn ? 'rgba(60,44,20,.85)' : 'rgba(14,12,10,.72)';
-    b.textContent = extOn ? '🖼' : '🖼';
-    b.title = extOn
-      ? ('外置插图：开（' + (extQueue.length ? (extIdx + 1) + '/' + extQueue.length : '还没抓到图') + '）· 点一下关掉')
-      : '外置插图（生图插件产出）：点一下显示 / 再点关掉';
+    /* 只在「开着且有图」时露出关闭键。没图的时候挂着个 ✕ 会让人以为界面坏了。 */
+    var show = !!(extOn && extQueue.length);
+    b.style.display = show ? 'flex' : 'none';
+    b.title = '关闭插图（关掉后可在齿轮面板 → 界面 → 重新打开插图）';
   }
 
   function extToggle() {
-    extOn = !extOn;
-    if (extOn) { extScan(); extIdx = Math.max(0, extQueue.length - 1); }
+    /* 这个按钮现在是单向的「关闭」，不是开关。要重新打开走齿轮面板里的
+       「重新打开插图」—— 那才是玩家关了之后会去找的地方。 */
+    extOn = false;
     extRender();
     extPaintBtn();
-    try { HOST.localStorage.setItem('SPR_EXT_ILLUST', extOn ? 'on' : 'off'); } catch (e) {}
-    extToast(extOn
-      ? (extQueue.length ? '🖼 外置插图：开（' + extQueue.length + ' 张）' : '🖼 外置插图：开 —— 还没抓到图，等插件出图')
-      : '🖼 外置插图：关');
+    try { HOST.localStorage.setItem('SPR_EXT_ILLUST', 'off'); } catch (e) {}
+    extToast('🖼 已关闭插图 · 齿轮面板 → 界面 → 重新打开插图');
   }
 
   function extBoot() {
-    try { if (HOST.localStorage.getItem('SPR_EXT_ILLUST') === 'on') extOn = true; } catch (e) {}
+    /* 老存档里可能留着 off（玩家以前手动关过），尊重它；没有记录就是开。 */
+    try { if (HOST.localStorage.getItem('SPR_EXT_ILLUST') === 'off') extOn = false; } catch (e) {}
     try {
       HOST.__sprExtIllust = {
         toggle: extToggle,

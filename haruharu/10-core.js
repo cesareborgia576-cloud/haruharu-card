@@ -18710,6 +18710,9 @@ function thBuildHudPanel(shell) {
       /* ★ v150 补：卡版本 + 本版更新内容。原来这颗挂在状态栏「功能」页里，
          状态栏被隐藏后入口没了，玩家找不到「这版改了什么」。 */
       '<button type="button" class="th-gal-shell-act-btn" data-th-verlog="1" title="查看卡版本与本版更新内容">📜 版本</button>' +
+      /* ★ 玩家在图上点 ✕ 关掉插图之后，需要有个地方能把图放回来。
+         放在「界面」组里，紧挨着版本，名字就叫「重新打开插图」。 */
+      '<button type="button" class="th-gal-shell-act-btn" data-th-extillopen="1" title="重新打开外置插图（生图插件产出的那张图）">🖼 重新打开插图</button>' +
     '</div></div>';
 
   /* ★ v150：顶栏永久隐藏后，精力值没地方看了 —— 在面板顶部补一条状态条。
@@ -18782,6 +18785,25 @@ function thBuildHudPanel(shell) {
         if (typeof window.__thOpenChg === 'function') { window.__thOpenChg(); thHudArmAutoClose(shell); return; }
       } catch (eC) {}
       try { if (typeof showToast === 'function') showToast('更新记录还没加载好，等两秒再点一次', 3000); } catch (eT) {}
+    });
+  }
+
+  /* ★ 重新打开外置插图：把 13-gal.js 里的 __sprExtIllust.set(true) 唤醒。
+     关图是全屏 ✕ 干的，开图只能从这里来 —— 别让玩家关了之后没处找回。 */
+  var extOpenBtn = host.querySelector('[data-th-extillopen]');
+  if (extOpenBtn) {
+    extOpenBtn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var api = null;
+      try { if (HOST && HOST.__sprExtIllust) api = HOST.__sprExtIllust; } catch (eA) {}
+      if (!api) { try { if (window.__sprExtIllust) api = window.__sprExtIllust; } catch (eB) {} }
+      if (api && typeof api.set === 'function') {
+        try { api.set(true); } catch (eS) {}
+        try { if (typeof showToast === 'function') showToast('🖼 插图已重新打开', 2600); } catch (eT) {}
+      } else {
+        try { if (typeof showToast === 'function') showToast('插图模块还没起来，进游戏后再点', 2600); } catch (eT2) {}
+      }
+      thHudArmAutoClose(shell);
     });
   }
 }
