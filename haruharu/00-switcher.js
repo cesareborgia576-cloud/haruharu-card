@@ -374,6 +374,14 @@
           });
           oks.push('世界书条目 ' + hit + '/' + (CFG.bookOffInText.length + CFG.bookNonOnly.length) + ' 条命中【切换器 s48】');
           if (_legacyOff > 0) oks.push('已删除「创作要求」' + _legacyOff + ' 条，并清掉正文里的指向引用');
+          /* ★ 08:12：把「这一模式到底开了哪几条」直接列出来，省得再猜。
+             两个团是**成对互换**的：游戏版开 9 条同层、关 12 条非同层；文字版反过来。 */
+          try {
+            var _onG = 0, _offG = 0, _onT = 0, _offT = 0;
+            CFG.bookOffInText.forEach(function (nm) { if (_present[nm]) { if (wantedBook(nm, mode, true)) _onG++; else _offG++; } });
+            CFG.bookNonOnly.forEach(function (nm) { if (_present[nm]) { if (wantedBook(nm, mode, true)) _onT++; else _offT++; } });
+            oks.push((mode === TEXT ? '文字版' : '游戏版') + '：同层条目 开' + _onG + '/关' + _offG + '，非同层条目 开' + _onT + '/关' + _offT);
+          } catch (eSum) {}
 
           /* ★ 07:55：绑定的世界书可能是早期导入的旧副本，缺条目（玩家看到的 8/21）。
              这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
