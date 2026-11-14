@@ -386,19 +386,28 @@
                这时 _add 是 0 条 —— 上面那条"补入"永远不会打印（玩家看到的 8/21 就是这个原因）。
                所以再兜一层：从 COS 上取这 21 条的原文来补。 */
             if (!_add.length && _missNames.length) {
+              /* ★ 08:04：上一版用 fetch 拉 JSON，报 Failed to fetch —— 因为 COS 桶没配跨域头，
+                 fetch 是"要许可"的请求，会被浏览器直接拒掉。
+                 所以改成**注入 <script>**（JSONP 式）：script 标签不受 CORS 约束，
+                 线上那个文件就是把数组赋给 window.__TH_WBPATCH__。 */
               try {
-                var _pr = await fetch('https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/wbpatch.json?t=' + Date.now());
-                if (_pr.ok) {
-                  var _plist = await _pr.json();
-                  (_plist || []).forEach(function (e) {
-                    var nm = String(e.comment || '');
-                    if (_missNames.indexOf(nm) < 0) return;
-                    var cp = JSON.parse(JSON.stringify(e));
-                    cp.enabled = wantedBook(nm, mode, false);
-                    _add.push(cp);
-                  });
-                  oks.push('从线上取回条目原文 ' + _add.length + ' 条');
-                }
+                var _plist = await new Promise(function (res) {
+                  var el = document.createElement('script');
+                  el.src = 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/wbpatch.js?t=' + Date.now();
+                  var done = false;
+                  el.onload = function () { if (done) return; done = true; try { res(window.__TH_WBPATCH__ || []); } catch (eL) { res([]); } };
+                  el.onerror = function () { if (done) return; done = true; res([]); };
+                  (document.head || document.documentElement).appendChild(el);
+                  setTimeout(function () { if (done) return; done = true; try { res(window.__TH_WBPATCH__ || []); } catch (eT) { res([]); } }, 6000);
+                });
+                (_plist || []).forEach(function (e) {
+                  var nm = String(e.comment || '');
+                  if (_missNames.indexOf(nm) < 0) return;
+                  var cp = JSON.parse(JSON.stringify(e));
+                  cp.enabled = wantedBook(nm, mode, false);
+                  _add.push(cp);
+                });
+                oks.push('从线上取回条目原文 ' + _add.length + ' 条');
               } catch (eFp) {
                 errs.push('线上条目原文拉取失败：' + (eFp && eFp.message || eFp));
               }
