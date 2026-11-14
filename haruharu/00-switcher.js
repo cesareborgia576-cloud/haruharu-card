@@ -367,21 +367,30 @@
             });
             window.__TH_WBPATCH__ = _wbList || window.__TH_WBPATCH__ || [];
           } catch (eWb) {}
+          /* ★ 08:50：按 comment 建索引，正文同步不再限定那 21 条 */
+          var _wbMap = {};
+          try {
+            (window.__TH_WBPATCH__ || []).forEach(function (x) {
+              var k = String(x.comment || '');
+              if (k) _wbMap[k] = x;
+            });
+          } catch (eMap) { _wbMap = {}; }
           await TH.updateLorebookEntriesWith(wb, function (es) {
             return (es || []).filter(function (e) {
               var c = String(e.comment || '');
               /* ★ 08:10 作者：直接删，不是关。
                  updateLorebookEntriesWith 是"整表替换"，返回的数组里不放它，就等于删掉。 */
               if (c === '创作要求' || c === '创作要求（旧）') { _legacyOff++; return false; }
-              if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
-              /* ★ 08:26：正文同步 —— 线上 wbpatch 里这 21 条的内容永远最新，切一次就写回绑定书 */
+              /* ★ 08:50：正文同步 —— **任何**在包里的条目，正文都以线上为准。
+                 以前只同步那 21 条具名条目，节庆 / 底座根本进不来，所以"热更没成功"。 */
               try {
-                var _src = (window.__TH_WBPATCH__ || []).filter(function (x) { return String(x.comment || '') === c; })[0];
+                var _src = _wbMap[c];
                 if (_src && typeof _src.content === 'string' && _src.content && e.content !== _src.content) {
                   e.content = _src.content;
                   _contentSync++;
                 }
               } catch (eSync) {}
+              if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
               e.enabled = wantedBook(c, mode, e.enabled);
               /* 顺手抹掉正文里指向它的悬空引用，免得 prompt 里还提到「创作要求」 */
               try {
@@ -426,7 +435,7 @@
              这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
              只增不删、只碰这 21 个具名条目，不动玩家自己的条目。 */
           try {
-            var _wantAll = CFG.bookOffInText.concat(CFG.bookNonOnly);
+            var _wantAll = (window.__TH_WBPATCH__ || []).map(function (x) { return String(x.comment || ''); }).filter(Boolean);
             var _embedded = (data.character_book && data.character_book.entries) || [];
             var _add = [];
             var _missNames = [];
