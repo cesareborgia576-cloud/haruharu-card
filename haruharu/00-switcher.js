@@ -354,22 +354,26 @@
           var _legacyOff = 0;
           var _present = {};
           await TH.updateLorebookEntriesWith(wb, function (es) {
-            return (es || []).map(function (e) {
+            return (es || []).filter(function (e) {
               var c = String(e.comment || '');
+              /* ★ 08:10 作者：直接删，不是关。
+                 updateLorebookEntriesWith 是"整表替换"，返回的数组里不放它，就等于删掉。 */
+              if (c === '创作要求' || c === '创作要求（旧）') { _legacyOff++; return false; }
               if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
-              /* ★ 08:08 作者要求：新卡里已经没有「创作要求」这个条目，
-                 但旧卡导入时留在世界书里的那份还在生效 —— 见到就关掉。 */
-              if (c === '创作要求' || c === '创作要求（旧）') {
-                e.enabled = false;
-                _legacyOff++;
-                return e;
-              }
               e.enabled = wantedBook(c, mode, e.enabled);
-              return e;
+              /* 顺手抹掉正文里指向它的悬空引用，免得 prompt 里还提到「创作要求」 */
+              try {
+                if (typeof e.content === 'string' && e.content.indexOf('《创作要求》') >= 0) {
+                  e.content = e.content
+                    .replace(/《创作要求》\s*等条目/g, '其他条目')
+                    .replace(/《创作要求》/g, '');
+                }
+              } catch (eRef) {}
+              return true;
             });
           });
           oks.push('世界书条目 ' + hit + '/' + (CFG.bookOffInText.length + CFG.bookNonOnly.length) + ' 条命中【切换器 s48】');
-          if (_legacyOff > 0) oks.push('已关闭旧条目「创作要求」' + _legacyOff + ' 条');
+          if (_legacyOff > 0) oks.push('已删除「创作要求」' + _legacyOff + ' 条，并清掉正文里的指向引用');
 
           /* ★ 07:55：绑定的世界书可能是早期导入的旧副本，缺条目（玩家看到的 8/21）。
              这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
