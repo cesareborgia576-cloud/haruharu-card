@@ -351,16 +351,25 @@
         if (wb) {
           var before = await TH.getLorebookEntries(wb);
           var hit = 0;
+          var _legacyOff = 0;
           var _present = {};
           await TH.updateLorebookEntriesWith(wb, function (es) {
             return (es || []).map(function (e) {
               var c = String(e.comment || '');
               if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
+              /* ★ 08:08 作者要求：新卡里已经没有「创作要求」这个条目，
+                 但旧卡导入时留在世界书里的那份还在生效 —— 见到就关掉。 */
+              if (c === '创作要求' || c === '创作要求（旧）') {
+                e.enabled = false;
+                _legacyOff++;
+                return e;
+              }
               e.enabled = wantedBook(c, mode, e.enabled);
               return e;
             });
           });
           oks.push('世界书条目 ' + hit + '/' + (CFG.bookOffInText.length + CFG.bookNonOnly.length) + ' 条命中【切换器 s48】');
+          if (_legacyOff > 0) oks.push('已关闭旧条目「创作要求」' + _legacyOff + ' 条');
 
           /* ★ 07:55：绑定的世界书可能是早期导入的旧副本，缺条目（玩家看到的 8/21）。
              这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
