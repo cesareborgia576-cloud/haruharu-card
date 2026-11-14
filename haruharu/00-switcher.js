@@ -383,6 +383,22 @@
             oks.push((mode === TEXT ? '文字版' : '游戏版') + '：同层条目 开' + _onG + '/关' + _offG + '，非同层条目 开' + _onT + '/关' + _offT);
           } catch (eSum) {}
 
+          /* ★ 08:14：写完之后**回读逐条比对**。谁该开谁该关，一条条列，
+             这样"到底有没有乱开关"就不用猜了。 */
+          try {
+            var _final = await TH.getLorebookEntries(wb);
+            var _bad = [];
+            var _map = {};
+            (_final || []).forEach(function (e) { _map[String(e.comment || '')] = !!e.enabled; });
+            CFG.bookOffInText.concat(CFG.bookNonOnly).forEach(function (nm) {
+              if (_map[nm] === undefined) return;
+              var want = wantedBook(nm, mode, _map[nm]);
+              if (_map[nm] !== want) _bad.push(nm + (want ? '(应开)' : '(应关)'));
+            });
+            if (_bad.length) errs.push('开关不一致 ' + _bad.length + ' 条：' + _bad.join('、'));
+            else oks.push('21 条开关已逐条核对，全部正确');
+          } catch (eV) {}
+
           /* ★ 07:55：绑定的世界书可能是早期导入的旧副本，缺条目（玩家看到的 8/21）。
              这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
              只增不删、只碰这 21 个具名条目，不动玩家自己的条目。 */
