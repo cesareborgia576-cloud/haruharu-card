@@ -1,4 +1,3 @@
-/* 春日狂想曲·统一版 v1.22 · 02-schema.js · 源脚本：[共用] 变量结构v40 */
 import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';
 
 // 由 Cardwright 从 变量表.yaml 生成（变量表 ac762cc0）。要改字段请改变量表再重新生成，不要手改这个文件。

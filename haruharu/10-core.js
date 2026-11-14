@@ -1,4 +1,3 @@
-/* 春日狂想曲·统一版 v1.22 · 10-core.js · 源脚本：[同层] 核心v88 */
 /* ============================================================
    《四邻宅邸 & 全景漫游 & 真同层完美完全体 v27.0》
    ★★ v164（2026-11-11）：**正文契约只剩一层 `<content>`**。
@@ -269,17 +268,11 @@ var APARTMENT_OPENING_CONTENT = '<content>\n' +
   '\n' +
   '她先上楼了。手腕上那几串细链一级一级地响，很轻，不快也不慢。\n' +
   '\n' +
-  '二楼转角，203 的门开着一道缝。\n' +
-  '\n' +
-  '一个穿黑色薄外套的女人拎着一袋垃圾出来，看见楼梯上有人，就停下了。她脸上几乎没什么表情，眼睛很清，看你的时候连眉毛都没动。\n' +
-  '\n' +
-  '她把垃圾袋换到另一只手。\n' +
-  '\n' +
-  '{神谷奈绪}「管理员小姐说今天有人来修水管。」\n' +
-  '\n' +
-  '{神谷奈绪}「就是你吧。」\n' +
-  '\n' +
-  '说完她把门带上了。垃圾袋留在门口，她人进去了，门缝里漏出的那点光也一起灭了。\n' +
+  /* ★ 06:40 作者要求：开场白里**神谷奈绪不出场**。
+     原来这一段是「203 门口，奈绪说管理员让她等修水管的」，结果模型每一轮都顺着
+     「修水管」往下写，改了几十次都不听 —— 根源就是开场白把这条线埋下了。
+     现在整段删掉，只留一句走廊的环境交代：不提她、不提水管、不给任何可续写的钩子。 */
+  '二楼走廊的灯坏了一盏，亮一阵暗一阵。203 的门关着，门缝底下没有光。\n' +
   '\n' +
   '三楼是暖黄色的灯。\n' +
   '\n' +
@@ -703,6 +696,27 @@ function seasonSceneKeyOf(name) {
   if (n.indexOf('乡村小路') !== -1) return 'village_road';
   return 'village_road';
 }
+/* ★ 06:00：预加载发生在**入局之前**（玩家刚在开局页选了季节、变量还没写），
+   这时 thSeasonOf() 读 stat_data 是空的，只会回落到默认「夏」，
+   结果永远预载错季节。这里按优先级找真正选中的那个：
+     ① 存档变量 全局.季节（已入局）
+     ② 开局页点选时写下的全局/本地值（未入局）
+     ③ 默认夏 */
+function thSeasonForPreload() {
+  var s = '';
+  try {
+    var sd = getSD() || {};
+    s = String((sd.全局 && sd.全局.季节) || '');
+  } catch (e0) {}
+  if (!/^[春夏秋冬]$/.test(s)) {
+    try { s = String(window.__TH_PICK_SEASON__ || (window.top && window.top.__TH_PICK_SEASON__) || ''); } catch (e1) {}
+  }
+  if (!/^[春夏秋冬]$/.test(s)) {
+    try { s = String(localStorage.getItem('thPickSeason') || ''); } catch (e2) {}
+  }
+  return /^[春夏秋冬]$/.test(s) ? s : '夏';
+}
+
 function seasonSceneUrl(name) {
   try {
     /* ★ v155：v146 那批四季图已整批删除（只有季节档、没有时段档，会把
@@ -3986,8 +4000,22 @@ var STYLE = `<style id="th-gal-shell-style">
   }
 
   /* ★ v68：原生那一层正文只做视觉隐藏，DOM 里留着（reader 要读它，屏幕上只有游戏画面） */
+  /* ★ 原来这里是 display:none —— 元素直接退出渲染树，st-chatu8 这类生图插件
+     检测到不可见就跳过不处理，图也就永远出不来（文字版没有这层隐藏，所以那边正常）。
+     改成「视觉隐藏但保留渲染树」：1px + clip，玩家看不到，插件照常能扫到标签。 */
   body.th-gal-shell-live .th-pinned-game-floor .mes_text > *:not(.th-gal-shell-root):not(script):not(style) {
-    display: none !important;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
   #th-gal-shell-root {
     --ui-scale: 1;
@@ -5309,6 +5337,13 @@ var STYLE = `<style id="th-gal-shell-style">
   }
 
   /* 对话框：弹性贴合，彻底清除底部多余空白行 */
+  /* ★ 兜底模式：检测不到正文标签时，整段原文一页铺上去，框固定占半个视口。
+     选择器比下面的 .th-gal-dialogue-stage 多一级（带壳），两边都 !important 时
+     按特异性取高的，所以能压过 height: var(--th-dlg-h, 40%)。 */
+  .th-gal-shell-root.th-gal-dlg-fallback .th-gal-dialogue-stage {
+    height: 50% !important;
+    max-height: 50% !important;
+  }
   .th-gal-dialogue-stage {
     position: absolute !important;
     z-index: 80 !important;
@@ -5319,9 +5354,18 @@ var STYLE = `<style id="th-gal-shell-style">
     /* ★ 固定高度（比例先给个默认值，脚本会再用 px 写死），一页一句也不会扁 */
     height: var(--th-dlg-h, 40%) !important;
     min-height: calc(46px * var(--ui-scale, 1)) !important;
-    background: rgba(18, 20, 26, 0.62) !important;
-    border: 1px solid rgba(160, 168, 185, 0.35) !important;
-    border-radius: 8px !important;
+    /* ★ gal 主题扁框：深色底渐变 + 双层描边（外金内暗）+ 顶部金色高光 + 柔和大投影。
+       圆角加大到 14px，四角有暗角晕染，正文读起来像 galgame 的立绘对话框。 */
+    background:
+      linear-gradient(180deg, rgba(30, 26, 20, 0.18) 0%, rgba(0, 0, 0, 0) 14%),
+      linear-gradient(165deg, rgba(24, 22, 30, 0.78) 0%, rgba(16, 15, 20, 0.72) 55%, rgba(22, 18, 14, 0.74) 100%) !important;
+    border: 1px solid rgba(217, 187, 122, 0.55) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(230, 200, 132, 0.22),
+      0 10px 30px rgba(0, 0, 0, 0.55),
+      0 0 22px rgba(217, 187, 122, 0.10) !important;
+    border-radius: 14px !important;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
@@ -5432,36 +5476,162 @@ var STYLE = `<style id="th-gal-shell-style">
 
   .th-gal-dialogue-floating-tools {
     position: absolute !important;
-    top: 5px !important;
+    top: 6px !important;
     right: 8px !important;
     display: flex !important;
     align-items: center !important;
-    gap: 5px !important;
+    gap: 6px !important;
     z-index: 85 !important;
+    padding: 3px 7px !important;
+    border-radius: 999px !important;
+    background: rgba(10, 12, 18, 0.42) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(160, 168, 185, 0.18) !important;
   }
   .th-gal-dialogue-page-indicator {
-    font-size: calc(8.5px * var(--ui-scale, 1)) !important;
-    color: #cbd5e1 !important;
+    /* 等宽数字：页码从 9 变 10 时不会把后面的按钮推来推去 */
+    font-variant-numeric: tabular-nums !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+    font-size: calc(9px * var(--ui-scale, 1)) !important;
+    letter-spacing: 0.06em !important;
+    color: #e2e8f0 !important;
+    padding: 0 2px !important;
   }
   .th-gal-dialogue-btn {
-    background: rgba(255, 255, 255, 0.14) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    color: #f1f5f9 !important;
-    border-radius: 3px !important;
-    padding: 1px 5px !important;
-    font-size: calc(8px * var(--ui-scale, 1)) !important;
+    height: calc(17px * var(--ui-scale, 1)) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    color: #e2e8f0 !important;
+    border-radius: 999px !important;
+    padding: 0 8px !important;
+    font-size: calc(8.5px * var(--ui-scale, 1)) !important;
     cursor: pointer !important;
     line-height: 1 !important;
+    white-space: nowrap !important;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease !important;
   }
-  .th-gal-dialogue-btn:hover { background: #475569 !important; }
+  .th-gal-dialogue-btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(230, 200, 132, 0.55) !important;
+    color: #fff !important;
+  }
   
+  /* ★ 对话框正文区滚动条：之前完全没写，一直是系统默认灰条（带上下箭头），
+     跟 gal 框完全不搭。这里彻底重画：
+       · 轨道压到 8px、半透明，几乎融进背景
+       · 滑块改成金色渐变圆头，悬停更亮
+       · ::-webkit-scrollbar-button 直接 display:none —— 截图里那两个三角箭头就是它 */
+  .th-gal-dialogue-body::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 4px !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(232, 202, 138, 0.78) 0%, rgba(186, 146, 78, 0.68) 100%) !important;
+    border-radius: 4px !important;
+    border: 1px solid rgba(255, 246, 220, 0.22) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(250, 224, 164, 0.95) 0%, rgba(210, 168, 96, 0.85) 100%) !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  .th-gal-dialogue-body::-webkit-scrollbar-corner {
+    background: transparent !important;
+  }
+  /* ★ 11-14：上面那套只认 .th-gal-dialogue-body 一个选择器。
+     实际滚动容器可能是它内部的 LCS 美化容器、或者分页后又套了一层 div，
+     于是「滑轮美化」看起来掉了。这里给壳里**所有**滚动容器统一上同样的金色细条，
+     不管正文最终长在哪一层，都不会再退回系统灰条。 */
+  /* ★ 11-14：改成**全局**。上一版限定 #th-gal-shell-root 之内，但实测真正带滚动条的
+     容器不在壳里面（酒馆的 .mes_text / 聊天区 / 某些预设自己的容器都可能），
+     于是看上去「美化又掉了」。全局这条不挑容器，哪一层滚就美化哪一层。 */
+  ::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05) !important; border-radius: 4px !important; }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(232,202,138,0.78) 0%, rgba(186,146,78,0.68) 100%) !important;
+    border-radius: 4px !important;
+    border: 1px solid rgba(255,246,220,0.22) !important;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(250,224,164,0.95) 0%, rgba(210,168,96,0.85) 100%) !important;
+  }
+  ::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
+  ::-webkit-scrollbar-corner { background: transparent !important; }
+  /* ★ 11-14 05:26：对话框的滚动条一直"没美化"，是因为真正的滚动容器
+     不一定是 .th-gal-dialogue-body —— 分页后可能套了一层内部 div，
+     LCS 又会插一层美化容器。这里把**舞台下面任何一层滚动条**全部接管，
+     并且用高优先级把系统灰条彻底压掉。 */
+  .th-gal-dialogue-stage::-webkit-scrollbar,
+  .th-gal-dialogue-stage *::-webkit-scrollbar,
+  .th-gal-dialogue-body::-webkit-scrollbar,
+  .th-gal-dialogue-body *::-webkit-scrollbar {
+    width: 7px !important;
+    height: 7px !important;
+    background: transparent !important;
+  }
+  .th-gal-dialogue-stage::-webkit-scrollbar-track,
+  .th-gal-dialogue-stage *::-webkit-scrollbar-track,
+  .th-gal-dialogue-body::-webkit-scrollbar-track,
+  .th-gal-dialogue-body *::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.045) !important;
+    border-radius: 999px !important;
+  }
+  .th-gal-dialogue-stage::-webkit-scrollbar-thumb,
+  .th-gal-dialogue-stage *::-webkit-scrollbar-thumb,
+  .th-gal-dialogue-body::-webkit-scrollbar-thumb,
+  .th-gal-dialogue-body *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(232, 202, 138, 0.85), rgba(186, 146, 78, 0.75)) !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 246, 220, 0.2) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  }
+  .th-gal-dialogue-stage::-webkit-scrollbar-thumb:hover,
+  .th-gal-dialogue-stage *::-webkit-scrollbar-thumb:hover,
+  .th-gal-dialogue-body *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(245, 220, 160, 0.95), rgba(205, 165, 95, 0.9)) !important;
+  }
+  .th-gal-dialogue-stage::-webkit-scrollbar-button,
+  .th-gal-dialogue-stage *::-webkit-scrollbar-button,
+  .th-gal-dialogue-body *::-webkit-scrollbar-button { display: none !important; width: 0 !important; height: 0 !important; }
+  .th-gal-dialogue-stage, .th-gal-dialogue-stage *,
+  .th-gal-dialogue-body, .th-gal-dialogue-body * {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(200, 165, 100, 0.85) rgba(255, 255, 255, 0.05) !important;
+  }
+
   .th-gal-dialogue-body {
     display: block !important;
     margin: 0 !important;
     padding: 0 46px 0 0 !important;
-    font-size: calc(11px * var(--ui-scale, 1)) !important;
-    line-height: 1.42 !important;
-    color: #ffffff !important;
+    /* ★ 11-14 05:20 排版美化：
+       · 字号 11 → 12.5，行高 1.42 → 1.86（原来挤成一坨，看着累）
+       · 中文正文优先明朝/宋体系（衬线），gal 的旁白感强很多；取不到才回落系统字体
+       · 字距 +0.02em、轻微文字投影，压住背景图的花纹
+       · 首行缩进 2 字、段落之间留白（中文小说的排法）
+       分页用的是 getComputedStyle(bodyEl).lineHeight，读的是实际行高，改字号不会算错页。 */
+    /* ★ 不用宋体/明朝 —— 那套在屏幕上发糊、显旧，像扫描件。
+       走现代无衬线（苹方 / 鸿蒙 / 思源黑 / 雅黑），字重 400 不描粗。
+       行高 1.42 → 1.8、字号 11 → 12.5，读起来不挤；字距只放 0.01em，
+       再大就散了。正文用暖白，不用纯白，压背景图不刺眼。 */
+    font-family: "PingFang SC", "HarmonyOS Sans SC", "Source Han Sans SC",
+                 "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei",
+                 system-ui, -apple-system, sans-serif !important;
+    font-size: calc(12px * var(--ui-scale, 1)) !important;
+    line-height: 1.7 !important;
+    letter-spacing: 0.01em !important;
+    font-weight: 400 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
+    color: #f7f2e8 !important;
     /* ★ v90：以前这里是 overflow:hidden，只要分页多算了一行，最后一行就被生生切掉半个字。
        现在 y 轴一律可滚（分页算准之后本来也滚不动），兜底绝不再切字。 */
     overflow-x: hidden !important;
@@ -8077,7 +8247,14 @@ var STYLE = `<style id="th-gal-shell-style">
     overflow: hidden !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.38) !important;
   }
-  .th-gal-mini-hud.is-on { display: inline-flex !important; }
+  /* ★ 11-14：这条彻底关掉。
+     下面 8401 那条单类规则已经被它压过 —— 因为这里是「两个类」，
+     权重更高，不管写在哪都赢。于是元素（建的时候自带 is-on）
+     一直挂在 top:32px / left:8px / z-index:44 上，
+     正好被 top:8px / z-index:46 的主角状态卡盖住大半，
+     只在卡片下沿露出一条黑边 —— 玩家看到的就是「面板底下藏着个什么」。
+     时间 / 精力现在由主角状态卡自己报，这条 mini-hud 完全多余。 */
+  .th-gal-mini-hud.is-on { display: none !important; }
   .th-gal-mini-hud .mh-time {
     color: #e8eef6 !important;
     font-variant-numeric: tabular-nums !important;
@@ -8699,7 +8876,34 @@ function thTimeWrite(t, patch) {
    ★ 拆出来的小时/分钟只在函数内部用，落库的永远是 "HH:MM" 一条。 */
 function thTimeAdvance(minutes, patch) {
   var add = Math.round(Number(minutes) || 0);
-  var t = thTimeRead(patch ? (patch.stat_data || {}).时间 : null);
+  /* ★ 07:09：这段闸门改过两版，第一版没闸（读不到就凭空造 07:40 再 +10 → 变 07:50），
+     第二版闸太死（patch 里没带「精确时间」就整轮不推进 → 时间永远卡在 07:40）。
+     正确做法是**合并**：时刻优先用 patch 里的，patch 没带就用当前存档里的；
+     日期同理。合并之后再推进，既不凭空造时间，也不会不动。 */
+  var _stateT = {};
+  try { _stateT = stateTime() || {}; } catch (eST) { _stateT = {}; }
+  var _patchT = (patch && patch.stat_data && patch.stat_data.时间) || null;
+  var _merged = {};
+  try { for (var _k1 in _stateT) _merged[_k1] = _stateT[_k1]; } catch (eM1) {}
+  try { if (_patchT) { for (var _k2 in _patchT) _merged[_k2] = _patchT[_k2]; } } catch (eM2) {}
+  var _hmRaw = '';
+  try { _hmRaw = String(_merged.精确时间 || ''); } catch (eM3) { _hmRaw = ''; }
+  if (!/^\s*\d{1,2}\s*[:：]\s*\d{1,2}/.test(_hmRaw)) {
+    /* ★ 07:17：这里是"移动也不改写时间"的原因 —— 时间对象存在、但里面只有日期没有时刻
+       （schema 默认给了 07:40，模型常常不回写时刻），我上一版直接 return 了。
+       现在分两种情况：
+         · 时间对象整体存在（有年/月/日）→ 用默认 07:40 当起点照常推进，
+           这跟玩家屏幕上看到的时刻是一致的，不会"凭空"；
+         · 连时间对象都没有 → 才真的不写。 */
+    var _hasDate = (_merged.年份 !== undefined || _merged.月份 !== undefined || _merged.日期 !== undefined);
+    if (!_hasDate) {
+      try { console.warn('[时间] 存档和补丁里都没有时间对象，本轮不推进'); } catch (eM4) {}
+      return thTimeRead(_merged);
+    }
+    try { _merged.精确时间 = '07:40'; } catch (eM5) {}
+    _hmRaw = '07:40';
+  }
+  var t = thTimeRead(_merged);
   var y = t.年份, mo = t.月份, d = t.日期;
   /* 自包含解析（单测会把本函数整段切出来跑，不能依赖模块级 thHMParse） */
   var hm = { h: NaN, mi: NaN };
@@ -11382,7 +11586,8 @@ function buildShellDOM() {
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-deduce" title="后台推演外置 AI：点开面板（切场景会自动推演）">🎲 推演</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-reopen-dialogue" title="打开或收起剧情对话框">📜 对话框</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-music-toggle is-playing" title="开关背景音乐">🎵 音乐:开</button>' +
-        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h" title="调整对话框高度（小/中/大/特大）：框变大后一页能装更多行，不用手动滑下去">↕ 高度:中</button>' +
+        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h" title="对话框加高一行">➕行</button>' +
+        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-h-dec" title="对话框降低一行">➖行</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-dlg-page" title="框有多高就塞多少行（铺满）／或每页只放一句">📄 分页:铺满</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-font-size" title="调整界面字号大小">🔤 字号:自动</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-toggle-options" title="呼出或隐藏当前前往选项">🧭 选项</button>' +
@@ -12162,11 +12367,12 @@ function thImgUrlsForArc(arc) {
          第一次进店必然白一下。15 张压完才 2.44MB，一次推完更划算。
          （push 自带去重，重复推不会重复加载。） */
       try {
-        Object.keys(CONVENIENCE_FRONT_SETS).forEach(function (se) {
-          var g = CONVENIENCE_FRONT_SETS[se];
-          if (!g) return;
-          push(g.day); push(g.dusk); push(g.night);
-        });
+        /* ★ 05:58 玩家反馈：图太多、白白加载其他三个季节。
+           现在只预载**当前季节**那一套；其余季节等真的换季了再拉
+           （换季是月份驱动的，一年最多三次，现拉一张的代价远小于常驻三倍）。 */
+        var _seNow0 = thSeasonForPreload();
+        var _gConv = CONVENIENCE_FRONT_SETS[_seNow0];
+        if (_gConv) { push(_gConv.day); push(_gConv.dusk); push(_gConv.night); }
         push(CONVENIENCE_INNER_SETS.day); push(CONVENIENCE_INNER_SETS.dusk); push(CONVENIENCE_INNER_SETS.night);
       } catch (eConv) {}
     } else if (a === '神社') {
@@ -12174,13 +12380,17 @@ function thImgUrlsForArc(arc) {
       Object.keys(SHRINE_IMG_SETS || {}).forEach(function (k) {
         var g = SHRINE_IMG_SETS[k];
         if (!g) return;
-        push(g.day); push(g.dusk); push(g.night);
-        /* ★ v159：四季档 */
-        if (g.seasons) Object.keys(g.seasons).forEach(function (se) {
-          var sub = g.seasons[se];
-          if (!sub) return;
-          push(sub.day); push(sub.dusk); push(sub.night);
-        });
+        /* ★ 05:58：四季档以前是**四季全推**，神社十几个场景 × 3 档 × 3 季
+           = 上百张图，玩家一进神社就在后台拉几十 MB。
+           现在只推当前季节那一档；没这个季节的档才退回基础档。
+           其他季节真的到了当场再拉（不会白屏，只是那一下要等图）。 */
+        var _seNow1 = thSeasonForPreload();
+        var _sub = (g.seasons && g.seasons[_seNow1]) || null;
+        if (_sub) {
+          push(_sub.day); push(_sub.dusk); push(_sub.night);
+        } else {
+          push(g.day); push(g.dusk); push(g.night);
+        }
       });
     } else {
       Object.keys(SCENE_IMGS).forEach(function (k) {
@@ -12363,15 +12573,24 @@ function thImgUrlsCritical(arc) {
          理由跟上面立绘一样：闸门是为了「第一屏不白」，不是把整个仓库搬下来。
          当下是夏天白天就只等 summer_day，冬天黑夜就只等 winter_night。 */
       try {
-        var seNow = '';
-        try { seNow = thSeasonOf(); } catch (eS) {}
+        /* ★ 06:47：以前这里读的是 thSeasonOf()（入局后才有的变量），
+           开局闸门跑在入局**之前**，读不到就回落夏 —— 于是永远在拉夏天那套。
+           现在改用 thSeasonForPreload()（开局页选中就记下了）。 */
+        var seNow = thSeasonForPreload();
         var fset = CONVENIENCE_FRONT_SETS[seNow] || CONVENIENCE_FRONT_SETS['夏'];
         pickB(fset); pickB(CONVENIENCE_INNER_SETS);
       } catch (eConvB) {}
     } else if (a === '神社') {
       /* 神社篇第一屏是鸟居长廊 / 大院 */
       var g1 = (SHRINE_IMG_SETS || {})['tunnel'], g2 = (SHRINE_IMG_SETS || {})['yard'];
-      pickB(g1); pickB(g2);
+      /* ★ 06:47 关键：这里以前直接把 g1 丢给 pickB —— 那是**基础档**（夏天）。
+         神社的场景图是「基础档=夏 + seasons 里放春/秋/冬」，
+         所以无论玩家选哪个季节，闸门都会去拉夏天的图。
+         现在先按当前季节取子档，没有子档才退回基础档。 */
+      var _seC = thSeasonForPreload();
+      var _s1 = (g1 && g1.seasons && g1.seasons[_seC]) || g1;
+      var _s2 = (g2 && g2.seasons && g2.seasons[_seC]) || g2;
+      pickB(_s1); pickB(_s2);
     } else {
       /* 夏越村第一屏是开场白 / 乡村小路 / 自家前院 */
       push(SCENE_IMGS['乡村小路']);
@@ -12972,6 +13191,11 @@ function arcHomePlace(arc) {
    不依赖任何清理逻辑，新聊天没跑过 init patch 时天然就是纯爱。          */
 function thNormGameMode(m) { return (m === '牛头') ? '牛头' : '纯爱'; }
 function thGameModeOf() {
+  /* ★ 内存优先。thSetGameMode 刚把 MVU 写完那一刻，getSD() 走的是
+     collectMvuState（消息层），落库还没反映出来，读回来会是上一局的旧值 ——
+     表现就是「明明选了牛头，开局还是纯爱」。内存是本次会话的真相，先认它；
+     重启之后它没了，自然往下读 MVU，行为不变。 */
+  try { if (window.__thGameMode) return thNormGameMode(window.__thGameMode); } catch (e0) {}
   try {
     var sd = getSD() || {};
     if (sd.全局 && sd.全局.游戏模式) return thNormGameMode(sd.全局.游戏模式);
@@ -13024,6 +13248,8 @@ function thSetGameMode(m, opts) {
   try { writeVars({ stat_data: { 全局: { 游戏模式: gm } } }); } catch (e4) {}
   /* ③ 内存提示，防止上面两条都慢半拍 */
   try { window.__thGameMode = gm; } catch (e5) {}
+  /* 诊断：写完立刻读回来，能看出是「写进去了但读不到」还是「压根没写」。 */
+  try { console.log('[SPR] thSetGameMode 写入=' + gm + ' 读回=' + thGameModeOf()); } catch (eDg3) {}
 
   /* ④ ★ 苦主列表跟着模式走 —— 只有真正变了才动，避免每次开局白写一遍 */
   if (before !== gm) {
@@ -13362,6 +13588,19 @@ function thSetPlayerInfo(o) {
   } catch (e3) {}
   try { writeVars({ stat_data: { 主角信息: p } }); } catch (e4) {}
   try { window.__thPlayerInfo = p; } catch (e5) {}
+  /* ★ 左上角那个玩家名字读的是酒馆的 persona 名（context.name1），
+     不是我们自己的 主角信息.玩家姓名。只写变量不改它，那里就永远是 user。
+     只在玩家真的填了名字时同步；留空不动，免得把人家自己的 persona 冲掉。 */
+  try {
+    var _nm = p['玩家姓名'];
+    if (_nm) {
+      var _c2 = getStContext();
+      if (_c2 && _c2.name1 !== _nm) {
+        _c2.name1 = _nm;
+        if (typeof _c2.saveSettingsDebounced === 'function') { try { _c2.saveSettingsDebounced(); } catch (eSv) {} }
+      }
+    }
+  } catch (eNm) {}
   return p;
 }
 try {
@@ -14280,6 +14519,13 @@ function compactProse(text) {
     .replace(/[ ]{2,}/g, ' ')
     .replace(/ *\n */g, '\n')
     .replace(/\n{3,}/g, '\n\n')
+    /* ★ 剥离行内换行。玩家原话：「它是根据了分行，我需要你剥离分行。」
+       模型写的正文经常一句话一行（硬折行），分页器按 \n 切段 → 每段就短一截，
+       框再大也只显示那几行。这里把行内换行压成空格，让文字自然折行。
+       两种换行必须留：
+         · 下一行以 { 开头 —— 说话人边界，删了会把九句台词并成一句（v30 踩过）；
+         · 空行 —— 段落边界，留着才有段落感。 */
+    .replace(/\n(?![{\n])/g, ' ')
     .trim();
 }
 
@@ -14314,7 +14560,8 @@ function stripInnerTags(text) {
 /* ★ v153：把「对话框显示」也列进正文标签。
    它是本卡开场白 / 历史楼层最常用的容器，以前只当「普通成对标签」被吞掉；
    现在既保留内容，也可以在没有 <content> 的外层包裹时直接被认成正文。 */
-var V147_TEXT_TAGS = ['content', '对话框显示', 'gametext', 'game', 'maintext', '正文', 'text'];
+var V147_TEXT_TAGS = ['content', '对话框显示', 'gametext', 'game', 'maintext', '正文', '正文内容', 'text',
+                      'galgame', 'game_text', 'narrative', 'story', 'scene', '对话'];
 
 /* 思维链收尾标签：取「最靠后」的那一个之后的全部内容 */
 var V147_THINK_CLOSERS = ['</thought>', '</thinking>', '</think>'];
@@ -14349,10 +14596,20 @@ function v147StripAllTags(inner) {
     out = out.replace(/<([a-zA-Z0-9_\u4e00-\u9fa5]+)(?:\s[^>]*)?>[\s\S]*?<\/\1\s*>/gi, '');
     guard++;
   }
-  /* 未闭合的开标签：从这里砍到结尾（流式生成到一半时常见） */
-  out = out.replace(/<([a-zA-Z0-9_\u4e00-\u9fa5]+)(?:\s[^>]*)?>[\s\S]*$/, '');
+  /* 未闭合的开标签：只砍「已知的非正文块」。
+     ★ 旧写法是 /<([a-zA-Z0-9_\u4e00-\u9fa5]+)(?:\s[^>]*)?>[\s\S]*$/ —— 无差别匹配任意 <tag>，
+     正文里只要有一个没闭合的 <br> / <i> / <b>，从这里到结尾的字全被砍掉，
+     对话框只剩前半段，玩家还看不出为什么少了。
+     正文标签和普通 HTML 标签一律不砍，交给下面的「脱壳」和孤立尖括号清理。 */
+  out = out.replace(/<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|在场人物|重要记忆|连携转移|地点|thinking|think|thought|reasoning|cot|scratchpad|antmlThinking)(?=[\s>])[^>]*>[\s\S]*$/i, '');
+  /* 未闭合的正文标签：只去掉标签本身，后面的内容保留 */
+  for (var _ku = 0; _ku < V153_KEEP_INNER_TAGS.length; _ku++) {
+    out = out.replace(new RegExp('<' + V153_KEEP_INNER_TAGS[_ku] + '(?=[\\s>])[^>]*>', 'gi'), '');
+  }
   /* 残余的孤立尖括号 */
   out = out.replace(/<[^>]*>/g, '');
+  /* 残缺到没有 > 的标签尾巴（例如 "</content" 后面就断了），否则会当正文显示出来 */
+  out = out.replace(/<\/?[a-zA-Z0-9_\u4e00-\u9fa5]+[^>]*$/g, '');
   return out;
 }
 
@@ -14484,6 +14741,31 @@ function thStripOutsideBody(decoded, tagName) {
   return d;    /* 一个正文标签都没有：原样返回，交给后面的层去判 */
 }
 
+/* ★ 11-14：认不出名字也认内容。
+   穷举永远追不上模型自造的容器名（<对话正文>、<正文输出>、<galgame正文>、
+   <narrative_text>…）。既然玩家明确说「我写了正文标签」，
+   那就不该因为名字不在名单里就整楼判死。
+   做法：扫出**所有成对标签**，排除确定不是正文的那几个，取「内部文字最多」的一个。
+   返回 null 表示真的一个像正文的标签都没有，交给下一层。 */
+function v147AnyTagBlock(decoded) {
+  var d = String(decoded == null ? '' : decoded);
+  /* 只匹配「名字 2~12 个字、成对闭合」的标签；单标签（<br>/<img>）天然不匹配 */
+  var re = /<([a-zA-Z0-9_\u4e00-\u9fa5]{2,20})(?=[\s>])[^>]*>([\s\S]*?)<\/\1\s*>/g;
+  /* 确定不是正文的：脚本/样式、思维链、变量补丁、推演块、以及纯排版空标签 */
+  var BLACK = /^(script|style|br|img|hr|input|meta|link|think|thinking|thought|reasoning|cot|scratchpad|antmlThinking|后台推演|UpdateVariable|Analysis|JSONPatch|在场人物|重要记忆|连携转移|地点)$/i;
+  var best = null, m;
+  while ((m = re.exec(d)) !== null) {
+    if (BLACK.test(m[1])) continue;
+    var txt = '';
+    try { txt = v147StripAllTags(m[2]); } catch (e0) { txt = ''; }
+    if (!txt || !txt.trim()) continue;
+    /* 取最长的那一段：正文一定比「顺手包一下」的装饰块长 */
+    if (!best || txt.length > best.text.length) best = { text: txt, tag: m[1] };
+  }
+  if (best && best.text.trim().length >= 6) return best;
+  return null;
+}
+
 /* 总闸：返回 { text, layer, tag }。layer 1=正文标签 2=思维链尾部 0=没读到 */
 function parseContentWithLayer(rawText) {
   var decoded = decodeEntities(rawText);
@@ -14503,6 +14785,20 @@ function parseContentWithLayer(rawText) {
   if (hit) {
     var packed1 = compactProse(hit.text);
     if (packed1) return { text: packed1, layer: 1, tag: hit.tag };
+  }
+
+  /* ★ 11-14 第一·五层：名字不认识，但只要它是成对标签、里面有字，就认。
+     模型自造的容器名（<对话正文> 之类）以前会一路掉到兜底，
+     玩家看到的就是「明明有正文标签，却报没检测到」。 */
+  var anyTag = null;
+  try { anyTag = v147AnyTagBlock(onlyBody); } catch (eAny) { anyTag = null; }
+  if (!anyTag && onlyBody !== cleaned) {
+    /* onlyBody 剪不出东西时，用剪之前那份再扫一遍 */
+    try { anyTag = v147AnyTagBlock(cleaned); } catch (eAny2) { anyTag = null; }
+  }
+  if (anyTag) {
+    var packed15 = compactProse(anyTag.text);
+    if (packed15) return { text: packed15, layer: 1, tag: anyTag.tag };
   }
 
   /* 第二层：思维链尾部之后（★ 用剪之前的 cleaned —— 这一层本来就没有正文标签，
@@ -15448,32 +15744,172 @@ function parseIllustrationTag(rawText) {
    量不到的时候甚至只剩几十像素，框直接塌成一根、正文还被 overflow:hidden 切掉。
    现在一律走这里：量视口 → 算成 px → 分页与 CSS 用同一把尺子。
    视口量不出来（刚搬进弹窗、display:none 那一瞬间）就用窗口高度兜底，绝不拿 0 去算。 */
-/* ★ 对话框高度：小 / 中 / 大 / 特大（按钮循环切换，记在浏览器缓存里）
-   以前框高是 height:auto，改成「一页一句」之后框就被压成一条，所以现在改成固定高度。 */
-var DLG_H_KEY = 'thGalDialogueHeight';
-var DLG_H_LEVELS = [
-  { k: 's',  name: '小',   ratio: 0.28 },
-  { k: 'm',  name: '中',   ratio: 0.40 },
-  { k: 'l',  name: '大',   ratio: 0.54 },
-  { k: 'xl', name: '特大', ratio: 0.68 }
-];
-function dlgHLevel(k) {
-  for (var i = 0; i < DLG_H_LEVELS.length; i++) { if (DLG_H_LEVELS[i].k === k) return DLG_H_LEVELS[i]; }
-  return DLG_H_LEVELS[1];
+/* ══ ★ 11-14 05:30：框高改成「按行数」定义，不再按视口百分比 ══
+   以前：高度 = 视口高 × ratio（小/中/大/特大 = 0.28/0.40/0.54/0.68）。
+        比例跟字号毫无关系 —— 字号一变大，同样高的框就装不下原来那么多行，
+        多出来的字被挤到框外，浏览器就冒出滚动条。这就是「字藏在下面」的根。
+   现在：height = 边框 + 名牌 + 行数 × 行高。
+     · 按钮：左键 +1 行、右键 −1 行（一次正好一行，不再是小/中/大那种粗档）
+     · 字号变了 ⇒ 行高变了 ⇒ 高度自动跟着变，行数保持不变
+     · 分页直接拿「行数」当容量，和显示用同一把尺子，不会多算也不会少算 */
+var DLG_LINES_KEY = 'thGalDialogueLines';
+var DLG_LINES_MIN = 3, DLG_LINES_MAX = 26, DLG_LINES_DEFAULT = 9;
+
+/* 正文实际行高（px）：分页、框高、按钮三处共用 */
+function galLineH(bodyEl) {
+  var lh = 0;
+  try { if (bodyEl) lh = parseFloat(window.getComputedStyle(bodyEl).lineHeight); } catch (e0) {}
+  if (!(lh > 0)) {
+    try { lh = parseFloat(window.getComputedStyle(document.body).lineHeight); } catch (e1) {}
+  }
+  if (!(lh > 0)) lh = 22;
+  return lh;
 }
-function dlgHPref() { var k = 'm'; try { k = localStorage.getItem(DLG_H_KEY) || 'm'; } catch (e) {} return k; }
-function dlgHRatio() { return dlgHLevel(dlgHPref()).ratio; }
-function nextDlgHPref() {
-  var cur = dlgHPref();
-  var idx = 0;
-  for (var i = 0; i < DLG_H_LEVELS.length; i++) { if (DLG_H_LEVELS[i].k === cur) { idx = i; break; } }
-  return DLG_H_LEVELS[(idx + 1) % DLG_H_LEVELS.length].k;
-}
-/* 对话框固定高度（px）：视口高 × 当前档位比例 */
-function dialogueHeightPx(bodyEl) {
+/* ★ 06:03 手机端：用户设 10 行，但小屏最多只能放 7 行 —— 以前两边各算各的：
+   框高按 10 行撑（于是超出视口，字跑到框下面看不见），
+   正文又按视口截断（于是框里空出一截）。
+   现在统一成「有效行数」：想要的行数和屏幕能放的行数取小，框高与正文都用它。 */
+/* ★ 06:05 作者定位：框高有物理上限（视口 84%），但行数还能一直加，
+   于是「框不再变高、字继续变多」，多出来的全挤到框外看不见。
+   这里先把上限算出来：这块屏幕最多能放几行。 */
+function dlgMaxLines(bodyEl) {
+  var lh = galLineH(bodyEl);
   var m = dialogueViewportMetrics(bodyEl);
-  if (!m.vpH) return 0;
-  return Math.max(64, Math.round(m.vpH * dlgHRatio()));
+  if (!(lh > 0)) return DLG_LINES_MAX;
+  if (!m.vpH) return DLG_LINES_MAX;
+  var maxH = Math.round(m.vpH * 0.84) - galChromeH(bodyEl);
+  var byH = Math.floor(maxH / lh);
+  return Math.max(1, Math.min(DLG_LINES_MAX, byH));
+}
+
+function dlgEffLines(bodyEl) {
+  var lines = dlgLinesPref();
+  var cap = dlgMaxLines(bodyEl);
+  if (lines > cap) lines = cap;
+  return Math.max(1, lines);
+}
+
+function dlgLinesPref() {
+  var n = 0;
+  try { n = parseInt(localStorage.getItem(DLG_LINES_KEY), 10); } catch (e) {}
+  if (!(n >= DLG_LINES_MIN)) n = DLG_LINES_DEFAULT;
+  return Math.min(DLG_LINES_MAX, n);
+}
+function setDlgLines(n) {
+  var v = Math.max(DLG_LINES_MIN, Math.min(DLG_LINES_MAX, Math.round(n)));
+  try { localStorage.setItem(DLG_LINES_KEY, String(v)); } catch (e) {}
+  return v;
+}
+/* 名牌 + 上下内边距 + 边框 + 一点余量：这些不属于"行" */
+function galChromeH(bodyEl) {
+  var chrome = 14;
+  try {
+    var stage = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-dialogue-stage') : null;
+    if (stage) {
+      var cs = window.getComputedStyle(stage);
+      chrome = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+             + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+      var nameEl = stage.querySelector('.th-gal-dialogue-name');
+      if (nameEl && !nameEl.hasAttribute('hidden')) {
+        var ncs = window.getComputedStyle(nameEl);
+        chrome += (nameEl.offsetHeight || 0)
+                + (parseFloat(ncs.marginTop) || 0) + (parseFloat(ncs.marginBottom) || 0);
+      }
+      chrome += 6;
+    }
+  } catch (e2) {}
+  return chrome;
+}
+/* 旧函数名保留（有别的分支还在调），语义换成"行数" */
+function dlgHPref() { return 'n' + dlgLinesPref(); }
+function dlgHRatio() { return 0.4; }          /* 只剩指纹在用，不参与任何计算 */
+function nextDlgHPref() { return 'n' + setDlgLines(dlgLinesPref() + 1); }
+
+/* ★ 06:08 作者观察：高度越高空得越多、越矮空得越多、压到最扁时刚好。
+   这说明纸面上的算式没错，错的是**实际装进来的行数比框能装的少**，
+   差额随框高变大。别再拿公式对赌了 —— 渲染完直接量：
+     · 正文真实占了几行（scrollHeight / 行高，向上取整）
+     · 把框高收成「名牌边框 + 这几行」
+   一行不多少一行不补，肉眼上永远没有空档。 */
+/* 用 Range 的 client rects 数"屏幕上真实占了几行" */
+function doc_createRangeLines(el) {
+  try {
+    if (!el) return 0;
+    var r = document.createRange();
+    r.selectNodeContents(el);
+    var rects = r.getClientRects();
+    var tops = {}, n = 0;
+    for (var i = 0; i < rects.length; i++) {
+      var t = Math.round(rects[i].top);
+      if (!tops[t]) { tops[t] = 1; n++; }
+    }
+    return n;
+  } catch (e) { return 0; }
+}
+
+function fitDialogueStageToContent(shell) {
+  try {
+    if (!shell) return;
+    var stage = shell.querySelector('.th-gal-dialogue-stage');
+    var body = shell.querySelector('.th-gal-dialogue-body');
+    if (!stage || !body) return;
+    if (stage.hasAttribute('hidden')) return;
+    var lh = galLineH(body);
+    if (!(lh > 0)) return;
+    /* ★ 06:12：不在"正文该多高"上做文章了 —— 那套算法已经被证明靠不住。
+       现在只做两件事：
+         ① 正文高度固定为「有效行数 × 行高」（页与页之间不跳）
+         ② 框 height:auto，由名牌 + 正文自己撑开（永远不会比内容高）
+       空档的物理来源就是"框比内容高"，② 直接从根上掐掉，不再依赖任何估算。 */
+    var cap = dlgEffLines(body) + GAL_LINE_ADJUST;
+    if (cap < 1) cap = 1;
+    /* ★ 06:54：框高 = 容量，两个数必须完全一致，否则又会空出一行。
+       （容量见 computeGalAvailH，那里减了同一行。） */
+    var bodyH = Math.floor(cap * lh);
+    body.style.setProperty('flex', '0 0 auto', 'important');
+    body.style.setProperty('height', bodyH + 'px', 'important');
+    body.style.setProperty('max-height', bodyH + 'px', 'important');
+    body.style.setProperty('overflow-y', 'hidden', 'important');
+    stage.style.setProperty('height', 'auto', 'important');
+    stage.style.setProperty('max-height', dialogueMaxHeightPx(body) + 'px', 'important');
+
+    /* ★ 07:22：数真实渲染行数（Range 的 client rects 按 top 去重），
+       实际比容量少 ⇒ 说明估算又把字算宽了，记偏差、下一轮补上容量。 */
+    try {
+      var _r = doc_createRangeLines(body);
+      if (_r > 0 && cap - _r >= 1 && _galCapBias < 3) {
+        var _txt = String(body.textContent || '');
+        var _key = _txt.length + '|' + _txt.slice(0, 16) + '|' + _txt.slice(-16);
+        if (_galBiasKey !== _key) {
+          _galBiasKey = _key;
+          _galCapBias += (cap - _r);
+          if (_galCapBias > 3) _galCapBias = 3;
+          /* ★ 07:24：这里别强开对话框 —— 之前那句 isOpen=true 会让"切场景自动弹框"。
+             只重排，不动开合状态。 */
+          try { DialogueReader.setRawText(DialogueReader.lastRaw, false); } catch (eRS) {}
+          return;
+        }
+      }
+    } catch (eBias) {}
+    /* 诊断：手机端如果还有空档，这三个数一比就知道空在哪儿 */
+    try {
+      window.__TH_DLG_DBG__ = {
+        scale: (function () { try { return getComputedStyle(shell).getPropertyValue('--ui-scale').trim(); } catch (e) { return '?'; } })(),
+        lh: +lh.toFixed(2),
+        lines: cap,
+        bodyH: bodyH,
+        bodyClientH: body.clientHeight,
+        bodyScrollH: body.scrollHeight,
+        stageH: stage.clientHeight,
+        nameH: (function () { var n = stage.querySelector('.th-gal-dialogue-name'); return n && !n.hasAttribute('hidden') ? n.offsetHeight : 0; })(),
+        vpH: dialogueViewportMetrics(body).vpH
+      };
+    } catch (eDbg3) {}
+  } catch (eFC) {}
+}
+
+function dialogueHeightPx(bodyEl) {
+  return Math.max(64, Math.round(galChromeH(bodyEl) + dlgEffLines(bodyEl) * galLineH(bodyEl)));
 }
 function dialogueViewportMetrics(bodyEl) {
   var vpEl = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-shell-viewport') : null;
@@ -15508,40 +15944,35 @@ function galNoteFit() {
   if (_galOverflowPenalty > 0) _galOverflowPenalty = Math.max(0, _galOverflowPenalty - 0.03);
   return _galOverflowPenalty;
 }
+/* ★ 06:54 作者实测：不管框多高，底部**永远只空一行**，不多不少。
+   这说明装箱容量和框高之间有一个固定差值（整行级），不是比例误差。
+   与其继续猜这个差从哪来，不如直接校准掉：容量和框同时减一行。 */
+var GAL_LINE_ADJUST = -1;
+/* ★ 07:22：纸面算不准，就让运行时自己纠。渲染完数一下**真实渲染出几行**，
+   比容量少就记一笔偏差，下一轮把容量补上去。只增不改减，封顶 3 行，防止抖动。 */
+var _galCapBias = 0;
+var _galBiasKey = '';
+
 function computeGalAvailH(bodyEl) {
-  var stageH = dialogueHeightPx(bodyEl) || 0;
-  var fallback = Math.max(60, Math.round((stageH || 160) * 0.78));
-  try {
-    var stage = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-dialogue-stage') : null;
-    if (!stage) return fallback;
-    var h = stageH || stage.clientHeight || 0;
-    if (!(h > 0)) return fallback;
-    var cs = window.getComputedStyle(stage);
-    var pt = parseFloat(cs.paddingTop) || 0;
-    var pb = parseFloat(cs.paddingBottom) || 0;
-    var bt = parseFloat(cs.borderTopWidth) || 0;
-    var bb = parseFloat(cs.borderBottomWidth) || 0;
-    var nameH = 0;
-    try {
-      var nameEl = stage.querySelector('.th-gal-dialogue-name');
-      if (nameEl && !nameEl.hasAttribute('hidden')) {
-        var ncs = window.getComputedStyle(nameEl);
-        nameH = (nameEl.offsetHeight || 0)
-              + (parseFloat(ncs.marginTop) || 0)
-              + (parseFloat(ncs.marginBottom) || 0);
-      }
-    } catch (en) {}
-    /* 再留 3px：贴着底边的那一撇一捺不算被切 */
-    var avail = h - pt - pb - bt - bb - nameH - 3;
-    if (!(avail > 40)) return fallback;
-    avail = avail * (1 - _galOverflowPenalty);
-    return Math.max(40, Math.floor(avail));
-  } catch (e) { return fallback; }
+  /* ★ 05:45 作者定位：分页算得没错，但那 4~6px 的余量正好落在**半透明圆角边**上，
+     下一行的上半截就露在那条透明带里，看着像"字卡在边边"。
+     现在不再从容器高度反推 —— 直接给「行数 × 行高」这个精确值：
+       正文区多高 = 你能看几行，一行都不多给。
+     （框本身的高度 = 边框 + 名牌 + 这个值，由 dialogueHeightPx 负责。） */
+  var lh = galLineH(bodyEl);
+  /* ★ 06:03：直接用「有效行数」，和框高同一把尺子。
+     以前这里按视口再截一次，而框高没截 ⇒ 框里空半截 / 字跑框外，两个症状都从这来。 */
+  var lines = dlgEffLines(bodyEl) + GAL_LINE_ADJUST + _galCapBias;
+  if (lines < 1) lines = 1;
+  return Math.max(lh, Math.floor(lines * lh));
 }
 /* 数出一条消息当前实际能放多少行（给日志 / 调试用 */
 function galLinesPerPage(bodyEl) {
   var mm = galMetrics(bodyEl);
-  return Math.max(1, Math.floor(computeGalAvailH(bodyEl) / mm.lh));
+  var byH = Math.max(1, Math.floor(computeGalAvailH(bodyEl) / mm.lh));
+  /* ★ 05:31：容量以「按钮设的行数」为准，高度不够时再往下收（不会永远少一行） */
+  var want = dlgLinesPref();
+  return Math.max(1, Math.min(byH, want));
 }
 /* ★ 框高改成固定值（不再是 auto）：一页一句也不会被压成一条 */
 function fitDialogueStage(shell) {
@@ -15553,13 +15984,30 @@ function fitDialogueStage(shell) {
     var h = dialogueHeightPx(body);
     var cap = dialogueMaxHeightPx(body);
     if (!h) return 0;
-    stage.style.setProperty('height', h + 'px', 'important');
+    /* ★ 06:12：这里以前写死 height: <算出来的 px>。只要有任何一个地方把"名牌/内边距"
+       估大一点，框就会比内容高，多出来的那截就是"空半个框"，而且框越高空得越多
+       （作者观察到的规律完全对得上）。
+       现在不再猜高度：stage 用 auto，由它的子元素撑开 —— 框多高 = 名牌 + 正文，
+       一个像素都不多。max-height 仍然封顶，防止超出视口。 */
+    stage.style.setProperty('height', 'auto', 'important');
     stage.style.setProperty('max-height', cap + 'px', 'important');
-    stage.style.setProperty('min-height', Math.max(46, Math.round(h * 0.6)) + 'px', 'important');
+    stage.style.setProperty('min-height', '0px', 'important');
     /* ★ v90：正文区高度用真实可用高度，不再拍脑袋减 22（那 22 不够，正好差半行）。 */
     var avail = computeGalAvailH(body);
+    /* flex 子项默认可以伸缩，手机上会被拉长（空白）或压扁（切字）——钉死它 */
+    body.style.setProperty('flex', '0 0 auto', 'important');
+    body.style.setProperty('height', avail + 'px', 'important');
     body.style.setProperty('max-height', avail + 'px', 'important');
-    body.style.setProperty('overflow-y', 'auto', 'important');
+    /* ★ 05:45：这里原来是 auto。auto 会把"多出来的几像素"也画出来，
+       正好压在框底的半透明圆角上 —— 玩家看到的就是"字卡在透明边边"。
+       分页已经保证一页正好是 N 行，所以这里 hidden 不会切字，
+       只切掉那截本不该存在的残行。 */
+    body.style.setProperty('overflow-y', 'hidden', 'important');
+    /* ★ 06:22 关键：这里是"调完高度一瞬间是满的、随后又空了"的答案。
+       本函数被 6 个地方调用（心跳 / resize / 切场景 / 全屏 / 按钮…），
+       每次都用**估算值**把正文高度写回去，于是刚量好的框又被撑大一行。
+       现在每次写完都立刻按真实内容量一次并收掉 —— 谁调都收。 */
+    try { fitDialogueStageToContent(shell); } catch (eFCall) {}
     return h;
   } catch (e) { return 0; }
 }
@@ -15625,8 +16073,12 @@ function galBodyAvailW(bodyEl) {
       var pr = parseFloat(cs.paddingRight) || 0;
       var bl = parseFloat(cs.borderLeftWidth) || 0;
       var br = parseFloat(cs.borderRightWidth) || 0;
-      /* 再減 10px：给可能出现的滚动条留位，别等滚动条冒出来才发现装不下 */
-      var w = bodyEl.clientWidth - pl - pr - bl - br - 10;
+      /* ★ 06:16 真凶：这里原来还减了 10px 给"可能出现的滚动条"。
+         但对话框早就改成 overflow:hidden，压根没有滚动条 ——
+         这 10px 白白把可用宽算窄，每行被当成少放一个字，
+         于是"一页装得下的行数"被低估，页页都留一截空白。
+         框越宽、字号越大，误差越明显（所以只有电脑端「小」时看着刚好）。 */
+      var w = bodyEl.clientWidth - pl - pr - bl - br;
       if (w > 40) return w;
     }
   } catch (e) {}
@@ -15639,28 +16091,38 @@ function galBodyAvailW(bodyEl) {
 }
 var _galMetricsCache = { at: 0, vpW: 0, v: null };
 function galMetrics(bodyEl) {
-  /* 同一轮分页里反复问同一件事：缓存 400ms，不再每块都去问浏览器要计算样式 */
-  try {
-    var nowC = Date.now();
-    var vpWc = dialogueViewportMetrics(bodyEl).vpW || 0;
-    if (_galMetricsCache.v && (nowC - _galMetricsCache.at) < 400 && _galMetricsCache.vpW === vpWc) return _galMetricsCache.v;
-  } catch (eC) {}
-  var fs = 13, lh = 19, font = '';
+  /* ★ 06:14 作者定位：只有字号「小」时框刚好，中/大都会空一大截。
+     根因就在这个缓存 —— 它的键**只有视口宽度**，没有字号。
+     切到中/大之后，400ms 内拿到的还是小号那套 fs/lh，
+     分页按"小号每行字数"切页 ⇒ 一页塞的字比框能装的少 ⇒ 空。
+     现在把 fs/lh/宽度一起做键；字号一变键就变，绝不可能返回旧尺寸。 */
+  var fs = 13, lh = 19, font = '', availW = 0;
   try {
     if (bodyEl) {
       var cs = window.getComputedStyle(bodyEl);
       var f = parseFloat(cs.fontSize); if (f > 0) fs = f;
       var l = parseFloat(cs.lineHeight);
       lh = (l > 0) ? l : Math.round(fs * 1.45);
+      /* ★ 07:11：这里原来把字号 Math.round 了 —— 12.5px 当 13px 量，
+         每行宽度虚高 4%，一行刚好装得下的句子被判成两行，
+         于是每页少装一行（就是那个永远空一行的来源之一）。改成原样使用。 */
       font = (cs.fontStyle || 'normal') + ' ' + (cs.fontWeight || 'normal') + ' '
-           + Math.round(fs) + 'px ' + (cs.fontFamily || 'sans-serif');
+           + fs + 'px ' + (cs.fontFamily || 'sans-serif');
     }
   } catch (e) {}
-  var availW = galBodyAvailW(bodyEl);
+  var vpWc = 0;
+  try { vpWc = dialogueViewportMetrics(bodyEl).vpW || 0; } catch (eW) {}
+  var key = fs + '|' + lh + '|' + vpWc;
+  try {
+    if (_galMetricsCache.v && (Date.now() - _galMetricsCache.at) < 400 && _galMetricsCache.key === key) {
+      return _galMetricsCache.v;
+    }
+  } catch (eC) {}
+  availW = galBodyAvailW(bodyEl);
   /* cpl 只当粗略兜底（Canvas 测宽失败时才用得上）：中文一个字约等于一个字宽 */
   var cpl = Math.max(4, Math.floor(availW / Math.max(1, fs)));
   var out = { fs: fs, lh: lh, availW: availW, font: font, cpl: cpl };
-  try { _galMetricsCache = { at: Date.now(), vpW: (dialogueViewportMetrics(bodyEl).vpW || 0), v: out }; } catch (e3) {}
+  try { _galMetricsCache = { at: Date.now(), key: key, vpW: vpWc, v: out }; } catch (e3) {}
   return out;
 }
 /* ★ v90：找一个好看的断点。二分找出「宽度刚好装得下」的最长前缀，
@@ -15711,7 +16173,10 @@ var _galCheapModeLegacy = false;   /* 保留占位：极端情况下强切开粗
 /* ★ v90：量一段文字到底占多少行——改用像素宽度算，不再按「字数 ÷ 每行几个字」估。
    中文一行能放几个字，跟标点、数字、英文缩写都有关，只有真量宽度才准。 */
 function measureGalHeight(text, bodyEl) {
-  var t = String(text || '');
+  /* ★ 07:17：首尾多余的换行会被 split 成空段，**每页固定多算一行** ——
+     这就是"不管框多高、底部永远空一行"的另一个来源。
+     段内的空行（真正的分段）保留，只削首尾。 */
+  var t = String(text || '').replace(/^[\s]*\n+/, '').replace(/\n+[\s]*$/, '');
   if (!t) return 0;
   var mm = galMetrics(bodyEl);
   var lines = 0;
@@ -15724,7 +16189,11 @@ function measureGalHeight(text, bodyEl) {
     if (w > 0) {
       /* × 1.02：中文标点禁则（行首不能是逗号句号）和英文整词换行会多占一点点。
          以前是 1.04，偏保守，每页会少装半行到一行。 */
-      n = Math.ceil((w * 1.02) / mm.availW);
+      /* 1.02 → 1.005：原来那 2% 是给"滚动条 + 标点禁则"预留的，
+         现在没有滚动条了，2% 就变成纯浪费（10 行会少算 0.2 行，累计起来就是一整行空白）。 */
+      /* 1.005 的保守余量也去掉：它让每块都被判宽 0.5%，
+         短句多的时候累计起来正好是一行。改成只减 0.5px 抗浮点误差。 */
+      n = Math.max(1, Math.ceil((w - 0.5) / mm.availW));
     } else {
       n = Math.ceil(seg.length / mm.cpl);
     }
@@ -15801,6 +16270,24 @@ function splitPagesForGalInner(text, bodyEl) {
   }
   if (!raw.trim()) return { pages: [], speakers: [] };
 
+  /* ★ 剥离分行（玩家 11-13 23:21 原话：「它是根据了分行，我需要你剥离分行」）
+     模型写正文习惯一句一行，那些换行是**给人看的排版**，不是语义。
+     原样保留 ⇒ 那么窄的一行几个字，框明明很宽却永远填不满，
+     玩家看到的就是「一句话一行、下面空一大片」。
+     这里把连续旁白行拼成一条连续文本，交给 galWrapLines 按**真实字宽**折行 ——
+     框多宽就铺多宽，一屏能读多少字就是多少字。
+     中英混排时补一个空格，避免把英文单词粘死。 */
+  function thJoinLines(arr) {
+    var s = '';
+    for (var i = 0; i < arr.length; i++) {
+      var t = String(arr[i] == null ? '' : arr[i]).trim();
+      if (!t) continue;
+      if (s && /[A-Za-z0-9]$/.test(s) && /^[A-Za-z0-9]/.test(t)) s += ' ';
+      s += t;
+    }
+    return s;
+  }
+
   /* ① 切单位：{名字} 开头的一行 = 一句台词（名字记在单位上）；连续的旁白行 = 一个旁白单位 */
   var units = [];
   var paras = raw.split(/\n\s*\n/);
@@ -15816,7 +16303,7 @@ function splitPagesForGalInner(text, bodyEl) {
       if (mLcs) {
         var lcsPre = line.slice(0, mLcs.index).trim();
         if (lcsPre) {
-          if (buf.length) { units.push({ name: '', text: buf.join('\n').trim() }); buf = []; }
+          if (buf.length) { units.push({ name: '', text: thJoinLines(buf) }); buf = []; }
           var lcsPreClean = lcsPre.replace(/\{[^{}\n]{1,24}\}/g, '').trim();
           if (dlgPageMode() === 'one') { if (lcsPreClean) units.push({ name: '', text: lcsPreClean }); }
           else if (lcsPreClean) buf.push(lcsPreClean);
@@ -15824,19 +16311,19 @@ function splitPagesForGalInner(text, bodyEl) {
         m = mLcs;
       }
       if (m) {
-        if (buf.length) { units.push({ name: '', text: buf.join('\n').trim() }); buf = []; }
+        if (buf.length) { units.push({ name: '', text: thJoinLines(buf) }); buf = []; }
         units.push({ name: m[1].trim(), text: String(m[2] || '').replace(/\{[^{}\n]{1,24}\}/g, '').trim() });
       } else if (line) {
         var cleanLine = line.replace(/\{[^{}\n]{1,24}\}/g, '').trim();
         /* ★ 一句一页模式：旁白也一行一页（以前连续旁白合成一块，看着就像“单页没生效”） */
         if (dlgPageMode() === 'one') {
-          if (buf.length) { units.push({ name: '', text: buf.join('\n').trim() }); buf = []; }
+          if (buf.length) { units.push({ name: '', text: thJoinLines(buf) }); buf = []; }
           if (cleanLine) units.push({ name: '', text: cleanLine });
         } else {
           buf.push(cleanLine);
         }
       } else if (buf.length) {
-        units.push({ name: '', text: buf.join('\n').trim() });
+        units.push({ name: '', text: thJoinLines(buf) });
         buf = [];
       }
     }
@@ -16051,7 +16538,33 @@ function splitPagesForGalInner(text, bodyEl) {
        现在 Canvas 测宽已经很快了，这个上限抬到 40，只当极端情况的安全阀。 */
     if (_galCheapMode && cur.length >= 40) flush();
     var trial = cur.length ? (curText() + '\n' + u.text) : u.text;
-    if (cur.length && measureGalHeight(trial, bodyEl) > maxH) flush();
+    if (cur.length && measureGalHeight(trial, bodyEl) > maxH) {
+      /* ★ 06:52 作者：固定框高之后底部又空出来 —— 因为装箱是**按整块**放的：
+         下一块放不下就整块挪到下一页，于是每页最多空出一行。
+         这里改成"把放不下的那块按行切开"：本页还能塞几行就先塞满，
+         剩下那一截作为新的一条接到下一页。这样页面永远是满的，框也不用缩。 */
+      var _mmF = galMetrics(bodyEl);
+      var _usedL = Math.max(0, Math.round(measureGalHeight(curText(), bodyEl) / _mmF.lh));
+      var _capL = Math.max(1, Math.floor(maxH / _mmF.lh));
+      var _remainL = _capL - _usedL;
+      var _filled = false;
+      if (_remainL >= 1) {
+        try {
+          var _bufF = galWrapLines(u.text, bodyEl);
+          if (_bufF.length > _remainL) {
+            var _headTxt = _bufF.slice(0, _remainL).join('');
+            var _tailTxt = _bufF.slice(_remainL).join('');
+            if (_headTxt && _tailTxt) {
+              cur.push({ name: u.name, text: _headTxt });
+              flush();
+              u = { name: u.name, text: _tailTxt };
+              _filled = true;
+            }
+          }
+        } catch (eSplF) {}
+      }
+      if (!_filled) flush();
+    }
     cur.push(u);
     /* 单独一个单位就装不下（一长段旁白）：
        ★ v90：改用 galWrapLines——按像素宽度折行，并在标点处断，
@@ -17012,6 +17525,23 @@ function setGeneratingState(isGen) {
     if (badge) badge.style.display = isGen ? 'inline-block' : 'none';
     if (isGen) shell.classList.add('th-gal-gen-on');
     else shell.classList.remove('th-gal-gen-on');
+    /* ★ 07:35 作者要求：推进结束 → 主动把对话框打开（解除"手关"锁，并强制展开）。
+       回空的情况也要开：框里会有那行红字告诉他去点重roll。 */
+    if (!isGen) {
+      setTimeout(function () {
+        try {
+          if (typeof DialogueReader === 'undefined' || !DialogueReader) return;
+          /* ★ 07:43：只有**真的有正文**才自动开框。
+             回空时抢着开，会导致"关掉又弹"——玩家根本关不掉。 */
+          if (!(DialogueReader.pages && DialogueReader.pages.length > 0)) return;
+          DialogueReader._userClosed = false;
+          DialogueReader.isOpen = true;
+          DialogueReader.render();
+        } catch (eOpen) {}
+      }, 260);
+    }
+    /* ★ 07:13：状态条装回来。这次不再改 shell 的 position（上次怀疑是它挤动布局）。 */
+    try { __thGenBanner(isGen); } catch (eGB) {}
   } catch (eB) {}
   /* ★ v163：原写法只刷 shell.querySelector('.th-gal-shell-submit') —— 那拿到的是
      **控制舱里那颗**（display:none，玩家看不见）。面板里那颗真按钮永远显示「发送」，
@@ -17433,7 +17963,11 @@ function buildCleanProseClone(box) {
          保险阀一触发就全部退回，思维链反而原原本本漏回来。 */
       var own = 0;
       try { own = String(le.textContent || '').replace(/\s+/g, '').length; } catch (eO) {}
-      if (totalLen > 0 && own >= totalLen * 0.55) { spared++; continue; }
+      /* ★ 阈值 0.55 → 0.25：预设常把正文切成好几个 div，每段只占全楼 10~20%。
+         按 0.55 判，这些分段容器全部被当成「注入物」剔掉，DOM 就永远读不到正文，
+         只能退回解析器那份（换行信息缺失，看着像按行断）。
+         放到 0.25 能保住分段容器；只占几个百分点的小块（思维链余额、按钮、装饰）照样挡得住。 */
+      if (totalLen > 0 && own >= totalLen * 0.25) { spared++; continue; }
       ce.setAttribute('data-th-kill', '1'); killed++;
     }
   } catch (e) {}
@@ -17761,11 +18295,22 @@ function hasDialogueTagInLatest() {
   try {
     var _i = getLatestAIMessageIndex();
     var _r = getMsgRawText(_i);
-    if (_r === null || _r === undefined) return false;
-    return !!parseContentWithLayer(String(_r)).text;
-  } catch (eT) {
-    return false;
-  }
+    if (_r !== null && _r !== undefined && parseContentWithLayer(String(_r)).text) return true;
+  } catch (eT) {}
+  /* ★ 11-14：上面这条路（getMsgRawText）和真正拿来渲染的那条（getLatestAIRawText）
+     **不是同一个来源**。实测出现过很荒谬的一幕：对话框已经解析出 29 页、正显示
+     「1 / 29 · 解析」，这里却判成「没有正文」，于是盖上一块
+     「⚠ 未识别到正文内容」的说明条，把整段正文挡在后面 —— 玩家看到的就是
+     「明明有正文，框里却是这句提示」，翻页还能翻。
+     判据补一条：渲染器手里已经有页、且来源不是兜底原文，那就是有正文。 */
+  try {
+    if (typeof DialogueReader !== 'undefined' && DialogueReader) {
+      var _pg = DialogueReader.pages;
+      var _src2 = DialogueReader.lastSource;
+      if (_pg && _pg.length && _src2 && _src2 !== 'raw') return true;
+    }
+  } catch (eD2) {}
+  return false;
 }
 
 /* ══ ★ v115：对话框里的「格式故障说明」条 ══════════════════════════════════
@@ -17778,6 +18323,14 @@ function hasDialogueTagInLatest() {
 var DLG_BROKEN_NOTE_ID = 'th-gal-dlg-broken-note';
 
 function showDialogueBrokenNote() {
+  /* ★ 11-14：**整个停用**。
+     玩家一小时前的原话：「没检测到标签直接展示原文」。
+     而这块「⚠ 未识别到正文内容 / 你极大概率是截断或回空了」的说明条，
+     实际效果是把正文整个盖住 —— 明明右边写着 1/29·解析、正文解析得好好的，
+     框里却只剩这句提示，还能翻页。
+     兜底逻辑本来就会把原文铺进框里（this.pages = [_fbText]），
+     有字就显示字，不需要这块说明。所以这里直接返回，永不显示。 */
+  return false;
   try {
     var doc = getDoc();
     var shell = doc && doc.querySelector ? doc.querySelector('#th-gal-shell-root') : null;
@@ -17956,6 +18509,17 @@ var DialogueReader = {
   lastGeom: '',
   lastRaw: '',
   setRawText: function(rawText, isGenerating) {
+    /* ★ 07:38：只有**模型什么都没返回**（原文 trim 后为空）才算"回空了"。
+       标签缺失是另一回事，不归这条管。 */
+    try { this._emptyReply = (String(rawText == null ? '' : rawText).trim() === ''); } catch (eER) { this._emptyReply = false; }
+    if (this._emptyReply) {
+      /* ★ 07:40：回空时把上一次的页清干净，否则页码还显示 1/20 这种上一楼的数据 */
+      this.pages = [];
+      this.speakers = [];
+      this.currentIndex = 0;
+      this.lastSig = '';
+      this.lastSource = '';
+    }
     /* ★ 性能优化卫兵：非生成态且原文与生成状态完全未变时，先检查视口几何，未变则静默返回，避免每 700ms 强制重排 */
     if (!isGenerating && rawText === this.lastRaw && this.lastSource) {
       var bodyCheck = this.stage ? this.stage.querySelector('.th-gal-dialogue-body') : null;
@@ -17986,9 +18550,52 @@ var DialogueReader = {
        那就宁可只用解析器给的那份干净正文。
        ★ 为什么不干脆全禁 DOM：流式生成中 <content> 常常只有半个闭标签，
          这时 DOM 的换行信息是唯一的排版依据，全禁会把正文挤成一整段。 */
+    /* ★ 和 V147_TEXT_TAGS 同源。以前这里手抄了一份同样的列表，加标签时改一处漏一处，
+       就会出现「解析器认得 <game>、这里却说没有正文标签」的自相矛盾。 */
     var hasBodyTag = false;
-    try { hasBodyTag = /<(content|对话框显示|gametext|game|maintext|正文|text)(?=[\s>])[^>]*>/i.test(String(rawText || '')); } catch (eTagChk) {}
-    var fromDom = (content && hasBodyTag) ? renderedProseFromDom() : '';
+    try {
+      var _tagAlt = V147_TEXT_TAGS.join('|');
+      hasBodyTag = new RegExp('<(?:' + _tagAlt + ')(?=[\\s>])[^>]*>', 'i').test(String(rawText || ''));
+    } catch (eTagChk) {}
+    /* ★ 11-14 二次修复：**不再拿 hasBodyTag 当门槛**。
+       上一版改成 hasBodyTag ? 读DOM : ''，只要标签名稍微不对（模型爱写 <正文内容>、
+       <对话正文>、或者干脆忘了写闭标签），hasBodyTag 就是 false，
+       DOM 依旧不读 —— 于是照样报「未检测到正文标签已展示原文」。
+       玩家已经说得很清楚：**有正文就用 DOM 渲染的文本**。
+       现在无条件读 DOM，只是判断标准分两档：
+         · 有正文标签 → 重合度校验（原来的逻辑，防标签外内容混入）
+         · 没认出标签 → 只要 DOM 文本足够长、且这段字确实出现在原文里，就采信。
+       宁可多认一段正文，也不要让玩家对着一句「未检测到正文」发呆。 */
+    var fromDom = renderedProseFromDom();
+    /* ★ 11-14 诊断：把三个数挂到实例上，直接印在对话框左下角那行提示里。
+       玩家不用开控制台 —— 看数字就知道是哪一段断了：
+         原文 0 字        → 这一楼压根没读到文本（楼层元素没找到）
+         原文 N 字 / DOM 0 字 → 楼层读到了，但 DOM 抽取被过滤光了
+         原文 N 字 / DOM M 字 → DOM 有字却没被采用，是重合度校验把它否了 */
+    try {
+      this._diagRaw = String(rawText || '').length;
+      this._diagDom = String(fromDom || '').length;
+      this._diagHasTag = hasBodyTag;
+      this._diagTags = (function () {
+        try {
+          var hit = [];
+          for (var _i = 0; _i < V147_TEXT_TAGS.length; _i++) {
+            if (new RegExp('<' + V147_TEXT_TAGS[_i] + '(?=[\\s>])', 'i').test(String(rawText || ''))) hit.push(V147_TEXT_TAGS[_i]);
+          }
+          return hit.join(',') || '无';
+        } catch (eT2) { return '?'; }
+      })();
+    } catch (eDg2) {}
+    if (fromDom && !hasBodyTag) {
+      /* 无标签时的防呆：DOM 那段开头 18 个字必须真的出现在原始楼层里，
+         否则说明读到的不是这一楼（或混进了界面自身的文字），放弃。 */
+      var _probe = String(fromDom).replace(/\s+/g, '').slice(0, 18);
+      var _rawFlat = String(rawText || '').replace(/\s+/g, '');
+      if (!_probe || _rawFlat.indexOf(_probe) < 0) {
+        fromDom = '';
+        try { window.__thDomRejected = { reason: 'probe-miss', probe: _probe }; } catch (ePr) {}
+      }
+    }
     if (fromDom && fromDom.length > 24) {
       /* 重合度校验：DOM 版与解析器版，取较短的那份做子序列比对。
          只要 DOM 里多出超过 20 字「解析器没有的东西」，就判定它混进了标签外的内容。 */
@@ -18015,15 +18622,57 @@ var DialogueReader = {
         content = fromDom;
         this.lastSource = 'dom';
       } else {
-        this.lastSource = 'raw';
+        /* ★ 11-14 修正：这里以前写 'raw'，于是**已经正常解析出正文**的楼层
+           也被打上「未检测到正文标签已展示原文」的标签 —— 玩家看到的
+           就是「明明在放正文，却说你没检测到正文」。
+           这一支的真实语义是：解析器有结果，只是 DOM 那份不干净、没采用。
+           所以标 'parse'（提示条显示「解析」），不是 'raw'。 */
+        this.lastSource = 'parse';
         try { window.__thDomRejected = { ratio: 'low', dom: String(fromDom).length, raw: content.length }; } catch (eRej) {}
       }
     } else {
-      this.lastSource = content ? 'raw' : 'none';
+      /* ★ 三分语义：dom / parse / raw
+         · dom   → DOM 渲染结果（最干净，换行最准）
+         · parse → 解析器拿到了正文，但 DOM 没读到（预设把正文包进带 class 的 div，
+                   isInjectedEl 一刀切成注入物剔光了）。**内容仍是对的**，只是没吃到 DOM 的排版。
+         · raw   → 两者都没有，走「整层原文全展示」的兜底。
+         以前这里把 parse 也标成 raw，玩家看到 TXT 就以为在跑兜底原文 —— 其实不是。 */
+      this.lastSource = content ? 'parse' : 'none';
     }
     /* ★ v82：识别到第几层不再弹任何提示。踩到第几层是脚本自己的事，
        玩家想回看原始楼层，点按钮栏那颗「🕘 历史」就行。 */
     if (!content) {
+      /* ══ 兜底：检测不到正文白标签 → 原文整段铺满半屏，不分页 ══════════
+         玩家的要求：「当检测不到正文白标签，直接自动铺满游戏界面的一半高度，
+         完全显示原文，不再分页。」
+         和 v110「没标签一个字都不许留」不冲突：v110 防的是**上一楼的残留
+         pages 串到这一楼**，这里用的是这一楼自己的 rawText，来源清楚。
+         isGenerating 时不做 —— 流式还没写完，每 700ms 铺一次会抖成筛子。 */
+      /* ★ 幂等 + 楼层锁：同一楼只要进过兜底，就一直兜底。
+         上一版没做这个，结果 parseContentWithLayer 在同一楼里时灵时不灵，
+         兜底把 pages 设成 [整段]（1/1）、下一拍正常分页又按段切成 1/26，
+         两边每 700ms 抢一次 → 页码在 1/1 和 1/26 之间鬼畜。 */
+      var _fbText = '';
+      try { _fbText = compactProse(sanitizeRawProse(String(rawText || ''))); } catch (eFb) { _fbText = ''; }
+      if (_fbText && !isGenerating) {
+        var _fbSig = 'fb|' + _fbText.length + '|' + _fbText.slice(0, 24) + '|' + _fbText.slice(-24);
+        this._fbFloor = String(rawText || '');
+        this._fbSig = _fbSig;
+        if (this._fbDone === _fbSig) return;   /* 同一段已经铺好了，别再 render 一次 */
+        this._fbDone = _fbSig;
+        this.pages = [_fbText];
+        this.speakers = [''];
+        this.currentIndex = 0;
+        this.lastSig = '';
+        this.lastSource = 'raw';
+        try {
+          var _fbShell = getDoc().querySelector('#th-gal-shell-root');
+          if (_fbShell) _fbShell.classList.add('th-gal-dlg-fallback');
+        } catch (eFb2) {}
+        this.isOpen = true;
+        try { this.render(); } catch (eFb3) {}
+        return;
+      }
       /* ══ ★ v110 真凶修复：**没有 <对话框显示> 就没有正文，一个字都不许留** ══
          以前这里只 `this.isOpen = false; this.render();`，**从不清this.pages**。
          于是 this.pages 作为「跨楼层残留状态」活了下来：
@@ -18058,6 +18707,18 @@ var DialogueReader = {
       }
       return;
     }
+    /* ★ 楼层锁：这一楼已经进了兜底（_fbFloor 同一串原文）→ 正常分页不许抢回来。
+       解析器对同一楼的判定会飘（流式尾巴、标签半截），不锁就会一直打架。 */
+    if (this._fbFloor && this._fbFloor === String(rawText || '') && this._fbSig) {
+      return;
+    }
+
+    /* 这一楼有正常正文了 → 撤掉兜底半屏，回到原来的高度档位 */
+    try {
+      var _okShell = getDoc().querySelector('#th-gal-shell-root');
+      if (_okShell) _okShell.classList.remove('th-gal-dlg-fallback');
+    } catch (eOk) {}
+
     /* ★ v87：每次进来先把对话框的高度按当前视口写死（进出全屏 / 拉窗口 / 换高度档位都跟着变） */
     try {
       var shellFit = getDoc().querySelector('#th-gal-shell-root');
@@ -18069,7 +18730,16 @@ var DialogueReader = {
     /* ★ v87：正文没变还不够，几何也得没变。全屏 / 拉窗口 / 换字号之后视口变了，
        旧的页是按旧尺寸切的，放进新尺寸里就是一小块（看着扁）或者一大坨。
        几何指纹变了就重切一次，跟正文变了一样对待。 */
-    var geomKey = body ? dialogueGeomKey(body) : '';
+    /* ★ 05:42 真凶：这里原来写的是 `var geomKey = body ? ... : ''`，
+       而 `var body` 是在**下面几十行之后**才声明的 —— var 提升让这里的 body 是
+       undefined，于是 geomKey 永远是 ''，"几何变了"永远为 false。
+       结果：改字号、改框高、进出全屏，页都按第一次的尺寸切，永远不重切。
+       （这就是「框变高了，字还是那么几行」的根因，跟分页算法本身无关。）
+       现在先把壳和 body 查出来，再算指纹。 */
+    var _sh0 = null, _bd0 = null;
+    try { _sh0 = getDoc().querySelector('#th-gal-shell-root'); } catch (eSH) {}
+    try { _bd0 = _sh0 ? _sh0.querySelector('.th-gal-dialogue-body') : null; } catch (eBD) {}
+    var geomKey = _bd0 ? dialogueGeomKey(_bd0) : '';
     var geomChanged = (geomKey !== this.lastGeom);
     this.lastGeom = geomKey;
     this.lastRaw = rawText;
@@ -18079,8 +18749,8 @@ var DialogueReader = {
     var first = !this.lastSig;
     if (!first && isGenerating && this.lastSplitAt && (nowTs - this.lastSplitAt) < 700) return;
 
-    var shell = getDoc().querySelector('#th-gal-shell-root');
-    var body = shell ? shell.querySelector('.th-gal-dialogue-body') : null;
+    var shell = _sh0 || getDoc().querySelector('#th-gal-shell-root');
+    var body = _bd0 || (shell ? shell.querySelector('.th-gal-dialogue-body') : null);
     var keep = this.isOpen ? this.currentIndex : 0;
 
     var gal = splitPagesForGal(content, body);
@@ -18092,7 +18762,10 @@ var DialogueReader = {
     this.pages = pages;
     /* 新的一条正文才回到第一页；生成中正文只会往后长、页只会变多，保留用户翻到的页 */
     this.currentIndex = first ? 0 : Math.min(keep, pages.length - 1);
-    this.isOpen = true;
+    /* ★ 07:26：以前这里无条件 isOpen = true。于是点选项 / 切场景 / 我那个自纠重排，
+       只要重切一次页，玩家关掉的框就被强行弹回来。
+       现在：玩家亲手关过（_userClosed）就不再自动开。 */
+    if (!this._userClosed) this.isOpen = true;
     this.render();
   },
   /* ★ v87：外部（比如全屏脚本、窗口 resize）说「尺寸变了」，就把指纹清掉重排一次 */
@@ -18101,6 +18774,18 @@ var DialogueReader = {
     try { if (this.lastRaw) this.setRawText(this.lastRaw, false); } catch (e) {}
   },
   reopen: function() {
+    /* 玩家主动要开 → 解除"手关"锁 */
+    this._userClosed = false;
+    /* ★ 11-14：**先信自己手里的**。
+       下面那段会用 getMsgRawText 再判一次「这一楼有没有正文」，可它跟真正渲染用的
+       getLatestAIRawText 不是同一个来源 —— 渲染明明有字，它读到空，于是把
+       this.pages 清掉，玩家关一次再打开就看到空框。
+       手里已经有页、且来源不是兜底原文，就直接展开，不再重判。 */
+    if (this.pages && this.pages.length && this.lastSource && this.lastSource !== 'raw') {
+      this.isOpen = true;
+      this.render();
+      return;
+    }
     /* ★ v110：**不信任 this.pages** —— pages 非空只说明「某一楼曾经有过正文」，
        不代表「当前这一楼有正文」。所以这里回到原始契约上再判一次：
        当前这一楼没有 <对话框显示> 就不许展开，一句都不许显示。
@@ -18205,6 +18890,31 @@ var DialogueReader = {
     /* ★ v119：框开着、这一楼又没正文 → 说明条必须在。
          render 是被多处调用的（翻页、心跳、切场景、换字号），
          玩家开着框却看到一片空白的情况必须在这里兜住，不能指望调用方记得挂。 */
+    if (this.pages.length === 0 && this._emptyReply) {
+      /* 完全空值：不挂说明条，直接显示红字 —— 但玩家手关过就别再弹 */
+      if (this._userClosed) {
+        stage.setAttribute('hidden', '');
+        if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
+        return;
+      }
+      stage.removeAttribute('hidden');
+      this.isOpen = true;
+      try { fitDialogueStage(shell); } catch (eFitE) {}
+      try {
+        body.innerHTML = '<div style="color:#ff6b6b;font-weight:700;font-size:12.5px;line-height:1.8;letter-spacing:.02em;">'
+          + '回空了，点击旁边的重roll按钮重新尝试</div>';
+      } catch (eClrE) {}
+      syncChoiceOverlayWithDialogue(false);
+      if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
+      try { syncDialogueStanding(shell); } catch (eDSE) {}
+      /* 页码：没有页就别显示 1/20，给两个横杠 */
+      try {
+        if (indicator) { indicator.textContent = '— / —'; indicator.title = '这一楼没有正文'; }
+        if (prevBtn) prevBtn.setAttribute('hidden', '');
+        if (topBtn) topBtn.setAttribute('hidden', '');
+      } catch (eInd) {}
+      return;
+    }
     if (this.pages.length === 0 && !_noteOn) {
       try { showDialogueBrokenNote(); _noteOn = true; } catch (eNoteAuto) {}
     }
@@ -18215,7 +18925,16 @@ var DialogueReader = {
       try { hideDialogueBrokenNote(); showDialogueBrokenNote(); } catch (eReNote) {}
       syncChoiceOverlayWithDialogue(false);
       if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
-      try { body.innerHTML = ''; } catch (eClrBody) {}
+      /* ★ 07:38：**只有原文完全为空**才出这行红字（模型什么都没返回）。
+         标签缺失 / 解析不出正文 都走原来的说明条，不混在一起。 */
+      try {
+        if (this._emptyReply) {
+          body.innerHTML = '<div style="color:#ff6b6b;font-weight:700;font-size:12.5px;line-height:1.8;letter-spacing:.02em;">'
+            + '回空了，点击旁边的重roll按钮重新尝试</div>';
+        } else {
+          body.innerHTML = '';
+        }
+      } catch (eClrBody) {}
       /* ★ v116：说明条不是正文，没人说话 → 立绘收回去 */
       try { syncDialogueStanding(shell); } catch (eDS3) {}
       return;
@@ -18232,6 +18951,20 @@ var DialogueReader = {
     /* ★ v42：按钮跟着亮 */
     if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
     var curPageText = this.pages[this.currentIndex] || '';
+    /* ★ 11-14 05:25：**渲染前再剥一次换行**。
+       thJoinLines 只在「旁白单位」那条路上做了拼接，走 HTML/LCS 或单句分页时
+       文本里仍然带着 \n —— 于是框很宽却一句一行，下面空一大片，还容易溢出。
+       这里把「单个换行」直接删掉（中文不需要空格），连续两个换行才算分段。 */
+    try {
+      var _pg = String(curPageText);
+      if (_pg.indexOf('\n') >= 0 && !/^\s*\{/.test(_pg)) {
+        _pg = _pg.replace(/\r/g, '')
+                 .replace(/\n{2,}/g, '\u0001')
+                 .replace(/\n/g, '')
+                 .replace(/\u0001/g, '\n');
+        curPageText = _pg;
+      }
+    } catch (eJp) {}
     /* LCS：放行模式把正文里的 <style> 提到 <head>（CSS 不进消息 DOM，绕开酒馆净化） */
     try { lcsInjectFloorCss(curPageText); } catch (eCss) {}
     /* LCS：含标签时按真实 HTML 渲染，纯文本仍走 textContent 防误解析 */
@@ -18244,6 +18977,8 @@ var DialogueReader = {
       requestAnimationFrame(function () {
         try {
           if (!_bEl || !_bEl.isConnected) return;
+          /* ★ 06:08：先按真实内容收一次框，再做溢出检查 */
+          try { fitDialogueStageToContent(getDoc().querySelector('#th-gal-shell-root')); } catch (eFC0) {}
           var ov = _bEl.scrollHeight - _bEl.clientHeight;
           if (ov > 2) {
             var before = _galOverflowPenalty;
@@ -18291,18 +19026,27 @@ var DialogueReader = {
       var diag = null;
       try { diag = window.__thProseDiag; } catch (eDg) {}
       try {
-        var src = (this.lastSource === 'dom') ? 'DOM' : (this.lastSource ? 'TXT' : '');
+        var src = this.lastSource === 'dom' ? 'DOM'
+                : this.lastSource === 'parse' ? '解析'
+                : '';
         if (src) {
           srcTag = ' · ' + src;
           if (src === 'DOM' && diag) srcTag += '剔' + (diag.killed || 0);
           if (diag && diag.fallback) srcTag += '⚠';
         }
       } catch (eTag) {}
-      indicator.textContent = (this.currentIndex + 1) + ' / ' + this.pages.length + srcTag;
+      /* ★ 兜底的话放页数左边：玩家第一眼要先知道「这楼没标签、看到的是原文」，
+         而不是先看到 1/1 再自己猜为什么只有一页。正常来源的标记仍挂右边。 */
+      var _pgTxt = (this.currentIndex + 1) + ' / ' + this.pages.length;
+      indicator.textContent = (this.lastSource === 'raw')
+        ? ('未检测到正文标签已展示原文 · ' + _pgTxt)
+        : (_pgTxt + srcTag);
       try {
         indicator.title = '正文来源：' + (this.lastSource === 'dom'
           ? '酒馆渲染后的 DOM（机制判据已跑）'
-          : '原始聊天文本（三层解析兜底——思维链会从这条路漏进来）')
+          : this.lastSource === 'parse'
+            ? '正文标签解析（DOM 没读到，可能预设把正文包进了带 class 的容器）'
+            : '整层原文兜底（未识别到正文标签 → 全部原文铺满半屏，不分页）')
           + (diag ? '\n楼层元素 ' + diag.live + ' 个（' + (diag.vis ? '整层可见' : '整层不可见·「看不见」判据已停用')
               + '），摘掉 ' + diag.killed + ' 个，放过(正文容器) '
               + (diag.spared || 0) + ' 个，锚点裁掉 ' + (diag.anchor || 0) + ' 块，留字 ' + diag.kept + '/' + diag.raw
@@ -18621,7 +19365,7 @@ function thBuildHudPanel(shell) {
   var GROUPS = [
     { t: '人物', keys: ['th-gal-btn-hero', 'th-gal-btn-history', 'th-gal-btn-cheat'] },
     { t: '剧情', keys: ['th-gal-btn-deduce', 'th-gal-btn-reopen-dialogue', 'th-gal-btn-toggle-options'] },
-    { t: '对话', keys: ['th-gal-btn-dlg-h', 'th-gal-btn-dlg-page', 'th-gal-btn-font-size', 'th-gal-btn-music-toggle'] },
+    { t: '对话', keys: ['th-gal-btn-dlg-h', 'th-gal-btn-dlg-h-dec', 'th-gal-btn-dlg-page', 'th-gal-btn-font-size', 'th-gal-btn-music-toggle'] },
     /* ★ v150 新增：原顶栏按钮（篇章 / 季节 / 天气 / 插图 / 地图 / 村历 / 背包 / 回家） */
     { t: '世界', keys: ['th-gal-btn-arc', 'th-gal-btn-season', 'th-gal-btn-weather', 'th-gal-btn-art',
                         'th-gal-btn-map', 'th-gal-btn-calendar', 'th-gal-btn-bag', 'th-gal-btn-home'] },
@@ -18683,15 +19427,17 @@ function thBuildHudPanel(shell) {
     '<div class="th-gal-hud-grid">' +
       '<button type="button" class="th-gal-shell-act-btn" data-th-hudpin="1" title="关掉自动折叠：展开后不会自己收回去">📌 常显</button>' +
       '<button type="button" class="th-gal-shell-act-btn" data-th-hudfull="1" title="进入 / 退出全屏">⛶ 全屏</button>' +
+      /* ★ v150 补：卡版本 + 本版更新内容。原来这颗挂在状态栏「功能」页里，
+         状态栏被隐藏后入口没了，玩家找不到「这版改了什么」。 */
+      '<button type="button" class="th-gal-shell-act-btn" data-th-verlog="1" title="查看卡版本与本版更新内容">📜 版本</button>' +
+      /* ★ 玩家在图上点 ✕ 关掉插图之后，需要有个地方能把图放回来。
+         放在「界面」组里，紧挨着版本，名字就叫「重新打开插图」。 */
+      '<button type="button" class="th-gal-shell-act-btn" data-th-extillopen="1" title="重新打开外置插图（生图插件产出的那张图）">🖼 重新打开插图</button>' +
     '</div></div>';
 
-  /* ★ v150：顶栏永久隐藏后，精力值没地方看了 —— 在面板顶部补一条状态条。
-     数值每 1.2 秒从原 .th-gal-energy-val 抄过来（见 thSyncHudMirror 的姊妹函数）。 */
-  html = '<div class="th-gal-hud-stat">' +
-      '<span class="hs-item">⏰ <b data-th-hud-time>--:--</b></span>' +
-      '<span class="hs-item">📍 <b data-th-hud-place>—</b></span>' +
-      '<span class="hs-item">⚡ <b data-th-hud-energy>100</b></span>' +
-    '</div>' + html;
+  /* ★ 状态条（时间 / 地点 / 精力）已按玩家要求整个移除，不再插到面板顶部。
+     原 v150 那段「精力值没地方看」的补条在这里，现在正文区自然可见精力。 */
+  try { window.__thHudStatRemoved = true; } catch (eStat) {}
 
   host.innerHTML = html;
   host.__thBuilt = true;
@@ -18740,6 +19486,336 @@ function thBuildHudPanel(shell) {
       if (real) { try { real.click(); } catch (eX) {} }
       else if (typeof FullscreenMode !== 'undefined') {
         try { if (FullscreenMode.active) FullscreenMode.exit(); else FullscreenMode.enter(); } catch (eF) {}
+      }
+      thHudArmAutoClose(shell);
+    });
+  }
+
+  /* ★ 版本弹层：在 10-core 里自己实现。
+     以前这里转发给 24-statusbar.js 的 openChg()，但那条脚本只在**文字版**的
+     FILES 里（loader 的 TEXT 数组），游戏模式根本不加载它 —— 于是点击永远掉进
+     「等两秒再点一次」的兜底，点了跟没点一样。自己读 changelog.json 最省事。 */
+  function thOpenChangelog() {
+    var doc = getDoc();
+    if (!doc || !doc.body) return;
+    var oldMask = doc.getElementById('th-verlog-mask');
+    if (oldMask) { try { oldMask.parentNode.removeChild(oldMask); } catch (e0) {} }
+
+    var mask = doc.createElement('div');
+    mask.id = 'th-verlog-mask';
+    /* ★ 05:56：遮罩也挂进游戏界面（absolute inset:0），不再铺满整个网页。
+       手机端 fixed 遮罩会盖到聊天框以外，看着像"卡住不动"，其实是遮罩在页面层。 */
+    var _cShell = null;
+    try { _cShell = doc.querySelector('#th-gal-shell-root'); } catch (eCS) { _cShell = null; }
+    if (_cShell) {
+      try {
+        var _cp = window.getComputedStyle(_cShell).position;
+        if (!_cp || _cp === 'static') _cShell.style.setProperty('position', 'relative', 'important');
+      } catch (eCP) {}
+    }
+    mask.setAttribute('style', (_cShell ? 'position:absolute;' : 'position:fixed;')
+      + 'inset:0;z-index:2147483646;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);'
+      + 'display:flex;align-items:center;justify-content:center;padding:14px;');
+    mask.addEventListener('click', function (ev) { if (ev.target === mask) { try { mask.parentNode.removeChild(mask); } catch (e1) {} } });
+
+    var box = doc.createElement('div');
+    box.setAttribute('style', 'width:min(560px,94vw);max-height:76vh;display:flex;flex-direction:column;background:linear-gradient(160deg,#16131c,#0d0b11);border:1px solid rgba(200,170,110,.35);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.75);overflow:hidden;');
+
+    var head = doc.createElement('div');
+    head.setAttribute('style', 'display:flex;align-items:flex-start;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(200,170,110,.18);');
+
+    /* ★ 标题下面挂两行版本信息，专治「到底更没更」这个扯不清的问题：
+         卡版本 = 这张卡打出来时写死的 VER，换卡才会变
+         线上版本 = loader 实际在用的 ref（stableRef / main / commit sha 前 10 位）
+       两个都在，你自己就能判断跑的是卡里那份还是线上那份。 */
+    var _cardVer = '', _liveTag = '', _chgVer = '';
+    try { _cardVer = window.__SPR_CARD_VER || (HOST && HOST.__SPR_CARD_VER) || ''; } catch (eCv) {}
+    /* ★ 11-14：卡钉 sha 时 applyRef 不会执行，__SPR_HOT_TAG__ 一直是空，
+       弹层就显示「（未热更）」—— 但实际跑的就是那一版，白白让人以为没更新。
+       回落 __SPR_ACTIVE_TAG（loader 初始化时就写了），有值就说明当前用的是哪一份。 */
+    try {
+      _liveTag = window.__SPR_HOT_TAG__ || (HOST && HOST.__SPR_HOT_TAG__)
+              || window.__SPR_ACTIVE_TAG || (HOST && HOST.__SPR_ACTIVE_TAG) || '';
+    } catch (eLt) {}
+    /* ★ 11-14：人类可读版本号（v1.39）。只给一个 commit 前缀，没人知道那是哪一版。 */
+    var _liveVer = '';
+    try { _liveVer = window.__SPR_HOT_VER__ || (HOST && HOST.__SPR_HOT_VER__) || ''; } catch (eV2) {}
+    /* 实时轮询发现线上已经有更新的版本（但玩家还没刷新） */
+    var _newVer = '';
+    try { _newVer = String(window.__SPR_LIVE_NEW__ || (HOST && HOST.__SPR_LIVE_NEW__) || ''); } catch (eV3) {}
+    try { _chgVer = (window.__SPR_CHG_VER || ''); } catch (eGv) {}
+    head.innerHTML = '<div style="flex:1;min-width:0;">'
+      + '<b style="font-size:15px;color:#e6c884;letter-spacing:.5px;">📜 春日狂想曲 · 更新记录</b>'
+      + '<div style="margin-top:4px;font-size:11px;line-height:1.6;color:#8b8175;">'
+      +   '卡版本 <b style="color:#c9bfae;">' + escChg(_cardVer || '（未知）') + '</b>'
+      +   ' · 线上 <b style="color:#86efac;">' + escChg(_liveVer ? ('v' + String(_liveVer).replace(/^v/i, '') + ' · ' + String(_liveTag || '').slice(0, 8)) : (_liveTag ? String(_liveTag).slice(0, 10) : '（未热更）')) + '</b>'
+      /* ★ 05:24：这里留一个常驻占位。实时嗅探是异步的（拉 ver.js 要 200ms），
+         以前只在"打开弹层那一刻"读一次 __SPR_LIVE_NEW__，于是开着弹层等到新版本
+         也不会变。现在 tick 一旦嗅到就写进这个 span，弹层不用重开。 */
+      +   '<span id="th-vlog-live">' + (_newVer ? (' · <b style="color:#f0a95c;">已有 ' + escChg(_newVer) + '</b>'
+                      + '<button type="button" id="th-vlog-reload" style="margin-left:8px;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,150,150,.6);background:linear-gradient(160deg,#b91c1c,#7f1d1d);color:#fff;font-size:11px;cursor:pointer;">点击刷新</button>') : '') + '</span>'
+      + '</div>'
+      + '</div>';
+    var xBtn = doc.createElement('button');
+    xBtn.type = 'button';
+    xBtn.textContent = '✕';
+    xBtn.setAttribute('style', 'width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#cbd5e1;cursor:pointer;font-size:13px;line-height:1;');
+    xBtn.addEventListener('click', function () { try { mask.parentNode.removeChild(mask); } catch (e2) {} });
+    head.appendChild(xBtn);
+
+    var body = doc.createElement('div');
+    body.setAttribute('style', 'padding:14px 16px;overflow-y:auto;flex:1 1 auto;font-size:13px;line-height:1.75;color:#cbd5e1;');
+    body.innerHTML = '<div style="padding:26px;text-align:center;color:#8b8175;">读取更新记录…</div>';
+
+    box.appendChild(head); box.appendChild(body); mask.appendChild(box);
+    try { (_cShell || doc.body).appendChild(mask); } catch (eAppM) { doc.body.appendChild(mask); }
+    /* 有新版本时头部那颗「点击刷新」—— 刷的是顶层窗口，不是这个 iframe */
+    try {
+      var _rl = doc.getElementById('th-vlog-reload');
+      if (_rl) _rl.onclick = function (e) { try { e.stopPropagation(); } catch (e0) {} __thDoReload(); };
+    } catch (eRl) {}
+
+    function escChg(s) {
+      return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+      });
+    }
+
+    /* ★ 顺序：GitHub API 第一。
+       实测 raw 国内常不通、jsDelivr 四个镜像对 changelog.json 有 12 小时缓存
+       （推完 10 分钟仍是旧版本），只有 API 是「推完立刻能读到」的。
+       API 返回 {content, encoding:'base64'}，下面统一拆一层。 */
+    var chgUrls = [
+      /* ★ 11-14：COS 排第一。以前第一条是 GitHub API（国内常不通）、
+         其余全是 @main（jsDelivr 12 小时缓存）⇒ 推完十分钟看到的还是旧记录。 */
+      'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/changelog.json?t=' + Date.now(),
+      'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/main/haruharu/changelog.json?t=' + Date.now(),
+      'https://gcore.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+      'https://testingcf.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+      'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json'
+    ];
+    var ui = 0;
+    function tryNext() {
+      if (ui >= chgUrls.length) {
+        body.innerHTML = '<div style="padding:26px;text-align:center;color:#c98b8b;">读不到更新记录（网络或远端文件暂不可用）</div>';
+        return;
+      }
+      var url = chgUrls[ui++];
+      var settled = false;
+      var tm = setTimeout(function () { if (!settled) { settled = true; next2(); } }, 6000);
+      function next2() { try { tryNext(); } catch (eN) {} }
+      fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
+        if (settled) return;
+        settled = true; clearTimeout(tm);
+        /* GitHub API 的 base64 包装 */
+        if (data && data.content && data.encoding === 'base64') {
+          try {
+            var bin = atob(String(data.content).replace(/\s/g, ''));
+            var bytes = new Uint8Array(bin.length);
+            for (var bi = 0; bi < bin.length; bi++) bytes[bi] = bin.charCodeAt(bi);
+            data = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+          } catch (eB64) { data = null; }
+        }
+        if (!data || !data.entries || !data.entries.length) { tryNext(); return; }
+        try { window.__SPR_CHG_VER = data.version || ''; } catch (eV) {}
+        var html = '';
+        (data.entries || []).forEach(function (e) {
+          html += '<div style="margin-bottom:16px;">';
+          html += '<b style="color:#e6c884;font-size:14px;">' + escChg(e.ver) + '</b>';
+          html += ' <span style="color:#6f6a63;font-size:12px;">' + escChg(e.date) + '</span>';
+          if (e.title) html += '<div style="color:#d8cfc0;margin:3px 0 5px;">' + escChg(e.title) + '</div>';
+          html += '<ul style="margin:0;padding-left:18px;">';
+          (e.items || []).forEach(function (it) { html += '<li style="margin:3px 0;">' + escChg(it) + '</li>'; });
+          html += '</ul></div>';
+        });
+        body.innerHTML = html;
+      }).catch(function () { if (!settled) { settled = true; clearTimeout(tm); tryNext(); } });
+    }
+    tryNext();
+    /* 打开版本页立刻嗅一次，不等 20 秒那一拍 */
+    try { __thLiveVerTick(); } catch (eTick0) {}
+  }
+
+  /* ══ ★ 推送通知 ═══════════════════════════════════════════════════════
+     玩家要的是「通知」：**推了新版本，主动告诉我一次**，而不是让我自己
+     想起去点「📜 版本」，更不是每次都要问一句「你到底推送了没有」。
+
+     做法：脚本起来 ~2.2 秒后自己比一次
+        · 本次 loader 实际在用的 ref（__SPR_HOT_TAG__，没有就退 __SPR_ACTIVE_TAG）
+        · 玩家上次确认过的 ref（localStorage.SPR_SEEN_TAG）
+     两者不一样 → 弹一条通知，带「看看更新了啥」直达更新记录弹层。
+     ★ 每次 ref 变化都弹一次；同一版只弹一次（SPR_SEEN_TAG 记账）。
+       首次进入也弹 —— 玩家第一次就能确认「热更到底认没认出来」，
+       比静默更可信。
+     ★ 探测失败（__SPR_HOT_STALE__）单独弹一条「你可能还在旧版」，带刷新按钮 ——
+        这正是过去几小时里最坑人的那种情况：没有任何提示，只能靠猜。 */
+  try { window.__thOpenChangelog = thOpenChangelog; } catch (eExChg) {}
+
+  function thNotifyUpdate() {
+    var doc = getDoc();
+    if (!doc || !doc.body) return;
+    if (doc.getElementById('th-hotnotify')) return;
+    /* escChg 定义在 thOpenChangelog 内部，这里够不着，自带一个 */
+    function escN(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    var tag = '', stale = false;
+    try { tag = window.__SPR_HOT_TAG__ || (HOST && HOST.__SPR_HOT_TAG__) || ''; } catch (eN0) {}
+    if (!tag) { try { tag = window.__SPR_ACTIVE_TAG || (HOST && HOST.__SPR_ACTIVE_TAG) || ''; } catch (eN1) {} }
+    try { stale = !!(window.__SPR_HOT_STALE__ || (HOST && HOST.__SPR_HOT_STALE__)); } catch (eN2) {}
+
+    /* ★ 键名换到 V2。旧键 SPR_SEEN_TAG 在 v1.26/v1.27 那两版里是「一显示就记账」，
+       早就被写满了 —— 如果继续用同一个键，新的常驻通知会因为「这一版已通知过」
+       永远不出现，玩家看到的就是「又变回旧的通知了」。换键 = 重新开始一次。 */
+    var KEY = 'SPR_SEEN_TAG_V2', seen = '';
+    try { seen = localStorage.getItem(KEY) || ''; } catch (eN3) {}
+
+    var mark = stale ? ('stale:' + tag) : String(tag || '');
+    if (mark && mark === seen) return;          /* 玩家已经点过「去看更新」，这一版就放过 */
+    if (!stale && !tag) return;
+    /* ★ 不在这里记账。玩家的要求是「没更新之前不准消失」——
+       所以只要他没点过按钮，这一版每次开机都要再弹出来一次。
+       记账（SPR_SEEN_TAG）挪到点按钮那一刻，由 ack() 写。 */
+    function ack() { try { localStorage.setItem(KEY, mark); } catch (eN4) {} }
+
+    var card = doc.createElement('div');
+    card.id = 'th-hotnotify';
+    /* ★ 屏幕正中间常驻。玩家原话：「把通知常驻悬浮在屏幕正中间，没更新之前不准消失。」
+       所以：不自动收、不给「知道了」、点关闭也不走 —— 只有点「去看更新」才放行。
+       外层不吃点击（pointer-events:none），只有卡片自己接事件，
+       免得整块屏幕中间变成一堵点不动的墙。 */
+    /* ★ 05:55：这条通知以前是 position:fixed 挂在页面 body 上 —— 手机端等于
+       "浮在游戏界面之上"，会被地址栏/安全区挤偏，也会盖住界面外的东西。
+       现在跟顶部红条一样：挂进 #th-gal-shell-root，用 absolute。
+       界面是手机上的那张"画布"，弹什么都在画布里。 */
+    var _nShell = null;
+    try { _nShell = doc.querySelector('#th-gal-shell-root'); } catch (eNS0) { _nShell = null; }
+    if (_nShell) {
+      try {
+        var _np = window.getComputedStyle(_nShell).position;
+        if (!_np || _np === 'static') _nShell.style.setProperty('position', 'relative', 'important');
+      } catch (eNP) {}
+    }
+    card.setAttribute('style',
+      (_nShell ? 'position:absolute;' : 'position:fixed;') +
+      'top:8px;left:50%;transform:translateX(-50%) scale(.96);' +
+      'z-index:2147483640;pointer-events:auto;' +
+      'width:min(430px,94%);max-width:94%;box-sizing:border-box;padding:14px 16px;' +
+      'background:linear-gradient(160deg,rgba(28,24,36,.98),rgba(14,12,18,.98));' +
+      'border:1px solid rgba(200,170,110,.55);border-radius:14px;' +
+      'box-shadow:0 18px 50px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.4) inset;color:#e8e2d6;' +
+      'font-size:13px;line-height:1.6;backdrop-filter:blur(8px);' +
+      'opacity:0;transition:opacity .28s ease,transform .28s ease;');
+
+    var head, sub, actions;
+    if (stale) {
+      head = '⚠️ 没能确认线上版本';
+      sub = '热更探测失败，你看到的可能是旧版。刷新一次通常就好。';
+    } else {
+      head = '🔔 已更新到新版本';
+      sub = '线上版本 <b style="color:#86efac;font-family:monospace;">' + escN(String(tag).slice(0, 10)) + '</b>'
+          + '　·　卡版本 <b style="color:#c9bfae;">' + escN(String(window.__SPR_CARD_VER || '—')) + '</b>';
+    }
+
+    card.innerHTML =
+      '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="color:#e6c884;font-weight:600;letter-spacing:.3px;">' + head + '</div>' +
+          '<div style="margin-top:3px;color:#9c9385;font-size:12px;">' + sub + '</div>' +
+        '</div>' +
+      '</div>';
+
+    actions = doc.createElement('div');
+    actions.setAttribute('style', 'display:flex;gap:8px;margin-top:10px;');
+
+    function mkBtn(label, primary, fn) {
+      var b = doc.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.setAttribute('style',
+        'flex:1;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;' +
+        (primary
+          ? 'border:1px solid rgba(230,200,132,.7);background:rgba(230,200,132,.16);color:#f0dfb8;'
+          : 'border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#b8b0a2;'));
+      b.addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        ack();                     /* 只有点按钮才算「看过了」，同一版不再弹 */
+        try { fn(); } catch (eB) {}
+        close();
+      });
+      return b;
+    }
+
+    function close() {
+      try {
+        card.style.opacity = '0';
+        card.style.transform = 'translate(-50%,-50%) scale(.96)';
+        setTimeout(function () { try { if (card.parentNode) card.parentNode.removeChild(card); } catch (eC) {} }, 300);
+      } catch (eC2) {}
+    }
+
+    if (stale) {
+      /* ★ 这里原来是个「刷新页面」按钮，调 location.reload()。
+         这个卡跑在酒馆的 iframe 里，reload 一个 iframe 会把父子页面的消息通道
+         一起拽断，表现就是「一点就卡死」—— 玩家骂得对，这是我的锅。
+         现在不再动页面，只给一句手动提示。 */
+      var hint = doc.createElement('div');
+      hint.setAttribute('style', 'flex:1;padding:6px 2px;color:#c9bfae;font-size:12px;');
+      hint.textContent = '按 F5 或重新打开页面即可';
+      actions.appendChild(hint);
+    } else {
+      actions.appendChild(mkBtn('看看更新了啥', true, function () { try { thOpenChangelog(); } catch (eO) {} }));
+    }
+    card.appendChild(actions);
+
+    try { (_nShell || doc.body).appendChild(card); } catch (eAppN) { doc.body.appendChild(card); }
+    try {
+      requestAnimationFrame(function () {
+        card.style.opacity = '1';
+        card.style.transform = 'translate(-50%,-50%) scale(1)';
+      });
+    } catch (eRaf) { card.style.opacity = '1'; }
+    /* ★ 不再 setTimeout(close)。玩家要求「没更新之前不准消失」——
+       这条通知会一直挂在屏幕正中间，直到他点「看看更新了啥」。
+       刷新页面也还在（因为记账只在点按钮时发生）。 */
+    try { console.info('[通知] 常驻通知：' + (stale ? '探测失败' : ('新版本 ' + String(tag).slice(0, 10)))); } catch (eL) {}
+  }
+  try {
+    if (typeof document !== 'undefined' && document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { setTimeout(thNotifyUpdate, 2200); });
+    } else {
+      setTimeout(thNotifyUpdate, 2200);
+    }
+  } catch (eBoot) {}
+
+  var verBtn = host.querySelector('[data-th-verlog]');
+  if (verBtn) {
+    verBtn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      try { thOpenChangelog(); } catch (eC) {
+        try { if (typeof showToast === 'function') showToast('更新记录打不开：' + (eC && eC.message ? eC.message : '未知'), 3000); } catch (eT) {}
+      }
+      thHudArmAutoClose(shell);
+    });
+  }
+
+  /* ★ 重新打开外置插图：把 13-gal.js 里的 __sprExtIllust.set(true) 唤醒。
+     关图是全屏 ✕ 干的，开图只能从这里来 —— 别让玩家关了之后没处找回。 */
+  var extOpenBtn = host.querySelector('[data-th-extillopen]');
+  if (extOpenBtn) {
+    extOpenBtn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var api = null;
+      try { if (HOST && HOST.__sprExtIllust) api = HOST.__sprExtIllust; } catch (eA) {}
+      if (!api) { try { if (window.__sprExtIllust) api = window.__sprExtIllust; } catch (eB) {} }
+      if (api && typeof api.set === 'function') {
+        try { api.set(true); } catch (eS) {}
+        try { if (typeof showToast === 'function') showToast('🖼 插图已重新打开', 2600); } catch (eT) {}
+      } else {
+        try { if (typeof showToast === 'function') showToast('插图模块还没起来，进游戏后再点', 2600); } catch (eT2) {}
       }
       thHudArmAutoClose(shell);
     });
@@ -18824,9 +19900,13 @@ function syncStatusCard(shell) {
     var t = sd.时间 || {};
     var pi = sd.主角信息 || sd.玩家信息 || {};
 
+    /* ★ 11-14 05:15：这里以前**先**读酒馆 persona 名（context.name1），
+       而备用字段写的是 pi.姓名 —— 变量里存的键是「玩家姓名」，
+       于是两条路都拿不到，界面上不是 persona 名就是「旅人」。
+       现在改成：**变量里的玩家姓名优先**（玩家在确认页亲手填的），persona 只做兜底。 */
     var nm = '';
-    try { var c = getStContext(); if (c && c.name1) nm = String(c.name1); } catch (eN) {}
-    if (!nm) { try { nm = String(pi.姓名 || ''); } catch (eN2) {} }
+    try { nm = String(pi.玩家姓名 || pi.姓名 || '').trim(); } catch (eN0) { nm = ''; }
+    if (!nm) { try { var c = getStContext(); if (c && c.name1) nm = String(c.name1); } catch (eN) {} }
     if (!nm) nm = '旅人';
     var nameEl = card.querySelector('[data-ts-name]');
     if (nameEl) nameEl.textContent = nm;
@@ -19100,6 +20180,9 @@ function setupInteractions(shell) {
     diagClose.onclick = function(e) {
       e.stopPropagation();
       DialogueReader.isOpen = false;
+      /* ★ 07:26：玩家**亲手关的**框，就别再自动弹回来了（点选项、切场景、重排都不许）。
+         只有他再点「📜 对话框」才解除。 */
+      DialogueReader._userClosed = true;
       DialogueReader.render();
     };
   }
@@ -19731,10 +20814,17 @@ function setupInteractions(shell) {
     var w = 0;
     try { w = shell.getBoundingClientRect().width || shell.offsetWidth || 0; } catch (e) { }
     if (!w) { w = FONT_REF_W; }
-    var auto = Math.min(FONT_MAX, Math.max(1, w / FONT_REF_W));
+    /* ★ 06:00 作者：手机端左上角 UI 太大，没有随屏幕缩小。
+       根因就在这儿 —— `Math.max(1, …)` 把下限钉死在 1 倍，屏幕比 460 窄也照样 1 倍，
+       所以手机上永远是"桌面尺寸硬塞进小屏"。
+       现在按容器宽度**纯等比**：360px 屏 → 0.78 倍，整套 UI 一起缩，
+       不会再出现"只有字变大、框没变"的错位。下限 0.55 保底可读。 */
+    var auto = Math.min(FONT_MAX, Math.max(0.55, w / FONT_REF_W));
     var lv = fontLevel(fontPref);
     var v = Math.min(FONT_TOTAL_MAX, auto * lv.mul);
     shell.style.setProperty('--ui-scale', String(Math.round(v * 1000) / 1000));
+    /* ★ 06:14：字号一变，量尺缓存必须作废，否则下一次分页还按旧字号算 */
+    try { _galMetricsCache = { at: 0, key: '', vpW: 0, v: null }; } catch (eMC) {}
     if (btnFontSize) {
       btnFontSize.textContent = '🔤 字号:' + (fontPref === 'auto' ? '自动' : lv.name);
     }
@@ -19921,7 +21011,7 @@ function setupInteractions(shell) {
 
   /* ★ v43：这个循环会把所有 .th-gal-shell-act-btn 的 onclick 重写成 data-quick 处理。
      新加的「主角信息」按钮没有 data-quick，落在里面就等于点了没反应 ， 必须排除。 */
-  qa('.th-gal-shell-act-btn:not(.th-gal-btn-reopen-dialogue):not(.th-gal-btn-music-toggle):not(.th-gal-btn-font-size):not(.th-gal-btn-toggle-options):not(.th-gal-btn-hero):not(.th-gal-btn-history):not(.th-gal-btn-deduce):not(.th-gal-btn-cheat):not(.th-gal-btn-beautify):not(.th-gal-btn-dlg-h)', shell).forEach(function(btn) {
+  qa('.th-gal-shell-act-btn:not(.th-gal-btn-reopen-dialogue):not(.th-gal-btn-music-toggle):not(.th-gal-btn-font-size):not(.th-gal-btn-toggle-options):not(.th-gal-btn-hero):not(.th-gal-btn-history):not(.th-gal-btn-deduce):not(.th-gal-btn-cheat):not(.th-gal-btn-beautify):not(.th-gal-btn-dlg-h):not(.th-gal-btn-dlg-h-dec)', shell).forEach(function(btn) {
     btn.onclick = function() {
       var q = btn.getAttribute('data-quick');
       if (q) doSend(q);
@@ -19976,22 +21066,99 @@ function setupInteractions(shell) {
 
   /* ★ 对话框高度档位（小 / 中 / 大 / 特大）：点击轮换并立刻重写高度与重新分页！ */
   var btnDlgH = shell.querySelector('.th-gal-btn-dlg-h');
+  var btnDlgHD = shell.querySelector('.th-gal-btn-dlg-h-dec');
   function syncDlgHBtn() {
-    if (btnDlgH) btnDlgH.textContent = '↕ 高度:' + dlgHLevel(dlgHPref()).name;
-    try { shell.style.setProperty('--th-dlg-h', Math.round(dlgHRatio() * 100) + '%'); } catch (eV) {}
+    /* 显示的是「几行」，不是「小/中/大」——高度已经是行数的结果 */
+    if (btnDlgH) {
+      btnDlgH.textContent = '➕行';
+      btnDlgH.title = '加高一行 · 当前 ' + dlgLinesPref() + ' 行';
+    }
+    if (btnDlgHD) {
+      btnDlgHD.textContent = '➖行';
+      btnDlgHD.title = '降低一行（每点一次正好少一行字）· 当前 ' + dlgLinesPref() + ' 行';
+    }
+    try { shell.style.setProperty('--th-dlg-h', dialogueHeightPx(shell.querySelector('.th-gal-dialogue-body')) + 'px'); } catch (eV) {}
   }
   syncDlgHBtn();
   try { fitDialogueStage(shell); } catch (eF0) {}
   if (btnDlgH) {
+    /* ★ 05:34：真正的强制重排。
+       以前只调 refit()，而 refit 依赖 this.lastRaw —— 那条路没走过的话它是空的，
+       refit 就什么都不做，于是"框变高了、字还是那么几行"。
+       这里：拿不到 lastRaw 就重新从最新一楼取原文，清掉几何缓存，再完整跑一遍分页。 */
+    var _forcePaginate = function () {
+      try {
+        var raw = String(DialogueReader.lastRaw || '');
+        if (!raw) {
+          try { raw = String(getLatestAIRawText() || ''); } catch (eG0) { raw = ''; }
+        }
+        try { DialogueReader.lastGeom = ''; } catch (eG1) {}
+        if (raw) {
+          try { DialogueReader.lastSource = ''; } catch (eG2) {}
+          DialogueReader.setRawText(raw, false);
+        } else {
+          try { DialogueReader.render(); } catch (eR1) {}
+        }
+      } catch (eFP) {}
+    };
+
+    var _stepLines = function (delta) {
+      var before = dlgLinesPref();
+      var _bEl0 = shell.querySelector('.th-gal-dialogue-body');
+      var _cap = dlgMaxLines(_bEl0);
+      /* ★ 06:05：先问"这块屏幕最多几行"。到顶再加就不是"框变高"，而是"字溢出去" */
+      if (delta > 0 && before >= _cap) {
+        if (before > _cap) setDlgLines(_cap);
+        syncDlgHBtn();
+        popToast('已经到顶：这块屏幕最多 ' + _cap + ' 行（框的高度有上限）');
+        return;
+      }
+      var after = setDlgLines(Math.min(before + delta, _cap));
+      if (after === before) { popToast('已经是' + (delta > 0 ? '最多' : '最少') + ' ' + after + ' 行'); return; }
+      /* 一句一页模式下，框多高都不影响每页几个字 —— 那这个按钮就等于没反应。
+         玩家按了加减行，意图显然是"框高决定字数"，所以自动切回「装满」。 */
+      var switched = false;
+      try {
+        if (dlgPageMode() === 'one') {
+          try { sessionStorage.setItem(DLG_PAGE_KEY, 'fill'); localStorage.setItem(DLG_PAGE_KEY, 'fill'); } catch (ePM) {}
+          switched = true;
+          if (typeof syncDlgPageBtn === 'function') { try { syncDlgPageBtn(); } catch (eSP) {} }
+        }
+      } catch (ePm2) {}
+      syncDlgHBtn();
+      try { fitDialogueStage(shell); } catch (eF) {}
+      _forcePaginate();
+      /* 诊断出口：卡住时让作者一眼看到"容量到底算成多少" */
+      try {
+        var _b = shell.querySelector('.th-gal-dialogue-body');
+        window.__TH_DLG_DBG__ = {
+          lines: after,
+          lineH: galLineH(_b),
+          boxH: dialogueHeightPx(_b),
+          availH: computeGalAvailH(_b),
+          pages: (DialogueReader.pages || []).length,
+          mode: dlgPageMode()
+        };
+      } catch (eDbg2) {}
+      popToast('对话框：' + after + ' 行' + (switched ? '（已切回装满模式）' : ''));
+    };
     btnDlgH.onclick = function (e) {
       e.stopPropagation();
       try { PixelAudio.playSelect(); } catch (eA) {}
-      var nextK = nextDlgHPref();
-      try { localStorage.setItem(DLG_H_KEY, nextK); } catch (eL) {}
-      syncDlgHBtn();
-      try { fitDialogueStage(shell); } catch (eF) {}
-      try { DialogueReader.refit(); } catch (eR) {}
-      popToast('对话框高度已切为：【' + dlgHLevel(nextK).name + '】（视口 ' + Math.round(dlgHLevel(nextK).ratio * 100) + '%）');
+      _stepLines(1);
+    };
+    /* Shift+左键 / 右键 仍然可以减，但**主入口是旁边那颗独立按钮** */
+    btnDlgH.oncontextmenu = function (e) {
+      e.preventDefault(); e.stopPropagation();
+      try { PixelAudio.playSelect(); } catch (eA2) {}
+      _stepLines(-1);
+    };
+  }
+  if (btnDlgHD) {
+    btnDlgHD.onclick = function (e) {
+      e.stopPropagation();
+      try { PixelAudio.playSelect(); } catch (eA3) {}
+      _stepLines(-1);
     };
   }
 
@@ -22841,6 +24008,27 @@ async function updateContainer(shell) {
       else if (setupInteractions && typeof setupInteractions.switchSceneLocation === 'function') setupInteractions.switchSceneLocation(dest, { free: true });
       else if (typeof HOST !== 'undefined' && HOST && typeof HOST.__thSwitchScene === 'function') HOST.__thSwitchScene(dest, { free: true });
     } catch (eSw) { try { console.warn('⚠️ 切场景失败：' + eSw); } catch (eSw2) {} }
+
+    /* ══ ★ 开局后核对：不管向导哪一环断了，1.2 秒后强制对齐模式 ══
+       玩家的原话：「选牛头，开局还是纯爱」。前面 chooseMode → beginGameConfirmed
+       → arcInitPatch 三级传递，任何一环哑了最终都读不到值（读不到默认纯爱）。
+       这里是最后一道闸：以 opts.gameMode 为准，读回来的不对就补写一次。
+       1.2 秒延迟是给 MVU 落库留的空窗，之前读过它写完立刻读还是旧值。 */
+    try {
+      (function (_wantArc, _wantGm) {
+        setTimeout(function () {
+          try {
+            var now = thGameModeOf();
+            if (now !== _wantGm) {
+              try { console.warn('[SPR] 开局核对：应为 ' + _wantGm + '、读到 ' + now + '，强制补写'); } catch (eW1) {}
+              thSetGameMode(_wantGm);
+            } else {
+              try { console.info('[SPR] 开局核对通过：' + now); } catch (eW2) {}
+            }
+          } catch (eG1) {}
+        }, 1200);
+      })(arc, opts.gameMode || '纯爱');
+    } catch (eGm0) {}
     var jumpOk = false;
     if (rewriteGreeting) {
       try { jumpOk = jumpToGreeting(idx); } catch (eJ) {}
@@ -23096,22 +24284,35 @@ async function updateContainer(shell) {
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function thPiCollect() {
+    /* ★ 每次现查活的 DOM（thEl 会跨 document 找）。
+       原来只用加载时抓的 piName / piBody / piAge / piMind 四个引用：
+       壳一重建，那几个节点就成了游离节点，.value 永远是空串 ——
+       玩家明明填了字，收上来全是空，确认页于是永远显示「未指定」，
+       而且它一声不吭，静默丢数据。 */
+    var n = thEl('th-pi-name') || piName;
+    var b = thEl('th-pi-body') || piBody;
+    var a = thEl('th-pi-age') || piAge;
+    var m = thEl('th-pi-mind') || piMind;
     return thNormPlayerInfo({
-      '玩家姓名': piName ? piName.value : '',
-      '玩家外貌身材': piBody ? piBody.value : '',
-      '玩家年龄': piAge ? piAge.value : '',
-      '玩家性格': piMind ? piMind.value : ''
+      '玩家姓名': n ? n.value : '',
+      '玩家外貌身材': b ? b.value : '',
+      '玩家年龄': a ? a.value : '',
+      '玩家性格': m ? m.value : ''
     });
   }
   function thPiFill(p) {
     p = thNormPlayerInfo(p);
-    if (piName) piName.value = p['玩家姓名'];
-    if (piBody) piBody.value = p['玩家外貌身材'];
-    if (piAge) piAge.value = p['玩家年龄'];
-    if (piMind) piMind.value = p['玩家性格'];
+    var n = thEl('th-pi-name') || piName;
+    var b = thEl('th-pi-body') || piBody;
+    var a = thEl('th-pi-age') || piAge;
+    var m = thEl('th-pi-mind') || piMind;
+    if (n) n.value = p['玩家姓名'];
+    if (b) b.value = p['玩家外貌身材'];
+    if (a) a.value = p['玩家年龄'];
+    if (m) m.value = p['玩家性格'];
   }
   function thSyncArcLabels() {
-    var t = arcDisplayName(thPendingArc) + '篇';
+    var t = arcDisplayName(thPendingArc);   /* 已含「篇」，不要再拼 */
     if (modeArcLabel) modeArcLabel.textContent = t;
     if (seasonArcLabel) seasonArcLabel.textContent = t;
     if (artArcLabel) artArcLabel.textContent = t;
@@ -23120,16 +24321,30 @@ async function updateContainer(shell) {
   }
   function renderConfirm() {
     if (!confirmList) return;
+    /* ★ 以 window 上那份为准。标题页重建成新闭包时 thPendingMode 会回到初始值，
+       而 window.__SPR_PICK 是玩家真正点过的东西，跨闭包唯一可信。 */
+    try {
+      var _pk = window.__SPR_PICK || {};
+      if (_pk.mode) thPendingMode = _pk.mode;
+      if (_pk.season) thPendingSeason = _pk.season;
+      if (_pk.art) thPendingArt = _pk.art;
+      if (_pk.startType) thPendingStartType = _pk.startType;
+      if (_pk.pi) thPendingPlayerInfo = _pk.pi;
+    } catch (ePk) {}
     var pi = thNormPlayerInfo(thPendingPlayerInfo);
     var rows = [
-      ['起始篇章', arcDisplayName(thPendingArc) + '篇', false],
+      /* ★ arcDisplayName 自带「篇」字（神社篇 / 幸福公寓篇 / 夏越村篇），
+         这里再拼一个就是「神社篇篇」—— 玩家截图里那个重复就是这么来的。 */
+      ['起始篇章', arcDisplayName(thPendingArc), false],
       ['游戏模式', thPendingMode + '模式', false],
       ['季节', TH_SEASON_META[thPendingSeason].icon + ' ' + thPendingSeason, false],
       ['插图版本', TH_ART_META[thPendingArt].icon + ' ' + thPendingArt, false],
-      ['玩家姓名', pi['玩家姓名'] || '（未填写 → 不定义 u，正文只用「你」）', !pi['玩家姓名']],
-      ['外貌身材', pi['玩家外貌身材'] || '（未填写 → 不描写 u 的外貌）', !pi['玩家外貌身材']],
-      ['玩家年龄', pi['玩家年龄'] || '（未填写 → 不暗示年纪）', !pi['玩家年龄']],
-      ['玩家性格', pi['玩家性格'] || '（未填写 → 不替 u 定性格）', !pi['玩家性格']],
+      /* 未填写「未指定」。原来那串「（未填写 → 不定义 u，正文只用「你」）」是
+         写给模型看的规则说明，印在确认页上像调试日志，玩家看不懂要它干嘛。 */
+      ['玩家姓名', pi['玩家姓名'] || '未指定', !pi['玩家姓名']],
+      ['外貌身材', pi['玩家外貌身材'] || '未指定', !pi['玩家外貌身材']],
+      ['玩家年龄', pi['玩家年龄'] || '未指定', !pi['玩家年龄']],
+      ['玩家性格', pi['玩家性格'] || '未指定', !pi['玩家性格']],
       ['开局类型', thPendingStartType === '梦幻开局' ? '🌙 梦幻开局 · 所有女角色好感 100' : '🌤 正常开局 · 原始好感起步', false]
     ];
     var h = '';
@@ -23147,19 +24362,90 @@ async function updateContainer(shell) {
     applyTitleState();
   }
   function chooseMode(mode) {
+    /* 诊断：点「牛头」时这行必须出现。没出现就是按钮绑定失效（DOM 被重建过）。 */
+    try { console.log('[SPR] chooseMode =', mode); } catch (eDg1) {}
     thPendingMode = thNormGameMode(mode);
+    /* ★ 关键：同时写一份到 window。
+       确认页 renderConfirm 和开局 beginGameConfirmed 用的是**另一个闭包**里的
+       thPendingMode（标题页每重建一次就是一套新闭包），只改本闭包那个变量，
+       确认页永远读到初始值「纯爱」—— 这就是「点了牛头、确认页仍是纯爱」的根因。 */
+    try {
+      window.__SPR_PICK = window.__SPR_PICK || {};
+      window.__SPR_PICK.mode = thPendingMode;
+      console.info('[SPR] 记录选择 mode =', thPendingMode);
+    } catch (ePick) {}
     try { sessionStorage.setItem('thGalPendingModeChoice', thPendingMode); } catch (eM) {}
     writeTitleState('season');
     applyTitleState();
   }
+  /* ★ 把选择函数挂到 window，供事件委托调用。
+     标题页每次 applyTitleState 都会重建 DOM，直接绑在节点上的 onclick 会
+     随旧节点一起失效 —— 玩家点了「牛头」什么也没发生，就是这么来的。
+     委托挂在 document 上，节点换了也照样命中。 */
+  try { window.__thChooseMode = chooseMode; } catch (eE1) {}
+  try { window.__thChooseSeason = chooseSeason; } catch (eE2) {}
+  try { window.__thChooseArt = chooseArt; } catch (eE3) {}
+  try { window.__thChooseStartType = chooseStartType; } catch (eE4) {}
+  try {
+    if (!window.__thTitleDelegate) {
+      window.__thTitleDelegate = 1;
+      var __tdDoc = getDoc();
+      __tdDoc.addEventListener('click', function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest) return;
+        var card = null;
+
+        /* 模式 */
+        card = t.closest('#th-mode-card-love, #th-mode-card-bull');
+        if (card) {
+          ev.preventDefault(); ev.stopPropagation();
+          try { window.__thChooseMode(card.id === 'th-mode-card-bull' ? '牛头' : '纯爱'); } catch (eC1) {}
+          return;
+        }
+        /* 季节：spring / summer / autumn / winter */
+        card = t.closest('#th-season-card-spring, #th-season-card-summer, #th-season-card-autumn, #th-season-card-winter');
+        if (card) {
+          ev.preventDefault(); ev.stopPropagation();
+          var seMap = { 'th-season-card-spring': '春', 'th-season-card-summer': '夏', 'th-season-card-autumn': '秋', 'th-season-card-winter': '冬' };
+          try { window.__thChooseSeason(seMap[card.id] || '夏'); } catch (eC2) {}
+          return;
+        }
+        /* 插图版本：old / new / mix */
+        card = t.closest('#th-art-card-old, #th-art-card-new, #th-art-card-mix');
+        if (card) {
+          ev.preventDefault(); ev.stopPropagation();
+          var arMap = { 'th-art-card-old': '旧插图', 'th-art-card-new': '新插图', 'th-art-card-mix': '新旧融合' };
+          try { window.__thChooseArt(arMap[card.id] || '新插图'); } catch (eC3) {}
+          return;
+        }
+        /* 开局类型：这两颗没有 id，只能按文案认 */
+        card = t.closest('.th-gal-branch-card, .th-gal-starttype-card, button');
+        if (card) {
+          var tx = String(card.textContent || '');
+          if (tx.indexOf('梦幻开局') >= 0 && tx.length < 40) {
+            ev.preventDefault(); ev.stopPropagation();
+            try { window.__thChooseStartType('梦幻开局'); } catch (eC4) {}
+            return;
+          }
+          if (tx.indexOf('正常开局') >= 0 && tx.length < 40) {
+            ev.preventDefault(); ev.stopPropagation();
+            try { window.__thChooseStartType('正常开局'); } catch (eC5) {}
+            return;
+          }
+        }
+      }, true);
+    }
+  } catch (eTd) {}
   function chooseSeason(season) {
     thPendingSeason = thNormSeason(season);
+    try { window.__SPR_PICK = window.__SPR_PICK || {}; window.__SPR_PICK.season = thPendingSeason; } catch (ePS) {}
     try { sessionStorage.setItem('thGalPendingSeasonChoice', thPendingSeason); } catch (eS) {}
     writeTitleState('art');
     applyTitleState();
   }
   function chooseArt(art) {
     thPendingArt = thNormArt(art);
+    try { window.__SPR_PICK = window.__SPR_PICK || {}; window.__SPR_PICK.art = thPendingArt; } catch (ePA) {}
     try { sessionStorage.setItem('thGalPendingArtChoice', thPendingArt); } catch (eAr) {}
     thPiFill(thPendingPlayerInfo);
     thSyncArcLabels();
@@ -23168,11 +24454,25 @@ async function updateContainer(shell) {
   }
   function choosePlayerInfo() {
     thPendingPlayerInfo = thPiCollect();
+    /* ★ 必须和 mode / season / art / startType 一样落一份到 window.__SPR_PICK。
+       其它四个选择函数都写了，唯独这里漏了 —— 而 renderConfirm / beginGameConfirmed
+       都是「闭包里那份为空就以 __SPR_PICK 为准」。标题页重建成新闭包时
+       thPendingPlayerInfo 会回到 thNormPlayerInfo({})，
+       这时 __SPR_PICK.pi 又是 undefined，确认页就只能显示「未指定」。
+       少这一行，玩家填什么都不会出现在确认页上。 */
+    try {
+      window.__SPR_PICK = window.__SPR_PICK || {};
+      window.__SPR_PICK.pi = thPendingPlayerInfo;
+    } catch (ePPi) {}
     writeTitleState('starttype');
     applyTitleState();
   }
   function chooseStartType(st) {
     thPendingStartType = thNormStartType(st);
+    try { window.__SPR_PICK = window.__SPR_PICK || {}; window.__SPR_PICK.startType = thPendingStartType; } catch (ePSt) {}
+    /* 和其它几屏一样落一份 sessionStorage：按钮绑定被 DOM 重建冲掉时，
+       只剩这一行还能证明玩家点过什么。 */
+    try { sessionStorage.setItem('thGalPendingStartTypeChoice', thPendingStartType); } catch (eSt) {}
     renderConfirm();
     writeTitleState('confirm');
     applyTitleState();
@@ -23187,6 +24487,35 @@ async function updateContainer(shell) {
     var av = thPendingArt;
     var st = thPendingStartType;
     var pi = thNormPlayerInfo(thPendingPlayerInfo);
+    /* ★ 同上：闭包里的变量可能是初始值，window 上那份才是玩家点过的。 */
+    try {
+      var _pk2 = window.__SPR_PICK || {};
+      if (_pk2.mode) gm = thNormGameMode(_pk2.mode);
+      if (_pk2.season) se = thNormSeason(_pk2.season);
+      if (_pk2.art) av = thNormArt(_pk2.art);
+      if (_pk2.startType) st = thNormStartType(_pk2.startType);
+      if (_pk2.pi) pi = thNormPlayerInfo(_pk2.pi);
+    } catch (ePk2) {}
+    /* ★ 和 sessionStorage 对一次。标题页每次 applyTitleState 都会重建 DOM，
+       按钮的 onclick 绑在旧节点上会失效 —— 那种情况下 chooseMode 里的
+       `thPendingMode = ...` 根本没执行，只有 sessionStorage 那行落了。
+       这里补读，保证「玩家点过什么」就是「开局用什么」。 */
+    try {
+      var _svGm = sessionStorage.getItem('thGalPendingModeChoice');
+      if (_svGm) gm = thNormGameMode(_svGm);
+      var _svSe = sessionStorage.getItem('thGalPendingSeasonChoice');
+      if (_svSe) se = thNormSeason(_svSe);
+      var _svAv = sessionStorage.getItem('thGalPendingArtChoice');
+      if (_svAv) av = thNormArt(_svAv);
+      var _svSt = sessionStorage.getItem('thGalPendingStartTypeChoice');
+      if (_svSt) st = thNormStartType(_svSt);
+    } catch (eSv2) {}
+    /* 诊断：开局这一刻把四个来源都打出来，一眼看出是「玩家没点上」还是「变量没写进去」。 */
+    try {
+      console.log('[SPR] beginGameConfirmed 模式：内存=' + thPendingMode +
+        ' session=' + (function () { try { return sessionStorage.getItem('thGalPendingModeChoice') || '(空)'; } catch (e) { return '?'; } })() +
+        ' 最终=' + gm);
+    } catch (eDg2) {}
     /* 先写全部变量，再开局；梦幻开局的好感由 arcInitPatch 落库 */
     thSetGameMode(gm, { skipPeerSync: true });
     thSetSeason(se, true);
@@ -24505,5 +25834,310 @@ try {
     };
   }
 } catch (eExp) {}
+
+/* ══ 游戏内实时版本检查（照抄天元录 v610 的思路）════════════════════════
+   玩家在玩的时候每 20 秒问一次 COS 的 ver.js —— 一个 30 字节的 <script>：
+     · 用 <script> 而不是 XHR ⇒ 不需要 CORS（COS 跨域头那套折腾全免）
+     · 带 ?t= ⇒ 中间层/浏览器缓存都绕开
+     · 拿到的号比**当前正在跑的**新 ⇒ 右下角挂一条角标，说明刷新后生效
+   ⚠ 只提示：**绝不自动 reload**，也不做「一键刷新」按钮 ——
+     iframe 里 location.reload() 会把酒馆那块刷成白板（11-14 真踩过）。
+   ⚠ 页面不可见时跳过、不发请求：挂机 8 小时 = 1440 次，纯浪费。 */
+function __thLiveVerCmp(a, b) {
+  var x = String(a || '').replace(/^v/i, '').split('.');
+  var y = String(b || '').replace(/^v/i, '').split('.');
+  var n = Math.max(x.length, y.length), i, p, q;
+  for (i = 0; i < n; i++) {
+    p = parseInt(x[i], 10) || 0; q = parseInt(y[i], 10) || 0;
+    if (p > q) return 1;
+    if (p < q) return -1;
+  }
+  return 0;
+}
+
+function __thLiveVerCur() {
+  var v = '';
+  try { v = String(window.__SPR_OSS_VER__ || window.__SPR_HOT_VER__ || ''); } catch (e0) {}
+  if (!/^v\d+(\.\d+)+$/.test(v)) { try { v = String(window.__SPR_CARD_VER || ''); } catch (e1) {} }
+  return v;
+}
+
+/* ★ 刷新：在酒馆的脚本 iframe 里 location.reload() 只会把这一小块刷成白板
+   （srcdoc/blob 环境没有可重新加载的地址），必须刷**顶层窗口**。 */
+function __thDoReload() {
+  try {
+    if (window.top && window.top !== window) { window.top.location.reload(); return; }
+  } catch (e0) {}
+  try { location.reload(); } catch (e1) {}
+}
+
+/* 左上角/顶栏那个「📜 版本」按钮 —— 有新版本就整颗变红，玩家一眼看到就点进去 */
+function __thMarkVerBadge(on) {
+  try {
+    /* ★ 05:47：这里原来查的是 `document` —— 脚本自己那个**隐藏 iframe**，
+       里面根本没有顶栏按钮，所以徽章永远变不红。必须查宿主页面。 */
+    var _d = getDoc();
+    var list = _d.querySelectorAll('[data-th-verlog]');
+    for (var i = 0; i < list.length; i++) {
+      var b = list[i];
+      if (on) {
+        b.style.background = 'linear-gradient(160deg,#7f1d1d,#b91c1c)';
+        b.style.borderColor = 'rgba(255,140,140,.85)';
+        b.style.color = '#fff';
+        b.style.boxShadow = '0 0 12px rgba(220,38,38,.65)';
+        b.style.fontWeight = '700';
+        b.setAttribute('data-newver', '1');
+        if (!b.querySelector('.th-newver-dot')) {
+          var dot = _d.createElement('span');
+          dot.className = 'th-newver-dot';
+          dot.setAttribute('style', 'display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5252;margin-left:5px;vertical-align:middle;box-shadow:0 0 6px #ff5252;');
+          b.appendChild(dot);
+        }
+      } else {
+        b.style.background = ''; b.style.borderColor = ''; b.style.color = '';
+        b.style.boxShadow = ''; b.style.fontWeight = '';
+        b.removeAttribute('data-newver');
+        try { var d0 = b.querySelector('.th-newver-dot'); if (d0) d0.remove(); } catch (eD) {}
+      }
+    }
+  } catch (e1) {}
+}
+
+/* ★ 顶部常驻横幅：读到有新版就挂在最上方，**没有关闭按钮、不会自动消失**。
+   玩家点它 = 刷新到新版；刷新完版本就对上了，横幅自然不再出现。 */
+function __thLiveVerShow(v) {
+  /* ★ 05:47 关键：横幅必须画在**玩家看得见的那个文档**里。
+     以前写的是 `document` —— 也就是脚本所在的隐藏 iframe，
+     节点确实建出来了，但玩家永远看不到（版本页能刷新、横幅却不弹，就是这个）。 */
+  var doc = null, d = null;
+  try { doc = getDoc(); } catch (eG) { doc = null; }
+  if (!doc) { try { doc = document; } catch (eG2) { doc = null; } }
+  try { if (!doc || !doc.body) return; } catch (e0) { return; }
+  try { d = doc.getElementById('th-newver-banner'); } catch (e1) { d = null; }
+  /* ★ 05:50 作者要求：提示要挂进**游戏界面自己的最上方**，不是浏览器视口顶部。
+     理由很实在 —— 手机端视口顶部可能被状态栏/地址栏吃掉，fixed 定位在不同容器里
+     还容易被 overflow / transform 裁掉。挂进 #th-gal-shell-root 之后，
+     它跟界面同生共死：界面在哪儿它就在哪儿，缩放、全屏、移动端都不会漂。 */
+  var _shell = null;
+  try { _shell = doc.querySelector('#th-gal-shell-root'); } catch (eSh) { _shell = null; }
+  if (!d) {
+    d = doc.createElement('div');
+    d.id = 'th-newver-banner';
+    d.setAttribute('style',
+      (_shell ? 'position:absolute;' : 'position:fixed;') +
+      'top:0;left:50%;transform:translateX(-50%);' +
+      'z-index:2147483642;padding:8px 16px;border-radius:0 0 12px 12px;' +
+      'font-size:12.5px;line-height:1.4;letter-spacing:.02em;cursor:pointer;' +
+      'background:linear-gradient(160deg,#b91c1c,#7f1d1d);' +
+      'border:1px solid rgba(255,150,150,.6);border-top:0;color:#fff;' +
+      'box-shadow:0 10px 26px rgba(120,0,0,.55);font-family:inherit;' +
+      'display:flex;align-items:center;gap:7px;white-space:nowrap;' +
+      'max-width:96%;box-sizing:border-box;');
+    d.onclick = function (e) { try { e.stopPropagation(); } catch (eS) {} __thDoReload(); };
+    /* absolute 定位需要一个已定位的祖先。壳本身没写 position 的话，
+       banner 会跑到别的地方去 —— 这里兜一层。 */
+    if (_shell) {
+      try {
+        var _sp = window.getComputedStyle(_shell).position;
+        if (!_sp || _sp === 'static') _shell.style.setProperty('position', 'relative', 'important');
+      } catch (ePos) {}
+    }
+    try { (_shell || doc.body).appendChild(d); } catch (e2) { return; }
+  } else if (_shell && d.parentNode !== _shell) {
+    /* 界面重绘后 banner 可能被搬走/丢掉，挪回最上层 */
+    try { _shell.appendChild(d); } catch (eMv) {}
+  }
+  d.innerHTML = '<span style="font-size:15px;">🔔</span>'
+    + '<span>有新版本 <b style="font-family:monospace;">' + String(v).replace(/[<>&]/g, '') + '</b></span>'
+    + '<span style="padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);font-size:12px;">点击刷新</span>';
+  __thMarkVerBadge(true);
+  /* 弹层开着的话，把「已有 vX + 点击刷新」直接塞进去 */
+  try {
+    var slot = doc.getElementById('th-vlog-live');
+    if (slot) {
+      slot.innerHTML = ' · <b style="color:#f0a95c;">已有 ' + String(v).replace(/[<>&]/g, '') + '</b>'
+        + '<button type="button" id="th-vlog-reload" style="margin-left:8px;padding:3px 10px;border-radius:999px;'
+        + 'border:1px solid rgba(255,150,150,.6);background:linear-gradient(160deg,#b91c1c,#7f1d1d);color:#fff;'
+        + 'font-size:11px;cursor:pointer;">点击刷新</button>';
+      var rb2 = doc.getElementById('th-vlog-reload');
+      if (rb2) rb2.onclick = function (e) { try { e.stopPropagation(); } catch (e0) {} __thDoReload(); };
+    }
+  } catch (eSlot) {}
+}
+
+
+/* 每 20 秒真去问一次：<script> 读 COS 的 ver.js（不走 XHR ⇒ 不需要 CORS）。
+   拿到的号比当前在跑的版本大 ⇒ 顶部挂横幅 + 版本按钮变红。
+   ⚠ 只看不刷：刷不刷由玩家点，绝不自动 reload。 */
+function __thLiveVerTick() {
+  /* 面板重绘会把内联红色冲掉，每次进来先补一次 */
+  try {
+    var _nv0 = String(window.__SPR_LIVE_NEW__ || '');
+    if (_nv0) __thLiveVerShow(_nv0);
+  } catch (eNv0) {}
+  /* ★ 05:23 真凶：这一句原来判的是**脚本自己那个 iframe** 的 visibilityState。
+     酒馆助手把脚本塞在隐藏 iframe 里跑，那个 document 永远是 hidden
+     ⇒ 每次轮询都在这里 return，实时嗅探等于从来没跑过（刷新后才看到新版本）。
+     改成看**宿主页面**（TOP.document）——玩家真正在看的那一页。 */
+  var _vis = 'visible';
+  try {
+    if (window.top && window.top.document && window.top.document.visibilityState) {
+      _vis = String(window.top.document.visibilityState);
+    } else if (document.visibilityState) {
+      _vis = String(document.visibilityState);
+    }
+  } catch (eV0) {}
+  if (_vis === 'hidden') { try { window.__SPR_LIVE_DBG__ = 'skip:hidden'; } catch (eV1) {} return; }
+  var done = false;
+  function fin(v) {
+    if (done) return;
+    done = true;
+    if (!/^v\d+(\.\d+)+$/.test(v)) return;
+    /* ★ 05:22：先用构建序号比（只增不减）。版本号会被作者回退（v1.53→v1.22），
+       只比字符串的话，回退之后永远认为"没有新版"。seq 拿不到才退回字符串比。 */
+    var q = 0, curSeq = 0;
+    try { q = Number(window.__CQ_OSS_SEQ__ || 0); } catch (eQ) {}
+    try { curSeq = Number(window.__SPR_SEQ__ || (window.top && window.top.__SPR_SEQ__) || 0); } catch (eQS) {}
+    var cur = __thLiveVerCur();
+    var newer = (q && curSeq) ? (q > curSeq) : (cur && __thLiveVerCmp(v, cur) > 0);
+    /* 诊断出口：卡住时看这一段就知道是没拉到、还是判定成"不比卡内新" */
+    try {
+      window.__SPR_LIVE_DBG__ = { at: Date.now(), ossVer: v, ossSeq: q, runVer: cur, runSeq: curSeq, newer: !!newer };
+    } catch (eDbg) {}
+    if (newer) {
+      try { window.__SPR_LIVE_NEW__ = v; } catch (e1) {}
+      try { if (window.top && window.top !== window) window.top.__SPR_LIVE_NEW__ = v; } catch (e2) {}
+      __thLiveVerShow(v);
+    }
+  }
+  try {
+    var el = document.createElement('script');
+    el.src = 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/ver.js?t=' + Date.now();
+    el.async = false;
+    el.onload = function () {
+      var v = '';
+      try { v = String(window.__CQ_OSS_VER__ || ''); } catch (e3) {}
+      fin(v);
+    };
+    el.onerror = function () { fin(''); };
+    (document.head || document.documentElement).appendChild(el);
+    setTimeout(function () { fin(''); }, 5000);
+  } catch (e4) { fin(''); }
+}
+
+
+/* ══ 生成状态条（推进中 / 推进结束）══════════════════════════════════════
+   作者要求：只能显示在**游戏界面最上方**，不许浮在页面上。
+   所以挂进 #th-gal-shell-root，absolute 居中，跟界面同生共死。
+   结束态留 2.5 秒再收，让玩家看见"这一轮完了"。 */
+var __thGenHideTimer = null;
+var __thGenWasOn = false;
+function __thGenBanner(on) {
+  try {
+    var d = getDoc();
+    if (!d || !d.body) return;
+    var shell = d.querySelector('#th-gal-shell-root');
+    if (!shell) return;
+    var el = d.getElementById('th-genbar');
+    if (!el) {
+      el = d.createElement('div');
+      el.id = 'th-genbar';
+      el.setAttribute('style',
+        'position:absolute;top:0;left:50%;transform:translateX(-50%);' +
+        'z-index:2147483641;padding:6px 16px;border-radius:0 0 10px 10px;' +
+        'font-size:12px;line-height:1.4;letter-spacing:.03em;pointer-events:none;' +
+        'font-family:inherit;white-space:nowrap;box-sizing:border-box;max-width:96%;' +
+        'display:none;');
+      /* 不碰 shell 的 position：上次怀疑就是这句把绝对定位的基准改了，
+         导致对话框高度算错一行。static 也能挂，只是定位基准变成更上层容器。 */
+      try { shell.appendChild(el); } catch (eA) { return; }
+    }
+    if (__thGenHideTimer) { try { clearTimeout(__thGenHideTimer); } catch (eT) {} __thGenHideTimer = null; }
+    if (!on && __thGenWasOn !== true) {
+      /* 不是"刚刚结束"，就别再弹一次 —— 否则心跳每次调 false 都重新显示 2.5 秒，永远不消失 */
+      try { el.style.display = 'none'; } catch (eH0) {}
+      return;
+    }
+    if (on) {
+      __thGenWasOn = true;
+      el.textContent = '⏳ 正在推进中…';
+      el.style.background = 'linear-gradient(160deg,rgba(120,53,15,.96),rgba(69,26,3,.96))';
+      el.style.border = '1px solid rgba(251,191,36,.55)';
+      el.style.borderTop = '0';
+      el.style.color = '#fde68a';
+      el.style.display = 'block';
+    } else {
+      __thGenWasOn = false;
+      el.textContent = '✅ 推进结束';
+      el.style.background = 'linear-gradient(160deg,rgba(20,83,45,.96),rgba(6,46,26,.96))';
+      el.style.border = '1px solid rgba(74,222,128,.5)';
+      el.style.borderTop = '0';
+      el.style.color = '#bbf7d0';
+      el.style.display = 'block';
+      __thGenHideTimer = setTimeout(function () {
+        try { el.style.display = 'none'; } catch (e0) {}
+        __thGenHideTimer = null;
+      }, 2500);
+    }
+  } catch (eGen) {}
+}
+
+/* ══ 重 roll：常驻在主角 UI 的右边 ═════════════════════════════════════
+   作者原话：「我tm的重roll按钮呢，在游戏界主角ui的紧贴的右边常驻显示的那个按钮。」
+   做法：直接塞进状态卡内部末尾（它就是 flex 行），天然紧贴右边，且随卡一起常驻。 */
+function __thDoReroll() {
+  var done = false;
+  try {
+    var c = (window.SillyTavern && SillyTavern.getContext) ? SillyTavern.getContext() : null;
+    if (c && typeof c.generate === 'function') { c.generate('regenerate'); done = true; }
+  } catch (e0) {}
+  if (!done) {
+    try {
+      var td = (window.top && window.top.document) || document;
+      var b = td.getElementById('regenerate_button') || td.querySelector('.mes_regenerate');
+      if (b) { b.click(); done = true; }
+    } catch (e1) {}
+  }
+  if (!done) { try { popToast('找不到重 roll 入口，请用酒馆原生按钮'); } catch (e2) {} }
+}
+
+function __thMountReroll() {
+  try {
+    var d = getDoc();
+    if (!d) return false;
+    /* ★ 07:16 作者：挪到对话框右边的空白处（正文右边本来就留了 46px 给页码按钮） */
+    var card = d.querySelector('.th-gal-dialogue-stage');
+    if (!card) return false;
+    if (d.getElementById('th-reroll-btn')) return true;
+    var b = d.createElement('button');
+    b.type = 'button';
+    b.id = 'th-reroll-btn';
+    b.textContent = '🔄';
+    b.title = '重 roll 这一楼（重新生成）';
+    b.setAttribute('style',
+      'position:absolute;right:8px;top:50%;transform:translateY(-50%);' +
+      'width:26px;height:26px;border-radius:50%;z-index:86;' +
+      'border:1px solid rgba(226,184,87,.55);background:rgba(16,14,20,.72);' +
+      'color:#f2e9dc;font-size:13px;line-height:1;cursor:pointer;pointer-events:auto;' +
+      'display:inline-flex;align-items:center;justify-content:center;padding:0;' +
+      'backdrop-filter:blur(6px);');
+    b.onclick = function (e) {
+      try { e.stopPropagation(); } catch (eS) {}
+      __thDoReroll();
+    };
+    try { card.appendChild(b); } catch (e1) {}
+    return true;
+  } catch (eM) { return false; }
+}
+
+/* ★ 07:13：重 roll 按钮装回来 */
+try {
+  setTimeout(function () { __thMountReroll(); }, 1200);
+  setTimeout(function () { __thMountReroll(); }, 4000);
+  setInterval(function () { try { __thMountReroll(); } catch (eI) {} }, 8000);
+} catch (eBoot) {}
+
+try { setTimeout(__thLiveVerTick, 4000); setInterval(__thLiveVerTick, 20000); } catch (eLv) {}
+
 
 })();
