@@ -1,3 +1,4 @@
+/* 春日狂想曲·统一版 v1.22 · 00-switcher.js · 源脚本：[共用] 00-模式切换·悬浮球 */
 /* ══════════════════════════════════════════════════════════════════════
    [共用] 00-模式切换 · 悬浮球  v10.1
    ──────────────────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@
 
   var KEY = 'SPR_UNIFIED_MODE';
   var LOCK = '__SPR_SWITCHER_LOCK__';
-  var CFG = {"defaultMode":"game","gameFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","textFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","bookOffInText":["连携判定","内置思维链","格式","[mvu_update]变量更新规则","[mvu_update]变量输出格式","[InitVar]初始变量","小地图与快速跳转","插图版本","人物速查"],"bookNonOnly":["内置思维链·非同层","格式·非同层","[mvu_update]变量更新规则·非同层","[InitVar]初始变量·非同层","插图系统·非同层","人物速查·非同层","user身份·非同层","主要角色行为·非同层","暴露机制·非同层","关系·非同层","人物总览·非同层","[mvu_update]变量输出格式强调"]};
+  var CFG = {"defaultMode":"game","gameFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","textFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","bookOffInText":["连携判定","内置思维链","格式","[mvu_update]变量更新规则","[mvu_update]变量输出格式","[InitVar]初始变量","小地图与快速跳转","插图版本","人物速查"],"bookNonOnly":["格式·非同层","[mvu_update]变量更新规则·非同层","[InitVar]初始变量·非同层","插图系统·非同层","人物速查·非同层","user身份·非同层","主要角色行为·非同层","暴露机制·非同层","关系·非同层","人物总览·非同层","[mvu_update]变量输出格式强调"]};
   var GAME = 'game', TEXT = 'text';
 
   /* ── 宿主 window / document（脚本跑在酒馆助手 iframe 里） ────────── */
@@ -42,26 +43,17 @@
   if (!HD) return;
 
   function readMode() {
-    /* ★ v10.9：先读玩家自己选的那个。
-       旧逻辑靠「[同层] 脚本里有 enabled=true」判模式，但热更卡把 13 个业务脚本
-       全部设成冷备 enabled=false —— 这个判据永远返回 false，
-       于是不管在游戏版还是文字版，嗅探一律返回文字版（球显示错、加载错脚本）。
-       现在：localStorage 优先；script_trees / 卡数据只在「确实存在启用的 [同层]」
-       时才判 GAME，全禁用视为热更卡正常态，跳过不判。 */
-    try {
-      var vL = HW.localStorage.getItem(KEY);
-      if (vL === GAME || vL === TEXT) return vL;
-    } catch (eL) {}
-
+    /* ★ v10.4：酒馆助手的开关真值在 script_trees（角色对象 settings.scripts，
+       持久化在 SillyTavern 的 settings.json），卡数据只是导出用的备份。
+       悬浮球必须读真值，否则会出现「实际是游戏版、球还显示文字版」。
+       顺序：script_trees → 卡数据 → localStorage → 默认。 */
     var TH = pickTH();
     if (TH && typeof TH.getScriptTrees === 'function') {
       try {
         var trees = TH.getScriptTrees({ type: 'character' });
         var flat = flattenTrees(trees);
-        var on0 = flat.filter(function (s) {
-          return String(s.name || '').indexOf('[同层]') === 0 && s.enabled;
-        });
-        if (on0.length) return GAME;
+        var same0 = flat.filter(function (s) { return String(s.name || '').indexOf('[同层]') === 0; });
+        if (same0.length) return same0.some(function (s) { return s.enabled; }) ? GAME : TEXT;
       } catch (e0) {}
     }
     try {
@@ -70,13 +62,15 @@
         var cid0 = chidOf(ctx0, TH);
         if (cid0 !== null && ctx0.characters[cid0]) {
           var ss0 = (ctx0.characters[cid0].data.extensions.tavern_helper.scripts) || [];
-          var on1 = ss0.some(function (s) {
-            return String(s.name || '').indexOf('[同层]') === 0 && s.enabled;
-          });
-          if (on1) return GAME;
+          var same1 = ss0.filter(function (s) { return String(s.name || '').indexOf('[同层]') === 0; });
+          if (same1.length) return same1.some(function (s) { return s.enabled; }) ? GAME : TEXT;
         }
       }
     } catch (e1) {}
+    try {
+      var v0 = HW.localStorage.getItem(KEY);
+      if (v0 === GAME || v0 === TEXT) return v0;
+    } catch (e2) {}
     return CFG.defaultMode;
   }
   function flattenTrees(list, out) {
@@ -351,129 +345,15 @@
         if (wb) {
           var before = await TH.getLorebookEntries(wb);
           var hit = 0;
-          var _legacyOff = 0;
-          var _present = {};
           await TH.updateLorebookEntriesWith(wb, function (es) {
-            return (es || []).filter(function (e) {
+            return (es || []).map(function (e) {
               var c = String(e.comment || '');
-              /* ★ 08:10 作者：直接删，不是关。
-                 updateLorebookEntriesWith 是"整表替换"，返回的数组里不放它，就等于删掉。 */
-              if (c === '创作要求' || c === '创作要求（旧）') { _legacyOff++; return false; }
-              if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
+              if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) hit++;
               e.enabled = wantedBook(c, mode, e.enabled);
-              /* 顺手抹掉正文里指向它的悬空引用，免得 prompt 里还提到「创作要求」 */
-              try {
-                if (typeof e.content === 'string' && e.content.indexOf('《创作要求》') >= 0) {
-                  e.content = e.content
-                    .replace(/《创作要求》\s*等条目/g, '其他条目')
-                    .replace(/《创作要求》/g, '');
-                }
-              } catch (eRef) {}
-              return true;
+              return e;
             });
           });
-          oks.push('世界书条目 ' + hit + '/' + (CFG.bookOffInText.length + CFG.bookNonOnly.length) + ' 条命中【切换器 s48】');
-          if (_legacyOff > 0) oks.push('已删除「创作要求」' + _legacyOff + ' 条，并清掉正文里的指向引用');
-          /* ★ 08:12：把「这一模式到底开了哪几条」直接列出来，省得再猜。
-             两个团是**成对互换**的：游戏版开 9 条同层、关 12 条非同层；文字版反过来。 */
-          try {
-            var _onG = 0, _offG = 0, _onT = 0, _offT = 0;
-            CFG.bookOffInText.forEach(function (nm) { if (_present[nm]) { if (wantedBook(nm, mode, true)) _onG++; else _offG++; } });
-            CFG.bookNonOnly.forEach(function (nm) { if (_present[nm]) { if (wantedBook(nm, mode, true)) _onT++; else _offT++; } });
-            oks.push((mode === TEXT ? '文字版' : '游戏版') + '：同层条目 开' + _onG + '/关' + _offG + '，非同层条目 开' + _onT + '/关' + _offT);
-          } catch (eSum) {}
-
-          /* ★ 08:14：写完之后**回读逐条比对**。谁该开谁该关，一条条列，
-             这样"到底有没有乱开关"就不用猜了。 */
-          try {
-            var _final = await TH.getLorebookEntries(wb);
-            var _bad = [];
-            var _map = {};
-            (_final || []).forEach(function (e) { _map[String(e.comment || '')] = !!e.enabled; });
-            CFG.bookOffInText.concat(CFG.bookNonOnly).forEach(function (nm) {
-              if (_map[nm] === undefined) return;
-              var want = wantedBook(nm, mode, _map[nm]);
-              if (_map[nm] !== want) _bad.push(nm + (want ? '(应开)' : '(应关)'));
-            });
-            if (_bad.length) errs.push('开关不一致 ' + _bad.length + ' 条：' + _bad.join('、'));
-            else oks.push('21 条开关已逐条核对，全部正确');
-          } catch (eV) {}
-
-          /* ★ 07:55：绑定的世界书可能是早期导入的旧副本，缺条目（玩家看到的 8/21）。
-             这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
-             只增不删、只碰这 21 个具名条目，不动玩家自己的条目。 */
-          try {
-            var _wantAll = CFG.bookOffInText.concat(CFG.bookNonOnly);
-            var _embedded = (data.character_book && data.character_book.entries) || [];
-            var _add = [];
-            var _missNames = [];
-            _wantAll.forEach(function (nm) {
-              if (_present[nm]) return;
-              _missNames.push(nm);
-              for (var i = 0; i < _embedded.length; i++) {
-                if (String(_embedded[i].comment || '') === nm) {
-                  var cp = JSON.parse(JSON.stringify(_embedded[i]));
-                  cp.enabled = wantedBook(nm, mode, false);
-                  _add.push(cp);
-                  break;
-                }
-              }
-            });
-            /* ★ 08:02：酒馆导入后常把内嵌世界书抽成独立文件，character_book 会被清空，
-               这时 _add 是 0 条 —— 上面那条"补入"永远不会打印（玩家看到的 8/21 就是这个原因）。
-               所以再兜一层：从 COS 上取这 21 条的原文来补。 */
-            if (!_add.length && _missNames.length) {
-              /* ★ 08:04：上一版用 fetch 拉 JSON，报 Failed to fetch —— 因为 COS 桶没配跨域头，
-                 fetch 是"要许可"的请求，会被浏览器直接拒掉。
-                 所以改成**注入 <script>**（JSONP 式）：script 标签不受 CORS 约束，
-                 线上那个文件就是把数组赋给 window.__TH_WBPATCH__。 */
-              try {
-                var _plist = await new Promise(function (res) {
-                  var el = document.createElement('script');
-                  el.src = 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/wbpatch.js?t=' + Date.now();
-                  var done = false;
-                  el.onload = function () { if (done) return; done = true; try { res(window.__TH_WBPATCH__ || []); } catch (eL) { res([]); } };
-                  el.onerror = function () { if (done) return; done = true; res([]); };
-                  (document.head || document.documentElement).appendChild(el);
-                  setTimeout(function () { if (done) return; done = true; try { res(window.__TH_WBPATCH__ || []); } catch (eT) { res([]); } }, 6000);
-                });
-                (_plist || []).forEach(function (e) {
-                  var nm = String(e.comment || '');
-                  if (_missNames.indexOf(nm) < 0) return;
-                  var cp = JSON.parse(JSON.stringify(e));
-                  cp.enabled = wantedBook(nm, mode, false);
-                  _add.push(cp);
-                });
-                oks.push('从线上取回条目原文 ' + _add.length + ' 条');
-              } catch (eFp) {
-                errs.push('线上条目原文拉取失败：' + (eFp && eFp.message || eFp));
-              }
-            }
-            if (_add.length) {
-              var _done = false;
-              if (typeof TH.createLorebookEntries === 'function') {
-                try { await TH.createLorebookEntries(wb, _add); _done = true; } catch (eC1) { _done = false; }
-              }
-              if (!_done) {
-                await TH.updateLorebookEntriesWith(wb, function (es) {
-                  var out = (es || []).slice();
-                  _add.forEach(function (n) { out.push(n); });
-                  return out;
-                });
-              }
-              /* 回读确认：补完再数一次，让玩家看到到底进没进去 */
-              var _hit2 = 0;
-              try {
-                var _after = await TH.getLorebookEntries(wb);
-                var _has = {};
-                (_after || []).forEach(function (e) { _has[String(e.comment || '')] = 1; });
-                _wantAll.forEach(function (nm) { if (_has[nm]) _hit2++; });
-              } catch (eChk) { _hit2 = -1; }
-              oks.push('补入缺失条目 ' + _add.length + ' 条' + (_hit2 >= 0 ? '（回读 ' + _hit2 + '/21）' : ''));
-            }
-          } catch (eAdd) {
-            errs.push('补入缺失条目失败：' + (eAdd && eAdd.message || eAdd));
-          }
+          oks.push('世界书条目 ' + hit + '/' + (CFG.bookOffInText.length + CFG.bookNonOnly.length) + ' 条命中');
           if (hit === 0) errs.push('世界书里没匹配到任何模式条目，请确认卡内世界书已绑定');
           void before;
         } else {
