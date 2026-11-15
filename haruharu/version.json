@@ -1,10 +1,10 @@
 {
-  "version": "v1.29",
+  "version": "v1.22",
   "seq": 126,
   "fixNo": 57,
-  "label": "v1.29（第 57 次修复更新）",
-  "stableRef": "a5d631bec7ac02783159a59421aa4a8dfbd8aba5",
-  "updated": "2026-11-15T14:40:13.818Z",
+  "label": "v1.22（第 57 次修复更新）",
+  "stableRef": "",
+  "updated": "2026-11-15T14:49:20.706Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
   "files": {
