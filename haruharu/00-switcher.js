@@ -1202,8 +1202,15 @@
     return '';
   }
   /* 版本号条目还要能按**正文形状**认出来：标题名可以丢，正文丢不了。
-     （只在标题名对不上时才用，正常情况不会误伤别的条目） */
-  var RE_VER_CONTENT = /^v\d+(?:\.\d+)*（第\s*\d+\s*次修复更新）$/;
+     （只在标题名对不上时才用，正常情况不会误伤别的条目）
+     ★ 2026-11-16：正则原来要求正文**以「次修复更新）」结尾**，一个字都不许再多。
+       而 version.json 的 label 是「v1.22（第 62 次修复更新） · seq 131」——
+       末尾带了「 · seq 131」，于是这条**永远认不出来**。
+       后果不是"少认一条"那么轻：认不出来 ⇒ 走不到「版本号那一条」的分支 ⇒
+       每轮同步都把它的正文按 verLabel 重写一遍、并计入 changed。
+       表现就是「点多少次同步，都报改了 2 条」—— 永远收敛不了。
+       现在允许版本号后面跟任意尾巴（日期 / seq / 备注都行）。 */
+  var RE_VER_CONTENT = /^v\d+(?:\.\d+)*（第\s*\d+\s*次修复更新）(\s*·.*)?$/;
   function wbIsVerEntry(e) {
     if (!e) return false;
     if (wbEntryName(e) === WB_VER_ENTRY) return true;
@@ -1677,8 +1684,43 @@
       out.total = list.length;
       if (!list.length) { out.msg = '线上条目包拉取失败（JSONP 没回来，检查网络 / COS）'; return out; }
 
-      var map = {};
-      list.forEach(function (x) { var c = String(x.comment || ''); if (c) map[c] = x; });
+      /* ══ ★ 2026-11-16：**同名条目不能互相覆盖** ══════════════════════════
+         线上包里 3 条「====================」分隔条名字完全一样（只差零宽空格，
+         归一化后是同一个名字）。这里原来是 `map[c] = x` ——
+         三条写同一个键，前两条被第三条覆盖掉。
+         ────────────────────────────────────────────────────────────────────
+         后果（玩家看不到、但每次同步都在发生）：
+         后面 `var src = map[nm]` 取到的是**最后一条**的 display_index，
+         于是书里 3 条分隔条**每一轮都被改成同一个序号**，三条互相覆盖，
+         永远定不下来。表现就是「点同步 → 显示改了 2 条 → 再点还是改 2 条」。
+         这不是幂等断言写错，是真 bug：**同一个键只能有一个值，
+         但这里同一个名字对应三条实体，语义上就不该用 map**。
+         ────────────────────────────────────────────────────────────────────
+         修法：同名条目收成一个数组（map[nm] 仍是第一条，保持老代码不用改），
+         分隔条走独立的**按序取用**：第 1 条分隔条配第 1 条、第 2 条配第 2 条。
+         `seqOf` 记「这个名字已经用掉几个」，只在分隔条分支里递增。 */
+      /* ★★ 2026-11-16：SEP_NAME 必须**声明在使用它之前**。
+         原来它写在下面 1913 行（循环体之后），靠 var 提升能「跑通不报错」，
+         但**提升只提声明、不提赋值** —— 循环体里执行到 isSepName() 时它的值还是
+         undefined，于是 String(v).indexOf(undefined) === -1 恒成立 ⇒ isSepName 永远 false。
+         后果：整套「分隔条就近就位」的空转保护**一次都没生效过**。
+         三条分隔条全走 `src = map[nm]`（永远取第一条 di=9），把 di=79/di=85 两条
+         每轮压回 9 —— 而末尾统一重编号只改字段、不改数组元素，于是下一轮又从 9 开始，
+         永远收敛不了。表现就是「点多少遍同步都显示改了 2 条」。
+         ──────────────────────────────────────────────────────────────────
+         这正是「同一个符号两处真相」的另一种形态：`var` 让语法检查全绿，
+         `node --check` 也不会报，只有真正跑起来才知道它是 undefined。 */
+      var SEP_NAME = '====================';
+      function isSepName(v) { return String(v || '').indexOf(SEP_NAME) === 0; }
+
+      var map = {}, mapAll = {};
+      list.forEach(function (x) {
+        var c = String(x.comment || '');
+        if (!c) return;
+        if (!map[c]) map[c] = x;
+        (mapAll[c] = mapAll[c] || []).push(x);
+      });
+      var seqOf = {};
 
       var names = await wbBookNames();
       if (!names.length) { out.msg = '读不到任何世界书名（角色没绑书？）'; return out; }
@@ -1821,7 +1863,33 @@
             outArr.push(e);
             return;
           }
-          var src = map[nm];
+          /* ★ 2026-11-16：分隔条**按已有序号就位配对**，不按名字、也不按出现顺序。
+             3 条分隔条名字一字不差（都 20 个字符），包里唯一能区分它们的是
+             display_index（9 / 79 / 85）。而书里那三条的数组顺序跟包里**不一定一致**
+             （宿主排过序、或者玩家手动拖过），所以：
+               · 按名字查 → 三条拿到同一个值，每轮互相覆盖
+               · 按出现顺序配 → 书里顺序一变就配错，仍然每轮改（我试过，还是 2 条）
+             现在改成「**就近就位**」：书里这条现在第几，就配包里第几近的那条。
+             已经对上的不会被判成"需要移动"，于是第二次同步 0 改动 —— 这才叫幂等。
+             ⚠ 非分隔条仍然按名字取，行为完全不变。 */
+          var src;
+          if (isSepName(nm)) {
+            var _arr = mapAll[nm] || [map[nm]];
+            var _cur = Number(e.display_index);
+            if (!isFinite(_cur)) _cur = Number(e.displayIndex);
+            /* 打包里还没被别的分隔条占用的、序号离它最近的那一条 */
+            var _best = null, _bestD = Infinity;
+            for (var _k = 0; _k < _arr.length; _k++) {
+              if (seqOf[_k]) continue;
+              var _d = isFinite(_cur) ? Math.abs(Number(_arr[_k].display_index) - _cur) : _k;
+              if (_d < _bestD) { _bestD = _d; _best = _k; }
+            }
+            if (_best === null) _best = 0;
+            seqOf[_best] = 1;
+            src = _arr[_best];
+          } else {
+            src = map[nm];
+          }
           if (src && typeof src.content === 'string' && src.content && e.content !== src.content) {
             e.content = src.content;
             c.changed++;
@@ -1855,9 +1923,8 @@
            用 have[名字] 去重只会补进去一条，另外两条永远进不来。
            所以它们单独按「已有几条 / 需要几条」计数，不走 have。 */
         /* ★ 00:58：分隔条改前缀匹配 —— 三条名字只差零宽空格（显示一模一样），
-           用全等判断会把它们当成同一条，补进去只剩一个。 */
-        var SEP_NAME = '====================';
-        function isSepName(v) { return String(v || '').indexOf(SEP_NAME) === 0; }
+           用全等判断会把它们当成同一条，补进去只剩一个。
+           （SEP_NAME / isSepName 已在函数顶部声明，别搬回来 —— 搬回来就是 undefined。） */
         var sepWant = 0;
         list.forEach(function (y) { if (isSepName(y.comment)) sepWant++; });
         var sepHave = outArr.filter(function (e) { return isSepName(wbEntryName(e)); }).length;
