@@ -17,6 +17,11 @@
 
 var MvuSelfHealing = (function() {
 
+  /* ★ 2026-11-15 23:35 回滚：这里曾经有一段 __SPR_LOADER_GEN__ < 2 就返回空壳的守卫。
+     和 10-core 开头那段是同一个错误 —— 玩家手上的卡本来就没有 GEN，
+     这条判据在每一个真实玩家身上都成立 ⇒ 一上线全服白屏。**不要再加回来。**
+     理由详见 10-core.js 文件头那段回滚说明。 */
+
   function getDoc() {
     try { if (document && document.body) return document; } catch (e0) {}
     try { if (window.top && window.top.document) return window.top.document; } catch (e) {}

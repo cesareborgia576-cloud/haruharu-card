@@ -111,6 +111,25 @@
 (function () {
 'use strict';
 
+/* ══ ★ 2026-11-15 23:35 回滚：这里曾经有一段 __SPR_LOADER_GEN__ < 2 就 return 的守卫，
+   上线 10 分钟就被玩家实锤「全炸了」，已整段删除。**不要再加回来。**
+
+   ── 为什么它一定会炸 ────────────────────────────────────────────────
+   那个判据假设「新卡才会广播 GEN=2、老卡不广播」，然后据此把老卡整卡拦死。
+   但现实是：**玩家手里拿的本来就是之前发出去的那张卡**，那份 loader 里
+   根本没有 GEN 这个变量 —— 也就是说这条守卫在**每一个真实玩家**身上都成立，
+   一上线 = 全服白屏，一个都进不去。
+
+   而「只认 COS」这件事本身**不需要** loader 配合：新仓库的地址写死在脚本里，
+   老卡从 COS 拉到新脚本，新脚本本来就会照新逻辑跑。想靠卡内 loader 版本
+   去区分新老卡，前提是玩家已经导入了新卡 —— 可要是他已经导入新卡，
+   那还需要拦什么？
+
+   ── 教训 ──────────────────────────────────────────────────────────
+   「需要玩家先换卡才能成立的判据」，不能用来当开机闸门。
+   凡是「读不到某个标记就整卡停摆」的写法，都等于把没升级的用户全部踢下线。
+   ──────────────────────────────────────────────────────────────────── */
+
 var P = 'th-gal-shell';
 
 /* ══ 现代公寓篇专属高清场景底图（独立现代都市/走廊/便利店，绝不串村庄） ══ */
@@ -194,7 +213,7 @@ var CONVENIENCE_STORE_IMG = CONVENIENCE_FRONT_IMG;
    改开场白文件里的 JSONPatch 之后，这里要跟着重新抽一次。 */
 /* ★ v165i 抢修记录：这段三行字面量（VILLAGE / APARTMENT / SHRINE）都是**单行超长字符串**。要改动它们时，请按「行」定位（找到以 var XXX = 开头的那一行，整行替换），**不要**用 indexOf("';\n") 找结尾 —— 那会跨过一整份补丁，把后面两份一起切掉（v165i 真发生过一次）。 */
 var VILLAGE_INIT_PATCH_JSON = '[{"op":"replace","path":"/时间/年份","value":2018},{"op":"replace","path":"/时间/月份","value":7},{"op":"replace","path":"/时间/日期","value":26},{"op":"replace","path":"/时间/精确时间","value":"07:40"},{"op":"insert","path":"/主要角色列表/西村百花","value":{"姓名":"西村百花","心里话":"太郎是不是又赖床了，味增汤都要凉了。","剧情线":"初始日常","好感度":20,"小穴":"肥大红润的阴唇被紧致包裹着，花瓣娇嫩，散发着成熟女性的独特气息。","奶子":"e罩杯的大奶子沉甸甸的，乳晕是浅粉色，乳头坚挺，充满弹性。","足部":"白皙优美的脚，足弓优美，脚趾修长精致，像精雕细琢的艺术品。","大腿":"白皙嫩滑的大腿丰腴有致，肌肤紧实而富有弹性，线条流畅诱人。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"西村太郎家·厨房","在场状态":false,"正在做":"下厨","具体正在做":"站在灶台前撇味增汤的浮沫，锅边摆着三只碗","穿着":"深V领的淡紫色和服式家居服，领口一路开到胸口，腰间系一条宽黑带，下摆宽松及踝"}},{"op":"insert","path":"/主要角色列表/山上椿芽","value":{"姓名":"山上椿芽","心里话":"被单再不收回来，就要被露水打湿了。","剧情线":"初始日常","好感度":20,"小穴":"肥大红润的阴唇被紧致包裹着，花瓣娇嫩，散发着成熟女性的独特气息。","奶子":"e罩杯的大奶子沉甸甸的，乳晕是浅粉色，乳头坚挺，充满弹性。","足部":"白皙优美的脚，足弓优美，脚趾修长精致，像精雕细琢的艺术品。","大腿":"白皙嫩滑的大腿丰腴有致，肌肤紧实而富有弹性，线条流畅诱人。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"山上左寻家·厨房","在场状态":false,"正在做":"做家务","具体正在做":"在灶间淘米，顺手把昨夜的碗筷泡进木盆里","穿着":"米白色短袖上衣，外面罩一条米色罩裙式围裙（肩带用木扣固定），下身深灰近黑的百褶长裙"}},{"op":"insert","path":"/主要角色列表/春日久美子","value":{"姓名":"春日久美子","心里话":"真可爱呢，这么久不见，今晚必须得做点好吃的。","剧情线":"初始日常","好感度":20,"小穴":"肥大红润的阴唇被紧致包裹着，花瓣娇嫩，散发着成熟女性的独特气息。","奶子":"e罩杯的大奶子沉甸甸的，乳晕是浅粉色，乳头坚挺，充满弹性。","足部":"白皙优美的脚，足弓优美，脚趾修长精致，像精雕细琢的艺术品。","大腿":"白皙嫩滑的大腿丰腴有致，肌肤紧实而富有弹性，线条流畅诱人。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"春日大平家·客厅","在场状态":true,"正在做":"娱乐","具体正在做":"坐在{{user}}对面，双手交叠放在围裙前，耳根泛红","穿着":"黑白横条纹的蕾丝边吊带背心（细肩带、领口缀一圈镂空花边），外面披一件米白粗针织开衫，下身浅灰色高腰长裤，裤腰有双排扣"}},{"op":"insert","path":"/主要角色列表/春日葵","value":{"姓名":"春日葵","心里话":"表弟这家伙好像又壮了一点啊，似乎还帅了一点？","剧情线":"初始日常","好感度":20,"小穴":"肥大红润的阴唇被紧致包裹着，花瓣娇嫩，散发着成熟女性的独特气息。","奶子":"e罩杯的大奶子沉甸甸的，乳晕是浅粉色，乳头坚挺，充满弹性。","足部":"白皙优美的脚，足弓优美，脚趾修长精致，像精雕细琢的艺术品。","大腿":"白皙嫩滑的大腿丰腴有致，肌肤紧实而富有弹性，线条流畅诱人。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"春日大平家·客厅","在场状态":true,"正在做":"娱乐","具体正在做":"赤脚站在榻榻米上，双手叉腰凑近了打量{{user}}的脸","穿着":"浅绿色短袖T恤，衣摆略短露一点腰，下身蓝色牛仔短裤（裤脚磨毛、翻边），系一条棕色宽皮带，赤脚"}},{"op":"insert","path":"/主要角色列表/春日静奈","value":{"姓名":"春日静奈","心里话":"表弟还是这么可爱呢，改天带他去河边走走吧。","剧情线":"初始日常","好感度":20,"小穴":"肥大红润的阴唇被紧致包裹着，花瓣娇嫩，散发着成熟女性的独特气息。","奶子":"e罩杯的大奶子沉甸甸的，乳晕是浅粉色，乳头坚挺，充满弹性。","足部":"白皙优美的脚，足弓优美，脚趾修长精致，像精雕细琢的艺术品。","大腿":"白皙嫩滑的大腿丰腴有致，肌肤紧实而富有弹性，线条流畅诱人。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"春日大平家·客厅","在场状态":true,"正在做":"娱乐","具体正在做":"把盛满麦茶的玻璃杯轻轻搁在{{user}}面前","穿着":"白色宽松背心（圆领、肩带下露出紫色内搭的肩带），下身米色高腰百褶长裙，腰间一条同色细腰带"}},{"op":"insert","path":"/主要角色列表/吉川美穗","value":{"姓名":"吉川美穗","心里话":"那孩子现在长成什么样子了呢，真好奇。","剧情线":"初始日常","好感度":20,"小穴":"肥大红润的阴唇被紧致包裹着，花瓣娇嫩，散发着成熟女性的独特气息。","奶子":"e罩杯的大奶子沉甸甸的，乳晕是浅粉色，乳头坚挺，充满弹性。","足部":"白皙优美的脚，足弓优美，脚趾修长精致，像精雕细琢的艺术品。","大腿":"白皙嫩滑的大腿丰腴有致，肌肤紧实而富有弹性，线条流畅诱人。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"吉川大田家·厨房","在场状态":false,"正在做":"下厨","具体正在做":"把腌好的鱼码进竹屉，蹲下身拨了拨灶膛里的柴","穿着":"白色宽松T恤（领口略大、袖子宽），外面系一条米色系带围裙（在腰前打蝴蝶结），下身蓝色牛仔裤"}},{"op":"insert","path":"/主要角色列表/香本千玲","value":{"姓名":"香本千玲","心里话":"今天要是能多卖出去几瓶汽水就好了。","剧情线":"初始日常","好感度":20,"小穴":"肥大红润的阴唇被紧致包裹着，花瓣娇嫩，散发着成熟女性的独特气息。","奶子":"e罩杯的大奶子沉甸甸的，乳晕是浅粉色，乳头坚挺，充满弹性。","足部":"白皙优美的脚，足弓优美，脚趾修长精致，像精雕细琢的艺术品。","大腿":"白皙嫩滑的大腿丰腴有致，肌肤紧实而富有弹性，线条流畅诱人。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"小卖铺里","在场状态":false,"正在做":"娱乐","具体正在做":"站在柜台后面点昨天的零钱，电扇对着后颈吹","穿着":"白色细吊带背心（大U领、面料薄），下身深灰色高腰百褶长裙，腰间一条黑色细带"}},{"op":"insert","path":"/苦主列表/西村太郎","value":{"姓名":"西村太郎","心里话":"再睡五分钟……今天约好了去找左寻玩的。","地点":"西村太郎家·次卧1","心理阶段":"阶段一-无敌意","在场状态":false,"正在做":"睡觉","具体正在做":"四仰八叉摊在凉席上，被子早踢到了脚边"}},{"op":"insert","path":"/苦主列表/西村诚","value":{"姓名":"西村诚","心里话":"这批木料今天得送到，晚了又要被农协的人念。","地点":"村口大门","心理阶段":"阶段一-无敌意","在场状态":false,"正在做":"出村办事","具体正在做":"蹲在巴士站牌下抽烟，等七点二十那班车去镇上拉货"}},{"op":"insert","path":"/苦主列表/山上左寻","value":{"姓名":"山上左寻","心里话":"等会儿我去找太郎玩吧，那家伙合我胃口。","地点":"山上左寻家·次卧1","心理阶段":"阶段一-无敌意","在场状态":false,"正在做":"睡觉","具体正在做":"抱着枕头趴着睡，一只脚丫伸在被子外面"}},{"op":"insert","path":"/苦主列表/山上和也","value":{"姓名":"山上和也","心里话":"今天日头毒，中午得找个树荫躺一会儿。","地点":"伐木场","心理阶段":"阶段一-无敌意","在场状态":false,"正在做":"上工","具体正在做":"靠在原木堆上歇第二壶茶，锯子泡在溪水里"}},{"op":"insert","path":"/苦主列表/吉川大田","value":{"姓名":"吉川大田","心里话":"好困啊……今天得找个借口溜出去玩。","地点":"吉川大田家·次卧1","心理阶段":"阶段一-无敌意","在场状态":false,"正在做":"睡觉","具体正在做":"睡相极差地横在榻榻米上，一只手还抓着游戏机"}},{"op":"insert","path":"/苦主列表/吉川宏","value":{"姓名":"吉川宏","心里话":"这天气干活跟上刑一样。","地点":"伐木场","心理阶段":"阶段一-无敌意","在场状态":false,"正在做":"上工","具体正在做":"光着膀子抡斧头劈柴，柴火已经堆了半人高"}},{"op":"insert","path":"/苦主列表/春日大平","value":{"姓名":"春日大平","心里话":"难得{{user}}来了，必须得准备准备。","地点":"春日大平家·客厅","心理阶段":"阶段一-无敌意","在场状态":true,"正在做":"娱乐","具体正在做":"在门槛边卷着裤腿，说去厨房看看火"}},{"op":"insert","path":"/苦主列表/香本悠","value":{"姓名":"香本悠","心里话":"姐姐说写完这一页就给我拿一根冰棍。","地点":"小卖铺里","心理阶段":"阶段一-无敌意","在场状态":false,"正在做":"娱乐","具体正在做":"趴在柜台角落写暑假作业，铅笔头咬得全是牙印"}},{"op":"insert","path":"/主角信息/地点","value":"开场白"},{"op":"insert","path":"/主角信息/零花钱","value":0},{"op":"insert","path":"/主角信息/魅力值","value":0},{"op":"insert","path":"/主角信息/精力值","value":100},{"op":"insert","path":"/主角信息/背包","value":{}},{"op":"insert","path":"/全局/商店","value":{"麦芽糖":{"物品名":"麦芽糖","类型":"物品","用途":"送给主要角色。送出后该角色好感度+5。小孩和女人都爱吃，谁都拒绝不了。","价格":20},"冰镇汽水":{"物品名":"冰镇汽水","类型":"物品","用途":"送给主要角色。送出后该角色好感度+10。三伏天里没有人会拒绝一瓶冰的。","价格":40},"冰毛巾":{"物品名":"冰毛巾","类型":"物品","用途":"替她擦汗的借口。可以从后颈一路擦到锁骨，她不好意思拒绝，擦完了还会说一声谢谢。","价格":25},"发绳":{"物品名":"发绳","类型":"物品","用途":"送给她。她会顺手把头发扎起来，露出后颈和耳后。夏天里格外好看。","价格":30},"蚊香":{"物品名":"蚊香","类型":"物品","用途":"在缘侧或房间里点上，旁边的人会放松下来，警惕值-20。傍晚谁都会凑过来坐。","价格":60},"防晒霜":{"物品名":"防晒霜","类型":"物品","用途":"借口帮她涂后背和肩膀，能光明正大地碰到她的皮肤。涂的时候她得把衣领往下拉一点。","价格":90},"浴盐":{"物品名":"浴盐","类型":"物品","用途":"丢进浴室的热水里。她泡澡时会放松下来，泡得比平时久，门也容易忘记反锁。","价格":120},"米酒":{"物品名":"米酒","类型":"物品","用途":"给苦主喝，他三杯就倒，喝完睡得跟死猪一样。给主要角色喝，她脸红得很快，说话也开始不设防。","价格":150},"手电筒":{"物品名":"手电筒","类型":"道具","用途":"夜里出门、进废弃的村分校、走林间小路时用。村里没有路灯。","价格":180},"望远镜":{"物品名":"望远镜","类型":"道具","用途":"隔着窗户、树丛或者河对岸，看清远处的人和东西。","价格":260},"小黄书":{"物品名":"小黄书","类型":"道具","用途":"使用方式为不小心遗落在她旁边，让她自己捡到、自己翻开。看到之后，该角色恶堕值 +30（当天只能靠它涨一次）。她会红着脸把书塞还给你，接下来几天看你的眼神都不一样。","价格":300},"照相机":{"物品名":"照相机","类型":"道具","用途":"趁她在浴室洗澡、在房间换衣服、在厕所时用来偷拍。拍成功一次，那个角色的被偷拍照片+1。","价格":500},"迷魂散":{"物品名":"迷魂散","类型":"道具","用途":"悄悄下在饮料或饭菜里。喝下的人会昏睡一到两个钟头，醒来只当自己太累了，绝不会怀疑到{{user}}头上。昏睡期间她对外界毫无知觉，事后也不记得。","价格":800}}}]';
-var APARTMENT_INIT_PATCH_JSON = '[{"op":"replace","path":"/时间/年份","value":2018},{"op":"replace","path":"/时间/月份","value":7},{"op":"replace","path":"/时间/日期","value":28},{"op":"replace","path":"/时间/精确时间","value":"21:40"},{"op":"replace","path":"/全局/当前篇章","value":"公寓"},{"op":"insert","path":"/主要角色列表/神谷奈绪","value":{"姓名":"神谷奈绪","心里话":"他昨天就走过这段楼梯。我就是想让他再上来一次。","剧情线":"初始日常","好感度":20,"小穴":"饱满柔软，颜色浅。","奶子":"E罩杯，圆水滴形，乳晕浅粉。","足部":"白皙纤秀。","大腿":"线条柔软，被长裙遮着。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"公寓楼下","在场状态":false,"正在做":"做家务","具体正在做":"蹲在203门口给垃圾袋打结，打完了拎起来起身关门","穿着":"黑色短款开衫（长袖、下摆只到胸下），内搭白色低领背心，下身米黄色高腰半身裙（前片有斜裁的褶）"}},{"op":"insert","path":"/主要角色列表/桃崎千鹤","value":{"姓名":"桃崎千鹤","心里话":"汤再煮一会儿就稠了。今天多煮了一些，也不知道煮给谁。","剧情线":"初始日常","好感度":20,"小穴":"饱满干净，颜色浅。","奶子":"E罩杯，饱满挺立，乳晕浅粉。","足部":"白皙，脚背好看。","大腿":"匀称柔软，线条舒展。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"公寓3楼走廊","在场状态":false,"正在做":"下厨","具体正在做":"站在303门口，手里捏着刚摘下来的发圈，头发松了一半","穿着":"白色细吊带背心（面料薄、贴身），外面披一件米白粗针织开衫（麻花纹、袖子宽松），下身驼色高腰百褶长裤"}},{"op":"insert","path":"/主要角色列表/白坂结奈","value":{"姓名":"白坂结奈","心里话":"弟弟总算搬来了这栋楼，以后想见他连车都不用开。","剧情线":"初始日常","好感度":90,"小穴":"饱满柔软。","奶子":"E罩杯，丰满白皙。","足部":"精致优美。","大腿":"白皙嫩滑。","警惕值":0,"恶堕值":80,"被偷拍照片":0,"地点":"公寓2楼走廊-201号门","在场状态":false,"正在做":"做家务","具体正在做":"在 201 里把最后一摞纸箱推到墙边，直起腰抹了把汗","穿着":"白色宽松长袖T恤（圆领、袖子挽到小臂），下身蓝色牛仔短裤（裤脚翻边），腿上黑色薄丝袜"}},{"op":"insert","path":"/主要角色列表/水野千晴","value":{"姓名":"水野千晴","心里话":"今天锅里又多煮了一份……大概只是习惯吧。","剧情线":"初始日常","好感度":20,"小穴":"柔软温润。","奶子":"G罩杯，白皙柔软，乳晕淡粉。","足部":"白皙纤秀。","大腿":"线条柔和。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"公寓3楼走廊-305号房","在场状态":false,"正在做":"做家务","具体正在做":"端着刚擦干净的窗台抹布，听见楼梯响，回头看了一眼","穿着":"淡色系棉麻长裙，外面搭一条半身围裙"}},{"op":"insert","path":"/主要角色列表/藤宫紫苑","value":{"姓名":"藤宫紫苑","心里话":"雨、旧棉布。今天多了点别的，一时说不上来。","剧情线":"初始日常","好感度":20,"小穴":"饱满柔软。","奶子":"G罩杯，饱满柔软，乳晕浅褐。","足部":"白皙纤长。","大腿":"线条圆润。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"公寓4楼走廊-407号房","在场状态":false,"正在做":"娱乐","具体正在做":"倚在 407 门边，隔着走廊抬眼，笑意留在眼尾，没把话说完","穿着":"浅紫色吊带长裙（细肩带、裙身垂坠），外面罩一件米白薄纱长外套（料子透、袖子宽），腰间系一条金色编织腰链"}},{"op":"insert","path":"/主角信息/地点","value":"公寓楼下"},{"op":"insert","path":"/主角信息/零花钱","value":0},{"op":"insert","path":"/主角信息/魅力值","value":0},{"op":"insert","path":"/主角信息/精力值","value":40},{"op":"insert","path":"/主角信息/背包","value":{}}]';
+var APARTMENT_INIT_PATCH_JSON = '[{"op":"replace","path":"/时间/年份","value":2018},{"op":"replace","path":"/时间/月份","value":7},{"op":"replace","path":"/时间/日期","value":28},{"op":"replace","path":"/时间/精确时间","value":"21:40"},{"op":"replace","path":"/全局/当前篇章","value":"公寓"},{"op":"insert","path":"/主要角色列表/神谷奈绪","value":{"姓名":"神谷奈绪","心里话":"他昨天就走过这段楼梯。我就是想让他再上来一次。","剧情线":"初始日常","好感度":20,"小穴":"饱满柔软，颜色浅。","奶子":"E罩杯，圆水滴形，乳晕浅粉。","足部":"白皙纤秀。","大腿":"线条柔软，被长裙遮着。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"公寓楼下","在场状态":false,"正在做":"做家务","具体正在做":"蹲在203门口给垃圾袋打结，打完了拎起来起身关门","穿着":"黑色短款开衫（长袖、下摆只到胸下），内搭白色低领背心，下身米黄色高腰半身裙（前片有斜裁的褶）"}},{"op":"insert","path":"/主要角色列表/桃崎千鹤","value":{"姓名":"桃崎千鹤","心里话":"汤再煮一会儿就稠了。今天多煮了一些，也不知道煮给谁。","剧情线":"初始日常","好感度":20,"小穴":"饱满干净，颜色浅。","奶子":"E罩杯，饱满挺立，乳晕浅粉。","足部":"白皙，脚背好看。","大腿":"匀称柔软，线条舒展。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"公寓3楼走廊","在场状态":false,"正在做":"下厨","具体正在做":"站在303门口，手里捏着刚摘下来的发圈，头发松了一半","穿着":"白色细吊带背心（面料薄、贴身），外面披一件米白粗针织开衫（麻花纹、袖子宽松），下身驼色高腰百褶长裤"}},{"op":"insert","path":"/主要角色列表/白坂结奈","value":{"姓名":"白坂结奈","心里话":"弟弟总算搬来了这栋楼，以后想见他连车都不用开。","剧情线":"初始日常","好感度":90,"小穴":"饱满柔软。","奶子":"E罩杯，丰满白皙。","足部":"精致优美。","大腿":"白皙嫩滑。","警惕值":0,"恶堕值":80,"被偷拍照片":0,"地点":"301室-主卧","在场状态":false,"正在做":"做家务","具体正在做":"在 301 的客厅里把最后一摞纸箱推到墙边，直起腰抹了把汗","穿着":"白色宽松长袖T恤（圆领、袖子挽到小臂），下身蓝色牛仔短裤（裤脚翻边），腿上黑色薄丝袜"}},{"op":"insert","path":"/主要角色列表/水野千晴","value":{"姓名":"水野千晴","心里话":"今天锅里又多煮了一份……大概只是习惯吧。","剧情线":"初始日常","好感度":20,"小穴":"柔软温润。","奶子":"G罩杯，白皙柔软，乳晕淡粉。","足部":"白皙纤秀。","大腿":"线条柔和。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"公寓3楼走廊-305号门","在场状态":false,"正在做":"做家务","具体正在做":"端着刚擦干净的窗台抹布，听见楼梯响，回头看了一眼","穿着":"淡色系棉麻长裙，外面搭一条半身围裙"}},{"op":"insert","path":"/主要角色列表/藤宫紫苑","value":{"姓名":"藤宫紫苑","心里话":"雨、旧棉布。今天多了点别的，一时说不上来。","剧情线":"初始日常","好感度":20,"小穴":"饱满柔软。","奶子":"G罩杯，饱满柔软，乳晕浅褐。","足部":"白皙纤长。","大腿":"线条圆润。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"公寓4楼走廊-407号门","在场状态":false,"正在做":"娱乐","具体正在做":"倚在 407 门边，隔着走廊抬眼，笑意留在眼尾，没把话说完","穿着":"浅紫色吊带长裙（细肩带、裙身垂坠），外面罩一件米白薄纱长外套（料子透、袖子宽），腰间系一条金色编织腰链"}},{"op":"insert","path":"/主角信息/地点","value":"公寓楼下"},{"op":"insert","path":"/主角信息/零花钱","value":0},{"op":"insert","path":"/主角信息/魅力值","value":0},{"op":"insert","path":"/主角信息/精力值","value":40},{"op":"insert","path":"/主角信息/背包","value":{}}]';
 var SHRINE_INIT_PATCH_JSON = '[{"op":"replace","path":"/时间/年份","value":2018},{"op":"replace","path":"/时间/月份","value":7},{"op":"replace","path":"/时间/日期","value":30},{"op":"replace","path":"/时间/精确时间","value":"17:20"},{"op":"replace","path":"/全局/当前篇章","value":"神社"},{"op":"replace","path":"/全局/商店","value":{}},{"op":"replace","path":"/苦主列表","value":{}},{"op":"insert","path":"/主要角色列表/神代凛音","value":{"姓名":"神代凛音","心里话":"走不出去的。上一个在这里转了一整夜的人，最后也是主动回来的。","剧情线":"初始日常","好感度":20,"小穴":"紧致干净，颜色浅。","奶子":"E罩杯，形状挺拔，乳晕是浅红色。","足部":"白皙，足弓好看，脚趾修长。","大腿":"修长笔直，包裹在巫女服下。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"神龛佛堂外","在场状态":true,"正在做":"与user互动","具体正在做":"站在石阶上方说完“一天只准去一次”就转身往里走","穿着":"标准巫女装：白色小袖（交领、袖口宽大，袖缘有一道红色细纹），下身绯红色袴，腰后打一个大的红色蝴蝶结"}},{"op":"insert","path":"/主要角色列表/月读澪","value":{"姓名":"月读澪","心里话":"他没有接。那碗我喝完了，明天再倒一碗，还放在这里。","剧情线":"初始日常","好感度":20,"小穴":"干净，颜色浅。","奶子":"E罩杯，柔软饱满，乳晕浅粉。","足部":"白皙纤秀，脚踝很细。","大腿":"白皙，线条柔软。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"神社小铺外","在场状态":true,"正在做":"娱乐","具体正在做":"坐在木阶上喝甜酒，把碗往外推了推又收回来","穿着":"白色巫女小袖（领口与袖缘有红色细滚边），下身绯红色袴，腰后一个大红蝴蝶结"}},{"op":"insert","path":"/主要角色列表/斋宫若叶","value":{"姓名":"斋宫若叶","心里话":"真可怜，鞋上全是泥。客房得先烧一盆热水，再拿一床厚褥子。","剧情线":"初始日常","好感度":20,"小穴":"柔软干净。","奶子":"E罩杯，丰满圆润，乳晕是温润的淡粉色。","足部":"白皙圆润，脚背很好看。","大腿":"丰腴白皙，走路时裙下曲线会轻轻晃动。","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"神龛佛堂外","在场状态":true,"正在做":"与user互动","具体正在做":"放下布巾走过来，绕着他转了一圈，拂掉他肩上的落叶","穿着":"白色巫女小袖（袖口内侧有红色缝线装饰），下身绯红色袴，腰后一个大红蝴蝶结"}},{"op":"insert","path":"/主要角色列表/白蔵主","value":{"姓名":"白蔵主","心里话":"今天没有人带斧头上山。","剧情线":"初始日常","好感度":20,"小穴":"","奶子":"","足部":"","大腿":"","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"后山·苔庭与石组","在场状态":false,"正在做":"娱乐","具体正在做":"在松土上留下一串还没干透的五瓣梅花印，往山里去了","穿着":"白狐形态，通体白毛，尾尖一点淡灰"}},{"op":"insert","path":"/主要角色列表/御神木之灵","value":{"姓名":"御神木之灵","心里话":"这孩子跑得上气不接下气。那段坡，替他弄平一点吧。","剧情线":"初始日常","好感度":20,"小穴":"","奶子":"","足部":"","大腿":"","警惕值":0,"恶堕值":0,"被偷拍照片":0,"地点":"后山林道·苔石与老杉","在场状态":false,"正在做":"娱乐","具体正在做":"把一根断口很新的枯枝挪到路边，让那段坡忽然好走了些","穿着":"没有人影可看，只有林间一层说不清的安静"}},{"op":"replace","path":"/主角信息/地点","value":"鸟居长廊"},{"op":"replace","path":"/主角信息/零花钱","value":0},{"op":"replace","path":"/主角信息/魅力值","value":0},{"op":"replace","path":"/主角信息/精力值","value":80},{"op":"replace","path":"/主角信息/背包","value":{}}]';
 
 var VILLAGE_OPENING_CONTENT = '<content>\n' +
@@ -274,42 +293,10 @@ var APARTMENT_OPENING_CONTENT = '<content>\n' +
      现在整段删掉，只留一句走廊的环境交代：不提她、不提水管、不给任何可续写的钩子。 */
   '二楼走廊的灯坏了一盏，亮一阵暗一阵。203 的门关着，门缝底下没有光。\n' +
   '\n' +
-  /* ★ v1.28：补白坂结奈（住 201，玩家住 301，这一段在上三楼的必经之路上）。
-     贴合她的既有设定：亲姐、分别很久、刚搬来这栋楼；
-     INIT_PATCH 里她的「具体正在做」就是「在 201 里把最后一摞纸箱推到墙边，直起腰抹了把汗」。 */
-  '201 的门虚掩着，漏出一道横着的白光。里面有纸箱拖过地板的闷响，拖一下，停一下。\n' +
-  '\n' +
-  '门被从里面拉开。\n' +
-  '\n' +
-  '深棕褐色的长卷发从中分处垂下来，发丝蓬松，一路打着大波浪落到腰际。白色的宽松长袖 T 恤，袖子挽到小臂，浅蓝的牛仔短裤裤脚翻着边，腿上是一层薄薄的黑丝。她一只手还撑在门框上，另一只手里捏着胶带。\n' +
-  '\n' +
-  '她看见你，动作就停在半路。\n' +
-  '\n' +
-  '{白坂结奈}「……你怎么在这儿。」\n' +
-  '\n' +
-  '话问出去，她自己先笑了，抬手把垂到脸侧的那缕头发别到耳后，指节上还有一层灰。\n' +
-  '\n' +
-  '{白坂结奈}「我知道你住楼上。我是说，这么晚了，你才回来。」\n' +
-  '\n' +
-  '她侧过身，让门开得更大一点。屋里的纸箱堆到墙边，最上面那个还没封，露出半截被子，靠墙一排是拆了一半的收纳箱。空气里有新纸板的味道。\n' +
-  '\n' +
-  '{白坂结奈}「进来坐会儿？还是说……」\n' +
-  '\n' +
-  '她低头看了一眼自己的短裤和腿上那层薄丝，又抬眼看你，语气没什么变化，只是慢了半拍。\n' +
-  '\n' +
-  '{白坂结奈}「这样不太好吧。」\n' +
-  '\n' +
-  '说完她把门又推开了一点，人往旁边让，让得很自然 —— 好像刚才那句话不是拒绝，只是顺口说出来的。\n' +
-  '\n' +
-  '{白坂结奈}「就一会儿。我这儿连水都没烧，只能给你倒凉的。」\n' +
-  '\n' +
-  '她转身往里走，走了两步又回头，抬手在你肩膀上按了一下，力道很轻，像在确认你真的站在这儿。\n' +
-  '\n' +
-  '{白坂结奈}「瘦了。」\n' +
-  '\n' +
-  '{白坂结奈}「明天早点下来，我给你弄点吃的。别又躲在楼上不出门。」\n' +
-  '\n' +
-  '她没有关门 —— 就那样虚掩回去，留着一道缝，缝里的光一直亮到楼梯口。\n' +
+  /* ★ 201 空置（2026-11-16 作者决定）：白坂结奈搬去 301 和弟弟同住，201 这间空了。
+     这一句是**必须留的**：地点总表把 201 标成空置，开场白要是还让她在 201 拆纸箱，
+     第一轮正文就把「201 空置」这条设定撞翻了。顺手也给二楼那段走廊一个交代。 */
+  '二楼走廊的灯坏了一盏，亮一阵暗一阵。203 的门关着，门缝底下没有光。201 也关着，门口连双鞋都没有——那间已经空了。\n' +
   '\n' +
   '三楼是暖黄色的灯。\n' +
   '\n' +
@@ -327,9 +314,48 @@ var APARTMENT_OPENING_CONTENT = '<content>\n' +
   '\n' +
   '再往里走半条走廊，就是自己那扇门。\n' +
   '\n' +
-  '钥匙转了两圈，门开了。屋里没开灯，街灯从窗帘缝里漏进来，把沙发和茶几的轮廓描出个大概。\n' +
+  /* ★ v1.28 补、2026-11-16 改：白坂结奈现在住 301、和 {{user}} **同住**
+     （主卧归她，{{user}} 住次卧1）。原来是「她在二楼 201 门口拆纸箱」，
+     作者把住处改成 301 之后，那段必须一起搬上来，否则第一轮就把房号写错。
+     留下来的东西一个没动：亲姐、分别很久、刚搬来、屋里全是没拆的纸箱。
+     INIT_PATCH 里她的「具体正在做」同步改成「在 301 里把最后一摞纸箱推到墙边」。 */
+  '301 的门虚掩着，漏出一道横着的白光。里面有纸箱拖过地板的闷响，拖一下，停一下。\n' +
   '\n' +
-  '门在身后合上，走廊的光被切断。\n' +
+  '门被从里面拉开。\n' +
+  '\n' +
+  '深棕褐色的长卷发从中分处垂下来，发丝蓬松，一路打着大波浪落到腰际。白色的宽松长袖 T 恤，袖子挽到小臂，浅蓝的牛仔短裤裤脚翻着边，腿上是一层薄薄的黑丝。她一只手还撑在门框上，另一只手里捏着胶带。\n' +
+  '\n' +
+  '她看见你，动作就停在半路。\n' +
+  '\n' +
+  '{白坂结奈}「……你怎么才回来。」\n' +
+  '\n' +
+  '话问出去，她自己先笑了，抬手把垂到脸侧的那缕头发别到耳后，指节上还有一层灰。\n' +
+  '\n' +
+  '{白坂结奈}「我东西都搬上来了。你那间我没动，就动了客厅。」\n' +
+  '\n' +
+  '她侧过身，让门开得更大一点。屋里的纸箱堆到墙边，最上面那个还没封，露出半截被子，靠墙一排是拆了一半的收纳箱。空气里有新纸板的味道。\n' +
+  '\n' +
+  '{白坂结奈}「站门口干什么，进来。」\n' +
+  '\n' +
+  '她低头看了一眼自己的短裤和腿上那层薄丝，又抬眼看你，语气没什么变化，只是慢了半拍。\n' +
+  '\n' +
+  '{白坂结奈}「我在你屋里等你到这么晚，这样不太好吧。」\n' +
+  '\n' +
+  '说完她往旁边让开，让得很自然 —— 好像刚才那句话不是自责，只是顺口说出来的。\n' +
+  '\n' +
+  '{白坂结奈}「就一会儿。我这儿连水都没烧，只能给你倒凉的。」\n' +
+  '\n' +
+  '她转身往里走，走了两步又回头，抬手在你肩膀上按了一下，力道很轻，像在确认你真的站在这儿。\n' +
+  '\n' +
+  '{白坂结奈}「瘦了。」\n' +
+  '\n' +
+  '{白坂结奈}「明天早点回来，我给你弄点吃的。别又在外面磨到这么晚。」\n' +
+  '\n' +
+  '她没把门关上 —— 就那样虚掩回去，留着一道缝。这套屋子从今天起是两个人住了。\n' +
+  '\n' +
+  '你回自己那间，把包放下。街灯从窗帘缝里漏进来，把沙发和茶几的轮廓描出个大概。\n' +
+  '\n' +
+  '客厅那头还有纸箱挪动的轻响，很慢，很轻，一直没停。\n' +
   '\n' +
   '今晚到这里就结束了。\n' +
   '</content>';
@@ -419,29 +445,29 @@ var SHRINE_OPENING_CONTENT = '<content>\n' +
   '</content>';
 
 var SCENE_IMGS = {
-  '开场白': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783339756.jpg',
-  '乡村小路': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022588.jpg',
-  '小卖铺前': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022608.jpg',
-  '小卖铺里': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790796501811.jpg',
-  '林间小路': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022616.jpg',
-  '林间庙宇前': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022620.jpg',
-  '林间庙宇里': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790784000698.jpg',
-  '乡村公园里': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022592.jpg',
-  '林间小溪': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790799319746.jpg',
-  '废弃大坝': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790799319738.jpg',
-  '伐木场': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790799319728.jpg',
-  '村口大门': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790799402677.jpg',
-  '西村太郎家·前院': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022611.jpg',
-  '山上左寻家·前院': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022599.jpg',
-  '吉川大田家·前院': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022595.jpg',
-  '春日大平家·前院': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022603.jpg',
-  kitchen: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790733076140.jpg',
-  living: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998254.jpg',
-  bath: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998266.jpg',
-  room_tl: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790733158857.jpg',
-  room_tr: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998245.jpg',
-  room_bl: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998245.jpg',
-  room_br: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998245.jpg',
+  '开场白': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783339756.jpg',
+  '乡村小路': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022588.jpg',
+  '小卖铺前': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022608.jpg',
+  '小卖铺里': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790796501811.jpg',
+  '林间小路': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022616.jpg',
+  '林间庙宇前': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022620.jpg',
+  '林间庙宇里': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790784000698.jpg',
+  '乡村公园里': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022592.jpg',
+  '林间小溪': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790799319746.jpg',
+  '废弃大坝': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790799319738.jpg',
+  '伐木场': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790799319728.jpg',
+  '村口大门': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790799402677.jpg',
+  '西村太郎家·前院': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022611.jpg',
+  '山上左寻家·前院': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022599.jpg',
+  '吉川大田家·前院': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022595.jpg',
+  '春日大平家·前院': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022603.jpg',
+  kitchen: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790733076140.jpg',
+  living: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998254.jpg',
+  bath: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998266.jpg',
+  room_tl: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790733158857.jpg',
+  room_tr: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998245.jpg',
+  room_bl: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998245.jpg',
+  room_br: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998245.jpg',
   /* ══ 公寓篇场景图映射（301 单独一套，跟乡村老图分开）══ */
   '公寓楼下': APARTMENT_EXTERIOR_IMG,
   /* ★ v165f：便利店这两格**故意留空**，不是掉了图。
@@ -457,14 +483,14 @@ var SCENE_IMGS = {
   '公寓2楼走廊': APARTMENT_CORRIDOR_IMG,
   '公寓3楼走廊': APARTMENT_CORRIDOR_IMG,
   '公寓4楼走廊': APARTMENT_CORRIDOR_IMG,
-  '301室-门口': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791193825499.jpg',
-  '301室-客厅': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431423.jpg',
-  '301室-厨房': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431371.jpg',
-  '301室-浴室': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431418.jpg',
-  '301室-主卧': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431414.jpg',
-  '301室-次卧1': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431374.jpg',
-  '301室-杂物间': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431377.jpg',
-  '301室-阳台': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1791189431383.jpg',
+  '301室-门口': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1791193825499.jpg',
+  '301室-客厅': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1791189431423.jpg',
+  '301室-厨房': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1791189431371.jpg',
+  '301室-浴室': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1791189431418.jpg',
+  '301室-主卧': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1791189431414.jpg',
+  '301室-次卧1': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1791189431374.jpg',
+  '301室-杂物间': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1791189431377.jpg',
+  '301室-阳台': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1791189431383.jpg',
 
   /* ══ ★ v98：神社篇场景图（单图兼容位）。
      分时段的图请填到下面的 SHRINE_IMG_SETS 里（白天/日落/夜晚各一格）；
@@ -480,7 +506,7 @@ var SCENE_IMGS = {
   '神社小铺里': ''
 };
 
-var ROAD_IMG = 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022588.jpg';
+var ROAD_IMG = 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022588.jpg';
 
 /* ★ v69：天黑之后（18:00 到次日 5:00）这些地点换成夜景图，增强代入感。
    只列出来的这些有夜图，其它地点照旧用白天的图。 */
@@ -504,13 +530,13 @@ function timeBucket() {
      键跟 parseLocation() 给的房间键对齐：living 客厅 / kitchen 厨房 / bath 浴室 /
      room_tl 主卧 / room_tr·room_bl·room_br 次卧（同图）/ yard 前院（在 SCENE_IMGS 里）。 */
 var VILLAGE_ROOM_IMGS = {
-  living:  'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998254.jpg',
-  kitchen: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790733076140.jpg',
-  bath:    'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998266.jpg',
-  room_tl: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790733158857.jpg',
-  room_tr: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998245.jpg',
-  room_bl: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998245.jpg',
-  room_br: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790732998245.jpg'
+  living:  'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998254.jpg',
+  kitchen: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790733076140.jpg',
+  bath:    'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998266.jpg',
+  room_tl: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790733158857.jpg',
+  room_tr: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998245.jpg',
+  room_bl: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998245.jpg',
+  room_br: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790732998245.jpg'
 };
 
 /* ══ 场景图床（以图床为准） ══
@@ -537,10 +563,10 @@ var SCENE_IMG_SETS = {
      填的是 IMG_CDN（image-hosting 仓库）里那三张 —— 那三张是公寓的图，
      结果乡村小卖铺前贴的是公寓楼下的图。现在改成乡村自己那两张老图
      （SCENE_IMGS['小卖铺前'] / SCENE_IMGS['小卖铺里'] 就有的 1790783022608 / 1790796501811）。 */
-  shop_front:     { name: '小卖铺前',   day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022608.jpg' },
-  shop_in:        { name: '小卖铺里',   day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790796501811.jpg' },
+  shop_front:     { name: '小卖铺前',   day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022608.jpg' },
+  shop_in:        { name: '小卖铺里',   day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790796501811.jpg' },
   /* 夏越村的公园：沿用旧图 */
-  park:           { name: '乡村公园里', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022592.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625268.jpg' },
+  park:           { name: '乡村公园里', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790783022592.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625268.jpg' },
   /* 公寓对面那个公园：跟你新给的图床拆开，各用各的 */
   park_apartment: { name: '公寓对面公园', day: IMG_CDN + '1791189431452.jpg', dusk: IMG_CDN + '1791189431349.jpg', night: IMG_CDN + '1791189431353.jpg' }
 };
@@ -567,45 +593,51 @@ var SHRINE_IMG_SETS = {
   /* ══ ★ v157：神社后山 19 个正式场景（D:/App/ComfyUI/wb_scenes/春日狂想曲/神社后山_夏）══
      19 场景 × 昼/黄昏/夜 = 57 张，1152×648 progressive JPEG q86，已去元数据。
      文件名 sbNN_<时段>.jpg，与 v146 那批四季图在仓库里隔离子目录存放，互不干扰。
-     ★ 这些键会被 thImgUrlsEverything() 自动扫进开局全量预载，不用另加清单。 */
-  back_01: { name: '后山入口·夏樱', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb01_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb01_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb01_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb01_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb01_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb01_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb01_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb01_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb01_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb01_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb01_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb01_night.jpg' } } },
-  back_02: { name: '后山参道·石阶上行', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb02_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb02_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb02_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb02_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb02_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb02_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb02_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb02_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb02_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb02_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb02_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb02_night.jpg' } } },
-  back_03: { name: '后山·苔庭与石组', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb03_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb03_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb03_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb03_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb03_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb03_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb03_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb03_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb03_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb03_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb03_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb03_night.jpg' } } },
-  back_04: { name: '后山·溪谷小桥', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb04_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb04_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb04_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb04_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb04_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb04_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb04_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb04_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb04_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb04_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb04_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb04_night.jpg' } } },
-  back_05: { name: '后山·竹林深处', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb05_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb05_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb05_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb05_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb05_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb05_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb05_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb05_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb05_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb05_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb05_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb05_night.jpg' } } },
-  back_06: { name: '后山林道·苔石与老杉', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb06_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb06_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb06_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb06_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb06_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb06_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb06_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb06_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb06_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb06_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb06_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb06_night.jpg' } } },
-  back_07: { name: '后山回望·神社全景', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb07_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb07_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb07_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb07_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb07_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb07_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb07_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb07_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb07_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb07_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb07_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb07_night.jpg' } } },
-  back_08: { name: '后山·夕阳下的屋脊', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb08_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb08_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb08_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb08_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb08_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb08_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb08_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb08_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb08_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb08_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb08_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb08_night.jpg' } } },
-  back_09: { name: '后山·夜望灯火', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb09_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb09_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb09_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb09_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb09_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb09_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb09_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb09_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb09_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb09_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb09_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb09_night.jpg' } } },
-  back_10: { name: '山中·古老石段与鸟居', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb10_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb10_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb10_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb10_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb10_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb10_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb10_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb10_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb10_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb10_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb10_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb10_night.jpg' } } },
-  back_11: { name: '山中末社·苔覆小祠', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb11_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb11_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb11_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb11_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb11_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb11_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb11_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb11_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb11_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb11_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb11_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb11_night.jpg' } } },
-  back_12: { name: '山中·石佛群', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb12_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb12_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb12_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb12_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb12_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb12_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb12_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb12_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb12_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb12_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb12_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb12_night.jpg' } } },
-  back_13: { name: '山中·倒木与小径', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb13_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb13_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb13_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb13_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb13_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb13_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb13_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb13_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb13_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb13_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb13_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb13_night.jpg' } } },
-  back_14: { name: '山中·不动瀑布', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb14_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb14_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb14_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb14_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb14_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb14_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb14_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb14_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb14_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb14_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb14_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb14_night.jpg' } } },
-  back_15: { name: '神山·巨岩与注连绳', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb15_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb15_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb15_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb15_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb15_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb15_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb15_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb15_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb15_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb15_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb15_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb15_night.jpg' } } },
-  back_16: { name: '神山·风穴与雾', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb16_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb16_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb16_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb16_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb16_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb16_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb16_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb16_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb16_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb16_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb16_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb16_night.jpg' } } },
-  back_17: { name: '神山山脊·云海', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb17_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb17_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb17_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb17_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb17_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb17_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb17_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb17_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb17_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb17_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb17_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb17_night.jpg' } } },
-  back_18: { name: '神山·眺望台与远山', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb18_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb18_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb18_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb18_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb18_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb18_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb18_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb18_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb18_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb18_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb18_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb18_night.jpg' } } },
-  back_19: { name: '神山·山巅遥拜所', day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb19_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb19_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb19_night.jpg',
-    seasons: { 春: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb19_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/spring/sb19_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb19_night.jpg' }, 秋: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb19_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/autumn/sb19_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb19_night.jpg' }, 冬: { day: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb19_day.jpg', dusk: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb19_dusk.jpg', night: 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-seasons@main/shrine_seasons/winter/sb19_night.jpg' } } }
+     ★ 这些键会被 thImgUrlsEverything() 自动扫到，不用另加清单 ——
+       但**只取当前季节那一档**（见 thImgUrlsEverything 里 pushSet 的注释）。
+     ⚠ 注意基础档 day/dusk/night 写的是 **shrine_summer（夏）**这套，
+       而 seasons 里只有春/秋/冬。所以：
+         · 玩家选「夏」⇒ seasons['夏'] 不存在 ⇒ 退回基础档 = 夏 ✓
+         · 玩家选春/秋/冬 ⇒ 用 seasons[那一季]，基础档的夏图**不会被下载** ✓
+       别再往 seasons 里硬塞一个「夏」，那等于把夏图存两份。 */
+  back_01: { name: '后山入口·夏樱', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb01_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb01_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb01_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb01_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb01_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb01_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb01_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb01_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb01_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb01_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb01_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb01_night.jpg' } } },
+  back_02: { name: '后山参道·石阶上行', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb02_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb02_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb02_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb02_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb02_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb02_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb02_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb02_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb02_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb02_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb02_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb02_night.jpg' } } },
+  back_03: { name: '后山·苔庭与石组', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb03_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb03_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb03_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb03_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb03_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb03_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb03_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb03_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb03_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb03_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb03_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb03_night.jpg' } } },
+  back_04: { name: '后山·溪谷小桥', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb04_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb04_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb04_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb04_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb04_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb04_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb04_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb04_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb04_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb04_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb04_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb04_night.jpg' } } },
+  back_05: { name: '后山·竹林深处', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb05_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb05_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb05_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb05_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb05_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb05_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb05_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb05_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb05_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb05_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb05_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb05_night.jpg' } } },
+  back_06: { name: '后山林道·苔石与老杉', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb06_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb06_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb06_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb06_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb06_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb06_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb06_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb06_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb06_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb06_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb06_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb06_night.jpg' } } },
+  back_07: { name: '后山回望·神社全景', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb07_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb07_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb07_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb07_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb07_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb07_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb07_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb07_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb07_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb07_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb07_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb07_night.jpg' } } },
+  back_08: { name: '后山·夕阳下的屋脊', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb08_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb08_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb08_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb08_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb08_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb08_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb08_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb08_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb08_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb08_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb08_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb08_night.jpg' } } },
+  back_09: { name: '后山·夜望灯火', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb09_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb09_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb09_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb09_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb09_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb09_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb09_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb09_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb09_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb09_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb09_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb09_night.jpg' } } },
+  back_10: { name: '山中·古老石段与鸟居', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb10_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb10_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb10_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb10_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb10_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb10_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb10_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb10_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb10_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb10_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb10_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb10_night.jpg' } } },
+  back_11: { name: '山中末社·苔覆小祠', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb11_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb11_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb11_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb11_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb11_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb11_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb11_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb11_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb11_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb11_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb11_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb11_night.jpg' } } },
+  back_12: { name: '山中·石佛群', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb12_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb12_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb12_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb12_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb12_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb12_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb12_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb12_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb12_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb12_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb12_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb12_night.jpg' } } },
+  back_13: { name: '山中·倒木与小径', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb13_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb13_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb13_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb13_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb13_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb13_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb13_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb13_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb13_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb13_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb13_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb13_night.jpg' } } },
+  back_14: { name: '山中·不动瀑布', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb14_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb14_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb14_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb14_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb14_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb14_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb14_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb14_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb14_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb14_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb14_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb14_night.jpg' } } },
+  back_15: { name: '神山·巨岩与注连绳', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb15_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb15_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb15_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb15_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb15_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb15_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb15_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb15_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb15_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb15_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb15_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb15_night.jpg' } } },
+  back_16: { name: '神山·风穴与雾', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb16_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb16_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb16_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb16_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb16_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb16_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb16_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb16_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb16_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb16_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb16_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb16_night.jpg' } } },
+  back_17: { name: '神山山脊·云海', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb17_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb17_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb17_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb17_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb17_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb17_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb17_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb17_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb17_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb17_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb17_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb17_night.jpg' } } },
+  back_18: { name: '神山·眺望台与远山', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb18_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb18_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb18_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb18_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb18_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb18_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb18_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb18_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb18_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb18_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb18_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb18_night.jpg' } } },
+  back_19: { name: '神山·山巅遥拜所', day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb19_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb19_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb19_night.jpg',
+    seasons: { 春: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb19_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/spring/sb19_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb19_night.jpg' }, 秋: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb19_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/autumn/sb19_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-summer/shrine_summer/sb19_night.jpg' }, 冬: { day: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb19_day.jpg', dusk: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb19_dusk.jpg', night: 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-shrine-seasons/shrine_seasons/winter/sb19_night.jpg' } } }
 };
 /* ★ v159：神社场景组按「季节 → 时段」取图。
    季节档没给某张（比如 春 的夜图，就是夏夜那张逐字节副本）时，
@@ -693,7 +725,29 @@ function seasonSceneKeyOf(name) {
       var c = (typeof normalizeApartmentPlace === 'function' ? normalizeApartmentPlace(n) : '') || n;
       if (c.indexOf('便利店') !== -1) return 'apartment_gate';
       if (c.indexOf('对面公园') !== -1) return 'park_apartment';
-      if (c.indexOf('号门') !== -1) return 'apartment_door';
+      /* ══ ★ 2026-11-16：**门外节点「号门」和「号房」都认** ═══════════════
+         玩家报「有一些号房的门前全是走廊的图」。
+         ★ 2026-11-16 晚：地点名**已全量改成「号门」**（见 TH_MAP_DEF 与
+           MAP_TOPOLOGY），但正则里的 `房` **故意留着** —— 老存档的变量里
+           存的还是 `公寓3楼走廊-303号房`，删掉就让他们全部掉回走廊图。
+
+         ── 原来错在哪 ──────────────────────────────────────────────────
+         这条判断只认 `号门`。而当时公寓的门前地点有两套写法：
+           · 2 楼：`公寓2楼走廊-201号门` / `-203号门`   → 命中，给门外图 ✓
+           · 3/4 楼：`公寓3楼走廊-303号房` / `-305号房` / `-405号房` / `-407号房`
+                                                    → **不命中**，落到下面
+                                                      `走廊` 那条 ⇒ 给走廊图 ✗
+         于是 6 个门前地点里，2 楼那 2 个对、3/4 楼那 4 个全是走廊。
+         玩家说的「有一些号房门前是走廊」，就是这 4 个。
+
+         ── 真正的分界不是「号门 / 号房」────────────────────────────────
+         而是「带不带 `室`」：
+           · 含 `室`    ⇒ 门内的房间，走下面的户型分支
+           · 不含 `室`  ⇒ 门外 / 走廊节点
+         所以判据写成「(号门|号房) 且不含 室」，顺序也要排在户型和走廊之前。
+         ⚠ 别因为「号房这词已经废了」就把 `房` 从正则里删掉 —— 那是拿
+           老存档换来的干净，会当场变成「一升级就全是走廊图」。 */
+      if (/(\d{3})\s*号(门|房)/.test(c) && c.indexOf('室') === -1) return 'apartment_door';
       if (c.indexOf('走廊') !== -1) return 'apartment_hall';
       if (c.indexOf('公寓楼下') !== -1) return 'apartment_gate';
       /* ★ 19:12：这里原来写死 301室 —— 201 / 203 / 303 / 305 / 407 全部掉到下面的
@@ -780,21 +834,21 @@ function pickTimeUrl(set) {
   return set.day || set.dusk || set.night || '';
 }
 var NIGHT_IMGS = {
-  '山上左寻家·前院': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625231.jpg',
-  '吉川大田家·前院': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625226.jpg',
-  '春日大平家·前院': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625235.jpg',
-  '西村太郎家·前院': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625239.jpg',
-  '林间小路': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625244.jpg',
-  '林间庙宇前': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625249.jpg',
-  '小卖铺前': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625255.jpg',
-  '林间小溪': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625259.jpg',
-  '伐木场': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625262.jpg',
-  '村口大门': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625265.jpg',
-  '乡村公园里': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625268.jpg',
-  '乡村公园': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625268.jpg',
-  '废弃大坝': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625271.jpg',
-  '林间庙宇里': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625274.jpg',
-  '乡村小路': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790946625277.jpg'
+  '山上左寻家·前院': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625231.jpg',
+  '吉川大田家·前院': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625226.jpg',
+  '春日大平家·前院': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625235.jpg',
+  '西村太郎家·前院': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625239.jpg',
+  '林间小路': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625244.jpg',
+  '林间庙宇前': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625249.jpg',
+  '小卖铺前': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625255.jpg',
+  '林间小溪': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625259.jpg',
+  '伐木场': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625262.jpg',
+  '村口大门': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625265.jpg',
+  '乡村公园里': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625268.jpg',
+  '乡村公园': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625268.jpg',
+  '废弃大坝': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625271.jpg',
+  '林间庙宇里': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625274.jpg',
+  '乡村小路': 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/scene/haruharu-village/scenes/1790946625277.jpg'
 };
 
 /* ★ v165c：时间落库是 年/月/日/精确时间("HH:MM") 四件套。
@@ -859,7 +913,13 @@ function getSceneBgUrl(sceneName) {
       return inShop ? convenienceInnerUrl() : convenienceFrontUrl();
     }
     if (canon.indexOf('对面公园') !== -1) return pickTimeUrl(SCENE_IMG_SETS.park_apartment);
-    if (canon.indexOf('号门') !== -1) return pickTimeUrl(SCENE_IMG_SETS.apartment_door);
+    /* ★ 2026-11-16：与 thSceneKey 同一处修正 —— 门前节点「号门」和「号房」都认。
+       3/4 楼当年的门前地点写的是 `-303号房` / `-305号房` / `-405号房` / `-407号房`，
+       只认 `号门` 的话这四个全会掉到下面的 `走廊` 分支 ⇒ 门前显示走廊图。
+       判据是「(号门|号房) 且不含 室」：带 `室` 的是门内的房间，走下面的户型分支。
+       ★ 现在地点名已统一定为「号门」，`房` 留在正则里只为老存档 ——
+         见 thSceneKey 那边同一段说明。 */
+    if (/(\d{3})\s*号(门|房)/.test(canon) && canon.indexOf('室') === -1) return pickTimeUrl(SCENE_IMG_SETS.apartment_door);
     if (canon.indexOf('走廊') !== -1) return pickTimeUrl(SCENE_IMG_SETS.apartment_hall);
     if (canon.indexOf('公寓楼下') !== -1) return pickTimeUrl(SCENE_IMG_SETS.apartment_gate);
     /* ★ 19:12：与上面 thSceneKey 同一处修正 —— 任意房号都按房间类型给图，
@@ -1071,44 +1131,164 @@ var MAP_TOPOLOGY = {
   '公寓2楼走廊': [
     { label: '前往: 下楼(公寓楼下)', target: '公寓楼下' },
     { label: '前往: 上楼(3楼走廊)', target: '公寓3楼走廊' },
-    { label: '前往: 201号门前', target: '公寓2楼走廊-201号门' },
+    /* ★ 2026-11-16：结奈搬去 301 了，201 空置。按钮仍留着（那扇门还在，
+       玩家可以走过去、可以敲，只是没人应），文案直说「空房」。 */
+    { label: '前往: 201号门前(空房)', target: '公寓2楼走廊-201号门' },
     { label: '前往: 203号门前(神谷奈绪)', target: '公寓2楼走廊-203号门' }
   ],
   '公寓2楼走廊-201号门': [
-    { label: '前往: 返回2楼走廊', target: '公寓2楼走廊' }
+    /* ★ 2026-11-16：结奈搬走了，这间空了。屋子本身还在 ——
+       世界书《地点总表 公寓篇》原话：「201 是已经搬空的屋子：
+       可以进去，里面没有家具也没有人」。
+       所以给「进去看看」，但文案写「空房」，不给模型递「有人应门」的钩子。 */
+    { label: '前往: 返回2楼走廊', target: '公寓2楼走廊' },
+    { label: '🚪 进去看看(201 · 空房)', target: '201室-客厅' }
   ],
   '公寓2楼走廊-203号门': [
-    { label: '前往: 返回2楼走廊', target: '公寓2楼走廊' }
+    { label: '前往: 返回2楼走廊', target: '公寓2楼走廊' },
+    /* ★ 2026-11-16：**门外 ⇄ 门内** 的通行边，这才是「房间」真正进得去的地方。
+       玩家原话：「其他人房间的房间呢，你到底在搞几把毛」——
+       他的意思不只是「地图上没画」，而是**根本进不去**：
+       原来 6 个门牌节点每条都只有「返回走廊」一条去路，
+       203室-客厅 / 303室-主卧 / 407室-浴室 …… 在 MAP_TOPOLOGY 里
+       **一个 key 都没有**，所以那些房间只是白名单里的字符串，
+       玩家永远走不进去，地图上自然也永远只有走廊和门。
+       现在每个门牌都能推门进屋，屋里按户型连通（见下面 203室-客厅 那一组）。 */
+    { label: '🚪 敲门进屋(203 · 神谷奈绪家)', target: '203室-客厅' }
   ],
   '公寓3楼走廊': [
     { label: '前往: 下2楼走廊', target: '公寓2楼走廊' },
     { label: '前往: 上4楼走廊', target: '公寓4楼走廊' },
     /* ★ 19:12 作者设定：白坂结奈是玩家的亲姐，玩家住的就是她家 ——
-       原来这里写「自己家」，现在直接写「白坂结奈家」。 */
-    { label: '前往: 301号房门口(白坂结奈家)', target: '301室-门口' },
-    { label: '前往: 303号房门前', target: '公寓3楼走廊-303号房' },
-    { label: '前往: 305号房门前', target: '公寓3楼走廊-305号房' }
+       原来这里写「自己家」，现在直接写「白坂结奈家」。
+       ★ 2026-11-16：结奈搬进 301 和 {{user}} **同住**（她主卧、{{user}} 次卧1），
+         所以这里就是「回家」，不再是「去姐姐家串门」。
+       ★ 2026-11-16 再改：进屋不再走独立的 `301室-门口`，改走走廊上的
+         `301号门` —— 和另外 5 户**同一个形状**（走廊 → 门 → 屋），
+         图上三条线一样长，玩家不用记「自己家特殊」。 */
+    { label: '前往: 回家(301 · 白坂结奈家)门前', target: '公寓3楼走廊-301号门' },
+    { label: '前往: 303号门前', target: '公寓3楼走廊-303号门' },
+    { label: '前往: 305号门前', target: '公寓3楼走廊-305号门' }
   ],
-  '公寓3楼走廊-303号房': [
-    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' }
+  '公寓3楼走廊-303号门': [
+    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' },
+    { label: '🚪 敲门进屋(303 · 桃崎千鹤家)', target: '303室-客厅' }
   ],
-  '公寓3楼走廊-305号房': [
-    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' }
+  '公寓3楼走廊-301号门': [
+    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' },
+    { label: '🚪 进屋(301 · 自己家)', target: '301室-客厅' }
+  ],
+  '公寓3楼走廊-305号门': [
+    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' },
+    { label: '🚪 敲门进屋(305 · 水野千晴家)', target: '305室-客厅' }
   ],
   '公寓4楼走廊': [
     { label: '前往: 下3楼走廊', target: '公寓3楼走廊' },
-    { label: '前往: 405号门前', target: '公寓4楼走廊-405号房' },
-    { label: '前往: 407号门前', target: '公寓4楼走廊-407号房' }
+    { label: '前往: 405号门前', target: '公寓4楼走廊-405号门' },
+    { label: '前往: 407号门前', target: '公寓4楼走廊-407号门' }
   ],
-  '公寓4楼走廊-405号房': [
-    { label: '前往: 返回4楼走廊', target: '公寓4楼走廊' }
+  '公寓4楼走廊-405号门': [
+    { label: '前往: 返回4楼走廊', target: '公寓4楼走廊' },
+    /* ★ 2026-11-16：405 本局没人住（浅间茉由已下架留档），但**门后有屋子**。
+       以前这里只有「返回走廊」一条去路，而 405室 在地图上有坐标 ——
+       于是图上有 405室 这个点，玩家却永远走不到它（孤岛，玩家说的
+       「这么多重复的地点」里就有它）。现在给一条「门外站着」的去路：
+       屋子存在、能进、里面空的，跟 201 一样处理。 */
+    { label: '🚪 进去看看(405 · 空房)', target: '405室-客厅' }
   ],
-  '公寓4楼走廊-407号房': [
-    { label: '前往: 返回4楼走廊', target: '公寓4楼走廊' }
+  '公寓4楼走廊-407号门': [
+    { label: '前往: 返回4楼走廊', target: '公寓4楼走廊' },
+    { label: '🚪 敲门进屋(407 · 藤宫紫苑家)', target: '407室-客厅' }
   ],
+
+  /* ══ ★ 2026-11-16：**别人家的屋里** —— 这次真铺进拓扑了 ══════════════
+     玩家原话：「其他人房间的房间呢，你到底在搞几把毛，我说房间啊，
+               不是他妈房子，不是号房，是房间」
+     ──────────────────────────────────────────────────────────────────
+     原来 MAP_TOPOLOGY 里 76 个节点，201/203/303/305/407 的**房间一个都没有**：
+     白名单 APARTMENT_PLACES 里有 `203室-客厅` 这些字符串，
+     但拓扑里没有 key ⇒ 没有任何一条边指向它 ⇒ 玩家走不进去。
+     于是「房间」这个词在游戏里等于不存在，地图上当然也画不出来。
+     ──────────────────────────────────────────────────────────────────
+     现在按各家真实户型铺边（世界书《地点总表 公寓篇》就是这么分的）：
+       203 / 201  客厅-主卧-浴室（小户型，一条链）
+       303 / 305  客厅-主卧-厨房-浴室（多一间厨房）
+       407        客厅-主卧-浴室-阳台（紫苑家多一个阳台）
+     ★ 结构照抄 301 那套：**客厅是枢纽**，其余房间一律从客厅进出。
+       不做「主卧直通浴室」—— 那在世界书里没有，写出来就是假路。
+     ★ 201 空置：屋子还在、能进（世界书说「可以进去，里面没有家具也没有人」），
+       所以也铺边，只是门牌那边不给「敲门进屋」的按钮（怕模型顺着写出人来）。 */
+  '203室-客厅': [
+    { label: '前往: 主卧', target: '203室-主卧' },
+    { label: '前往: 浴室', target: '203室-浴室' },
+    { label: '🚪 走出门口', target: '公寓2楼走廊-203号门' }
+  ],
+  '203室-主卧': [{ label: '前往: 客厅', target: '203室-客厅' }],
+  '203室-浴室': [{ label: '前往: 客厅', target: '203室-客厅' }],
+
+  /* 201 / 405 —— 本局都没人住，屋子还在、能进、里面空的。
+     世界书《地点总表 公寓篇》原话：「可以进去，里面没有家具也没有人」。
+     ⚠ 必须给它们铺边：地图上 201室 / 405室 有坐标，
+       拓扑没有边的话就是**孤岛** —— 图上画着一个点，永远走不到，
+       正是玩家说的「这么多重复的地点」。（改自 2026-11-16 可达性体检） */
+  '201室-客厅': [
+    { label: '前往: 主卧', target: '201室-主卧' },
+    { label: '前往: 浴室', target: '201室-浴室' },
+    { label: '🚪 走出门口', target: '公寓2楼走廊-201号门' }
+  ],
+  '201室-主卧': [{ label: '前往: 客厅', target: '201室-客厅' }],
+  '201室-浴室': [{ label: '前往: 客厅', target: '201室-客厅' }],
+
+  '405室-客厅': [
+    { label: '前往: 主卧', target: '405室-主卧' },
+    { label: '前往: 浴室', target: '405室-浴室' },
+    { label: '🚪 走出门口', target: '公寓4楼走廊-405号门' }
+  ],
+  '405室-主卧': [{ label: '前往: 客厅', target: '405室-客厅' }],
+  '405室-浴室': [{ label: '前往: 客厅', target: '405室-客厅' }],
+
+  '303室-客厅': [
+    { label: '前往: 主卧', target: '303室-主卧' },
+    { label: '前往: 厨房', target: '303室-厨房' },
+    { label: '前往: 浴室', target: '303室-浴室' },
+    { label: '🚪 走出门口', target: '公寓3楼走廊-303号门' }
+  ],
+  '303室-主卧': [{ label: '前往: 客厅', target: '303室-客厅' }],
+  '303室-厨房': [{ label: '前往: 客厅', target: '303室-客厅' }],
+  '303室-浴室': [{ label: '前往: 客厅', target: '303室-客厅' }],
+
+  '305室-客厅': [
+    { label: '前往: 主卧', target: '305室-主卧' },
+    { label: '前往: 厨房', target: '305室-厨房' },
+    { label: '前往: 浴室', target: '305室-浴室' },
+    { label: '🚪 走出门口', target: '公寓3楼走廊-305号门' }
+  ],
+  '305室-主卧': [{ label: '前往: 客厅', target: '305室-客厅' }],
+  '305室-厨房': [{ label: '前往: 客厅', target: '305室-客厅' }],
+  '305室-浴室': [{ label: '前往: 客厅', target: '305室-客厅' }],
+
+  '407室-客厅': [
+    { label: '前往: 主卧', target: '407室-主卧' },
+    { label: '前往: 浴室', target: '407室-浴室' },
+    { label: '前往: 阳台', target: '407室-阳台' },
+    { label: '🚪 走出门口', target: '公寓4楼走廊-407号门' }
+  ],
+  '407室-主卧': [{ label: '前往: 客厅', target: '407室-客厅' }],
+  '407室-浴室': [{ label: '前往: 客厅', target: '407室-客厅' }],
+  '407室-阳台': [{ label: '前往: 客厅', target: '407室-客厅' }],
+
+  /* ★ 2026-11-16：`301室-门口` 不再是「走廊上那个独立的门前点」。
+     它跟 `公寓3楼走廊-301号门` 重复（两个都表示「站在门外」），
+     玩家截图里说的「重复地点」就有它。现在：
+       · 走廊 → 301号门 → 301室-客厅   ← 主路径，跟另外 5 户一个形状
+       · 301室-门口 退化成**玄关**（进了门之后那一小块），折到 301室
+     ⚠ 名字仍留在 APARTMENT_PLACES 里（老存档变量里存着这个值，
+       删了会让 normalizeApartmentPlace 返回空串 ⇒ 图掉了）。
+     ⚠ 必须给一条回走廊的边：老存档就停在「301室-门口」，
+       只给「进屋」的话玩家出不去（当年 神社客房 就是这么关死过）。 */
   '301室-门口': [
-    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' },
-    { label: '🚪 进屋: 客厅', target: '301室-客厅' }
+    { label: '🚪 进屋: 客厅', target: '301室-客厅' },
+    { label: '前往: 返回3楼走廊', target: '公寓3楼走廊' }
   ],
   '301室-客厅': [
     { label: '前往: 厨房', target: '301室-厨房' },
@@ -1777,58 +1957,75 @@ var TH_MAP_DEF = [
      选项前往这里箭头就是 ↓」—— 地图自己得先说人话。
      现在：楼下 y=18 在最底，楼层越高 y 越小。这样「上楼 = ↑」是几何事实，
      不再需要任何楼层特判；箭头只要读坐标。 */
-  ['公寓楼下', 62, 19],
-  ['公寓对面公园', 60, 19],
-  ['便利店前', 64, 19],
-  ['便利店里', 66, 19],
-  /* ★ v165N：走廊与房门拉开间距。
-     玩家原话：「把里和外，前和里的同一个场所的格子，搞点间隔」。
-     旧坐标里「走廊 y=16 / 201号门 y=16」是**同一行相邻两格**，
-     「走廊 y=16 / 203号门 y=17」只差 1 格 —— 「公寓2楼走廊-201号门」
-     这 11 个字横排要 3 格宽，直接把走廊和对面房门一起盖住。
-     现在房门统一放到走廊上方 2 格，横向仍旧贴着走廊列（差 2 格），
-     斜向距离 = √8 ≈ 2.83 格，够 3 行地名各占一行。
-     ★ v165O：纵向 2 格 → 3 格一层，横向整体右移 18（片区搬到 36 起）。 */
-  ['公寓2楼走廊', 62, 17],
-  ['公寓2楼走廊-201号门', 58, 14],
-  ['公寓2楼走廊-203号门', 58, 17],
-  ['公寓3楼走廊', 62, 12],
-  ['公寓3楼走廊-303号房', 58, 9],
-  ['公寓3楼走廊-305号房', 58, 12],
-  ['公寓4楼走廊', 62, 7],
-  ['公寓4楼走廊-405号房', 58, 4],
-  ['公寓4楼走廊-407号房', 58, 7],
-  /* ★ v165P：301 室 8 个点重排 —— 旧坐标 x 到 71，而公寓片区框只到 x=68，
-     这 4 个点（次卧1/浴室/杂物间/阳台）**落在框外**，
-     thMapAreaOf 会把它们判进神社片区（神社 x0=70），
-     表现为「公寓的房间出现在神社地图上」。
-     ──────────────────────────────────────────────────────────────
-     现在按**真星形**排：客厅居中 (63,14)，6 个房间分列上下左右一圈，
-     间距 3 格（够 1~2 行地名），且每个房间与客厅同行或同列 ——
-     连线全直、零斜线、不穿任何第三方格子。
-       厨房(63,9)   次卧1(60,12)  卧室(66,12)
-       客厅(63,14) ← 十字中心
-       浴室(66,16)  杂物间(60,16)  阳台(63,19)
-       门口(58,14) —— 客厅同一行，进门那条线是直的 */
-  ['301室-门口', 66, 14],
-  ['301室-客厅', 63, 14],
-  ['301室-厨房', 63, 9],
-  ['301室-主卧', 60, 12],
-  ['301室-次卧1', 66, 12],
-  ['301室-浴室', 60, 16],
-  ['301室-杂物间', 66, 16],
-  ['301室-阳台', 63, 19],
+  /* ══ ★ 2026-11-16：公寓片区整块重排 —— 「其他人的房间呢」 ════════════
+     玩家原话：「其他人房间的房间呢，你到底在搞几把毛，我说房间啊，
+               不是他妈房子，不是号房，是房间，而且他妈为什么这么多重复的地点」
+               截图里指着孤零零挂在右上角的 407室：
+               「来，告诉我，407 和走廊的 407 房有什么他妈区别！！」
+     ────────────────────────────────────────────────────────────────────
+     ── 旧图到底错在哪 ──
+     ① **房号和走廊在图上毫无关系。**
+        4 楼走廊 (62,7)、407号门 (58,7)、407室 (68,2)。
+        房号那一列（x=68）从 y=2 到 y=17 一路排下来，
+        跟自家楼层**只靠猜**：407室 y=2 是 4 楼，405室 y=5 也是 4 楼……
+        看图的人只会觉得「右上角挂了个 407室，和走廊那个 407 房重复了」。
+     ② **301 的 8 个房间铺在楼层剖面图上。**
+        301室-主卧(60,12) 和 公寓3楼走廊(62,12) 同一行，
+        客厅(63,14)/厨房(63,9)/阳台(63,19) 把 x=63 整列占满 ——
+        3 条楼层走廊（x=62）右边一格全是自己家的房间，糊成一片。
+     ③ **别人的房间一个格子都没有**（见下面「合并成一个点」的说明）。
+     ────────────────────────────────────────────────────────────────────
+     ── 现在的排法：走廊 → 门 → 屋，三列一条直线 ───────────────────────
+        x=58  楼层走廊（竖向串起来，上楼 = y 变小）
+        x=62  门牌点 —— 玩家原话里的「走廊的 407 房」，**站在门外**
+        x=66  那户人家 —— `407室`，**门内**
+     ★ 三列同排、横向只隔 4 格：从走廊走到门口、再进屋，
+       在图上就是一条直着往右走的路。房号终于跟自家楼层绑在一起了。
+     ★ 每层最多 3 户（301/303/305），所以每层给 3 个门位。
 
-  /* ★ 22:10：201 / 203 / 303 / 305 / 405 / 407 —— 这几个房号以前**地图上一个点都没有**。
-     玩家被连携带到 303，地图查不到 303，直接回落到「春日大平家·前院」。
-     这里一个房号只放一个节点（房间级用别名指过来，不铺 40 个格子，免得又糊成一片）。
-     位置取右侧空列 x=68（公寓框 56~68 内），y 按楼层排。 */
-  ['201室', 68, 17],
-  ['203室', 68, 14],
-  ['303室', 68, 11],
-  ['305室', 68, 8],
-  ['405室', 68, 5],
-  ['407室', 68, 2],
+        4 楼  走廊(58,4)   405号门(62,2) → 405室(66,2)
+                          407号门(62,7) → 407室(66,7)（紫苑家）
+        3 楼  走廊(58,11)  303号门(62,9) → 303室(66,9)（千鹤家）
+                          301号门(62,11)→ 301室(66,11)（自己家 · 结奈）
+                          305号门(62,13)→ 305室(66,13)（千晴家）
+        2 楼  走廊(58,17)  201号门(62,15)→ 201室(66,15)（空置）
+                          203号门(62,19)→ 203室(66,19)（奈绪家）
+     ────────────────────────────────────────────────────────────────────
+     ── 「合并成一个点」是玩家的决定，不是偷懒 ──────────────────────────
+     问过：「住户房间在地图上到底怎么画？」→ 答：「合并成一个点」。
+     所以 301室-客厅 / 303室-主卧 / 407室-卫生间 这些**房间名全部不进
+     TH_MAP_GRID**，由 thMapUnitOf() 折到 `XXX室` 那一个点上。
+       · 地点名照旧能用（世界书、拓扑、变量里都是 `407室-客厅`）
+       · 地图上一个房号只占一格，不会 6 户 × 4 间 = 24 个碎点糊成一片
+       · 页脚那行仍显示真实房间名 ——「我现在在 407室-客厅」看得见
+     ⚠ 只改坐标，不改拓扑：连线与可达性走 MAP_TOPOLOGY，跟数字无关。 */
+  ['公寓楼下', 58, 21],
+  ['公寓对面公园', 62, 22],
+  ['便利店前', 66, 21],
+  /* ★ 2026-11-16：`便利店里` 原来排 (66,23) —— **在公寓片区框外**（y1=22），
+     thMapAreaOf 会把它判进夏越村，表现是「进便利店，小地图跳回村里」。
+     现在收到 (62,20)：店门 (66,21) 的左边一格，同行相邻，进屋那条线是直的。 */
+  ['便利店里', 62, 20],
+
+  ['公寓4楼走廊', 58, 4],
+  ['公寓4楼走廊-405号门', 62, 2],
+  ['公寓4楼走廊-407号门', 62, 7],
+  ['405室', 66, 2],
+  ['407室', 66, 7],
+
+  ['公寓3楼走廊', 58, 11],
+  ['公寓3楼走廊-303号门', 62, 9],
+  ['公寓3楼走廊-301号门', 62, 11],
+  ['公寓3楼走廊-305号门', 62, 13],
+  ['303室', 66, 9],
+  ['301室', 66, 11],
+  ['305室', 66, 13],
+
+  ['公寓2楼走廊', 58, 17],
+  ['公寓2楼走廊-201号门', 62, 15],
+  ['公寓2楼走廊-203号门', 62, 19],
+  ['201室', 66, 15],
+  ['203室', 66, 19],
 
   /* ★ v165N：神社九点重排 —— 同一场所的「里 / 外」必须隔开两格。
      玩家原话：「把里和外，前和里的同一个场所的格子，搞点间隔，
@@ -2080,17 +2277,28 @@ var TH_MAP_GRID = {};
   }
 })();
 
-/* ★ 22:10：房间级别名。地图上只画「303室」这一个节点，但玩家所在 / 连携目的地
-   往往是「303室-客厅」这种房间名。查坐标时统一折到房号节点，
-   否则地图找不到 → 回落到「春日大平家·前院」，玩家看到的就是「我明明在 303」。
+/* ★ 2026-11-16：房间级别名。地图上每户只画「303室」这一个节点，
+   但玩家所在 / 连携目的地往往是「303室-客厅」这种房间名。
+   查坐标时统一折到房号节点，否则地图找不到 → 回落到「春日大平家·前院」。
    ⚠ 这里**不能**引用 APARTMENT_PLACES：它定义在整个文件靠后的位置（1.7 万行），
-     这里建表时还没赋值。纯正则推导，任何时刻都成立。 */
+     这里建表时还没赋值。纯正则推导，任何时刻都成立。
+   ────────────────────────────────────────────────────────────────────
+   ★★ 2026-11-16：**门牌不再折进屋里** ★★
+   玩家指着截图问：「来，告诉我，407 和走廊的 407 房有什么他妈区别！！」
+   区别是：`公寓4楼走廊-407号门` 在**门外**（站在走廊看那扇门），
+   `407室` / `407室-客厅` 在**门内**（已经进屋）。
+   这两处是不同地点、取不同图、世界书里三十多处按它分流 ——
+   但旧版这个函数把「门」也折成 `407室`，等于在地图上宣布「门里门外是一回事」，
+   于是图上只剩一个孤零零的 407室，跟走廊毫无关系，看着就像重复点。
+   现在**门牌折到自己**（TH_MAP_GRID 里给它留了独立格子），
+   只有房间（带 `室-` 后缀）才折到房号。
+   ⚠ 老存档的 `号房` 写法照旧认，同样**不折**（它就是门外那个点）。 */
 function thMapUnitOf(name) {
   var t = String(name == null ? '' : name);
   var m = /^(\d{3})室(?:-|·|$)/.exec(t);
   if (m) return m[1] + '室';
-  var m2 = /^公寓\d楼走廊-(\d{3})号(?:房|门)$/.exec(t);
-  if (m2) return m2[1] + '室';
+  /* 门牌 / 走廊不折：它们自己就是地图上的点（门外）。
+     这里显式返回空串，而不是把 `号门` 也折到房号 —— 那正是旧版的错。 */
   return '';
 }
 var TH_MAP_ALIAS = {};
@@ -2284,12 +2492,17 @@ function thMapMiniLabel(name) {
     /* 房间名已经够短（≤4 字）就原样：次卧1 / 客厅 / 厨房 */
     return room;
   }
-  /* ③ 公寓那一串「公寓2楼走廊-201号门」—— 门牌号和走廊分开写 */
+  /* ③ 公寓那一串「公寓3楼走廊-201号门」—— 门牌号单独写。
+     ★ 2026-11-16：楼号对读图的人是废话，小地图一次只画一层，
+       整张图所有门牌都带「3楼」只会挤。直接给「201号门」，悬停有全名。 */
   m = /^公寓(\d)楼走廊-(.+)$/.exec(t);
   if (m) return m[2];
   m = /^公寓(\d)楼走廊$/.exec(t);
   if (m) return m[1] + '楼';
-  m = /^301室-(.+)$/.exec(t);
+  /* ★ 2026-11-16：原来写死 `301室-`，别的房号一个都不缩 ——
+     玩家进了紫苑家，「407室-客厅」在小地图上还是 6 个字，一格放不下。
+     现在任意房号都取房间名（客厅 / 主卧 / 浴室 / 阳台）。 */
+  m = /^\d{3}室-(.+)$/.exec(t);
   if (m) return m[1];
   return '';
 }
@@ -2303,14 +2516,45 @@ function thMapGraph() {
   if (thMapGraph._c) return thMapGraph._c;
   var g = {}, k, i, hk, hn, rs, t;
   for (k in TH_MAP_GRID) if (Object.prototype.hasOwnProperty.call(TH_MAP_GRID, k)) g[k] = {};
+  /* ══ ★ 2026-11-16：房间名也要建节点，否则**边被静默丢掉** ══════════
+     玩家原话：「其他人房间的房间呢，你到底在搞几把毛，我说房间啊，
+               不是他妈房子，不是号房，是房间」
+     ──────────────────────────────────────────────────────────────────────
+     ── 这里原来为什么等于没有房间 ──
+     上面那行只把 TH_MAP_GRID 的键建成节点，而 `407室-客厅` 这类**房间名
+     不在网格里**（它们折到 `407室` 那一个点，见 thMapUnitOf）。
+     于是 add() 的第一句 `if (!g[a] || !g[b]) return;` 直接把边吞了 ——
+     不报错、不告警，拓扑写了跟没写一样。
+     更隐蔽的是下面那句 `if (... || !g[k]) continue;`：
+     整条 `407室-客厅` 的邻接表连读都没被读。
+     结果：白名单 APARTMENT_PLACES 里有房间名、世界书写了房间名、
+     变量里也存着房间名，**只有地图这一层当它们不存在**。
+     ──────────────────────────────────────────────────────────────────────
+     现在按**地图上的归属**建节点：房间名虽然不占自己的格子，
+     但它归到 `XXX室` 那一点 —— 所以先给它一个节点，
+     连线时再统一折到 thMapUnitOf() 的落点（见下面 add 的改造）。
+     这样「407室-客厅 ⇄ 407室-主卧」在图上就是同一个点自连 —— 没有意义，
+     所以**室内边在折完之后自动跳过**（a === b 那条），
+     图上看不出多余线，但**可达性表（thMapReach）仍然是全的**。 */
+  function ensure(n) {
+    if (!n || g[n]) return;
+    g[n] = {};
+  }
+  for (k in MAP_TOPOLOGY) if (Object.prototype.hasOwnProperty.call(MAP_TOPOLOGY, k)) ensure(k);
+  /* add 仍然只在「图上两个不同的点」之间连边 —— 折到同一格的室内边不进图，
+     但也不会被当成非法边丢掉（合法性由 ensure 保证）。 */
   function add(a, b) { if (!g[a] || !g[b] || a === b) return; g[a][b] = 1; g[b][a] = 1; }
   for (k in MAP_TOPOLOGY) {
-    if (!Object.prototype.hasOwnProperty.call(MAP_TOPOLOGY, k) || !g[k]) continue;
+    if (!Object.prototype.hasOwnProperty.call(MAP_TOPOLOGY, k)) continue;
     rs = MAP_TOPOLOGY[k] || [];
     for (i = 0; i < rs.length; i++) {
       t = String((rs[i] && rs[i].target) || '');
       if (/^indoor-/.test(t)) t = thMapIndoorName(t);
-      add(k, t);
+      /* ★ 折到地图上的落点再连：`407室-客厅 → 407室`、`公寓4楼走廊-407号门 → 407室`。
+         折不出落点的（乡村/神社那些）原样用自己。 */
+      var ua = thMapUnitOf(k) || k, ub = thMapUnitOf(t) || t;
+      ensure(ua); ensure(ub);
+      add(ua, ub);
     }
   }
   for (hk in HOUSES) {
@@ -12944,16 +13188,25 @@ function thImgUrlsForArc(arc) {
    以前走的是 thImgUrlsCritical —— 只等首屏 8~12 张，剩下的进游戏后慢慢补，
    于是玩家一进场就看见一堆空洞 / 半张图 / 换季时才蹦出来。
 
-   这个函数不挑篇章、不挑时段，把**三份图源全部摊平**：
-     ① 场景图：SCENE_IMGS 全部 + SCENE_IMG_SETS 每一档（day/dusk/night）
-                + SHRINE_IMG_SETS 全部 + SEASON_SCENE_IMGS 全部
-                + SEASON_WEATHER_IMGS 全部 + NIGHT_IMGS + VILLAGE_ROOM_IMGS
-                + 三张常量底图
-     ② 立绘：CHAR_STANDINGS_MULTI 每一张 + NEW_ART_STANDINGS 每一张
-                + CHAR_STANDINGS 每一张
-     ③ 插图：NEW_ART_GALLERY_POOLS 每一张 + GALLERY_POOLS 每一张
+   这个函数不挑篇章，把三份图源摊平。**但它有两种模式**，别混用：
+
+     `thImgUrlsEverything()`        —— **开局闸门用**。场景图只取当前季节，
+                                        插图完全不进（见下面 pushSet / ③ 的注释）。
+     `thImgUrlsEverything('all')`   —— **「🖼 重载全部」按钮用**。真·全量：
+                                        四季全推 + 插图全推。玩家主动点的，等得起。
+
+   ⚠ 2026-11-15 之前这里只有一种行为（全量），开局闸门直接吊在它上面，
+     于是每个玩家开局都要下 300+ 张、光插图就上百 MB。玩家原话
+     「别鸡巴加载这么多」「以他妈当前季节为主」。加 opts 就是为这件事。
+
+     ① 场景图：SCENE_IMGS + SCENE_IMG_SETS 每一档 + SHRINE_IMG_SETS
+                + SEASON_SCENE_IMGS + SEASON_WEATHER_IMGS + NIGHT_IMGS
+                + VILLAGE_ROOM_IMGS + 常量底图
+     ② 立绘：CHAR_STANDINGS_MULTI / NEW_ART_STANDINGS / CHAR_STANDINGS
+     ③ 插图：只在 'all' 模式下才扫（GALLERY_POOLS / NEW_ART_GALLERY_POOLS）
    去重后返回。不认识的键一律跳过，绝不抛错把开局卡死。 */
-function thImgUrlsEverything() {
+function thImgUrlsEverything(opts) {
+  var wantAll = (opts === 'all' || (opts && opts.all === true));
   var out = [];
   var seen = {};
   var push = function (u) {
@@ -12967,13 +13220,58 @@ function thImgUrlsEverything() {
   };
   var pushSet = function (g) {
     if (!g || typeof g !== 'object') return;
-    push(g.day); push(g.dusk); push(g.night);
-    /* 有些组还有别的档位键，一并扫掉 */
+    /* ══ ★ 2026-11-15 23:55：**只取当前季节那一套，不再四季全推** ════════
+       玩家原话：「别鸡巴加载这么多」「以他妈当前季节为主」。
+
+       ── 原来错在哪 ──────────────────────────────────────────────────
+       旧实现是：先 push 基础档的 day/dusk/night，再把 seasons 下的
+       **每一季**递归进去全 push。而神社后山那 19 个场景的基础档
+       本身就是「夏」那套（shrine_summer），seasons 里又放了春/秋/冬 ——
+       ⇒ 不管玩家选哪个季节，**夏 + 春 + 秋 + 冬四套全被装进开局清单**。
+       19 场景 × 3 档 × 4 套 = 228 张，一张 0.5~1MB，开局直接几百 MB 起。
+
+       ── 现在怎么取 ──────────────────────────────────────────────────
+       有 seasons 的组：
+         · 当前季有图 ⇒ 只用当前季那三档（**基础档连同它的夏图一起丢掉**）
+         · 当前季没图 ⇒ 退回基础档三档
+       没有 seasons 的组：照旧用基础档三档。
+       判据统一走 thSeasonForPreload() —— 和 thImgUrlsForArc 用同一个季节，
+       不许这里一套那里一套（判据必须单一）。
+
+       ⚠ 别为了「保险」把别的季节也塞回来。换季是月份驱动的，一年最多三次，
+         真换季了现拉那几张，代价远小于每个玩家开局都多下三倍。 */
+    var seNow = '夏';
+    try { seNow = thSeasonForPreload() || '夏'; } catch (eSe) { seNow = '夏'; }
+
+    /* 全量模式（重载按钮）：四季全推，一张不漏 */
+    if (wantAll) {
+      push(g.day); push(g.dusk); push(g.night);
+      for (var ka in g) {
+        if (ka === 'name' || ka === 'day' || ka === 'dusk' || ka === 'night') continue;
+        var va = g[ka];
+        if (typeof va === 'string') { if (/^https?:/.test(va)) push(va); }
+        else if (va && typeof va === 'object') pushSet(va);
+      }
+      return;
+    }
+
+    var hasSeasons = !!(g.seasons && typeof g.seasons === 'object');
+    var sub = hasSeasons ? g.seasons[seNow] : null;
+
+    if (sub && typeof sub === 'object') {
+      /* 当前季有图：只吃这一套，基础档不推（否则等于又把夏推了一遍） */
+      push(sub.day); push(sub.dusk); push(sub.night);
+    } else {
+      /* 无 seasons，或当前季缺档 ⇒ 退回基础档三档（有就推，没有就算了） */
+      push(g.day); push(g.dusk); push(g.night);
+    }
+
+    /* 组里其它非季节的散装键（暂时没有，留着兜住以后新加的字段）。
+       ⚠ 这里**必须跳过 seasons**，否则又把四季扫回来了。 */
     for (var k in g) {
-      if (k === 'name' || k === 'day' || k === 'dusk' || k === 'night') continue;
+      if (k === 'name' || k === 'day' || k === 'dusk' || k === 'night' || k === 'seasons') continue;
       var v = g[k];
       if (typeof v === 'string') { if (/^https?:/.test(v)) push(v); }
-      /* ★ v159：seasons 这种嵌套组要递归，否则四季图一张都进不了预载清单 */
       else if (v && typeof v === 'object') pushSet(v);
     }
   };
@@ -13009,18 +13307,35 @@ function thImgUrlsEverything() {
   try { pushDeep(NEW_ART_STANDINGS); } catch (e21) {}
   try { pushDeep(CHAR_STANDINGS); } catch (e22) {}
 
-  /* ── ③ 插图（07 脚本的两个池，跨脚本读 HOST） ── */
-  try {
-    var gp = (typeof GALLERY_POOLS !== 'undefined' && GALLERY_POOLS) ? GALLERY_POOLS
-           : (HOST && HOST.GALLERY_POOLS) || null;
-    if (gp) pushDeep(gp);
-  } catch (e30) {}
-  try {
-    var np = (typeof NEW_ART_GALLERY_POOLS !== 'undefined' && NEW_ART_GALLERY_POOLS)
-           ? NEW_ART_GALLERY_POOLS
-           : (HOST && HOST.NEW_ART_GALLERY_POOLS) || null;
-    if (np) pushDeep(np);
-  } catch (e31) {}
+  /* ── ③ 插图（07 脚本的两个池，跨脚本读 HOST） ──
+     ══ ★ 2026-11-15 23:58：**插图不再进开局清单** ═══════════════════════
+     玩家原话：「别鸡巴加载这么多」。插图和场景图性质完全不同：
+
+       · 场景图：一进场就要画面，没有就是黑底 ⇒ 必须预载
+       · 插图：只在模型写出插图标签时才弹，**开局几分钟内通常一张都不出**
+
+     而插图池是这两个池里最大的一块（旧池 496 张、新池另算），
+     一张 0.6~1MB ⇒ 光插图就上百 MB。开局把它全下完，纯属白等。
+
+     现在插图交给 thImgWarmBoot（进游戏后后台慢慢灌，一次 6 张不抢带宽），
+     真要用某张时它大概率已经在缓存里；没赶上就现拉那一张，
+     代价远小于「所有人开局先等几百张」。
+     「🖼 重载全部」按钮照旧能拉全量 —— 那是玩家主动点的，等得起。
+
+     ⚠ 别看到这里空着就"顺手补回来"。这是本次改动的正题，不是漏写。 */
+  if (wantAll) {
+    try {
+      var gp = (typeof GALLERY_POOLS !== 'undefined' && GALLERY_POOLS) ? GALLERY_POOLS
+             : (HOST && HOST.GALLERY_POOLS) || null;
+      if (gp) pushDeep(gp);
+    } catch (e30) {}
+    try {
+      var np = (typeof NEW_ART_GALLERY_POOLS !== 'undefined' && NEW_ART_GALLERY_POOLS)
+             ? NEW_ART_GALLERY_POOLS
+             : (HOST && HOST.NEW_ART_GALLERY_POOLS) || null;
+      if (np) pushDeep(np);
+    } catch (e31) {}
+  }
 
   return out;
 }
@@ -13302,6 +13617,7 @@ function thImgPrefetch(urls, onTick, concurrency) {
 
 /* ══ 开局闸门：点「确认开局」→ 先把本篇素材拉齐，再放行进游戏 ══ */
 var _thImgGatePending = null;   /* 闸门通过后要执行的函数 */
+var _thImgGateTimer = null;     /* ★ 硬总时限的句柄，放行时必须清掉 */
 function thImgGateRun(urls, onPass, opts) {
   opts = opts || {};
   var list = (urls || []).slice();
@@ -13313,6 +13629,38 @@ function thImgGateRun(urls, onPass, opts) {
   thImgGateSet({ sub: '正在下载全部素材…（0 / ' + list.length + '）', pct: 0, num: '0 / ' + list.length, show: [] });
 
   var started = Date.now();
+  /* ══ ★ 2026-11-16 00:03：**硬总时限 45 秒** ══════════════════════════════
+     玩家原话：「有玩家被卡了10分钟，别他妈让这种事情再发生」。
+
+     为什么光有「失败就跳过」还不够：
+       单张图的上限是 5 秒 × 4 次尝试 ≈ 20 秒（TH_IMG_STALL_MS × (1+STALL_MAX)）。
+       并发只有 16。如果图床整体抽风、几乎所有图都在超时，
+       258 张 ÷ 16 并发 × 20 秒 ≈ 5 分钟以上 —— 那张「正在载入」的屏就这么挂着。
+       「失败就跳过」只在**结果回来**时才生效，而结果迟迟不回来时它一个也救不了。
+
+     所以加这一道：到点直接放行，没下完的统统记成「跳过」。
+     45 秒是这么定的：正常网速下 82 张（当前季）大约 10~20 秒，
+     留一倍余量让慢网也能走完；再慢就说明这条路今天不通，硬等没有意义。
+
+     ⚠ 这个定时器**必须**在闸门结束时清掉，否则会重复 pass / 闭包留住 DOM。 */
+  var GATE_MAX_MS = 45000;
+  var gateTimer = setTimeout(function () {
+    if (!_thImgGatePending) return;      /* 已经放行过了 */
+    try {
+      console.warn('[素材] 总时限 ' + (GATE_MAX_MS / 1000) + ' 秒到，直接放行；没下完的当跳过处理');
+    } catch (eT) {}
+    try {
+      thImgGateSet({
+        sub: '素材下得有点慢，先让你进去（没用上的图进游戏后慢慢补）',
+        pct: 100, num: '', show: []
+      });
+    } catch (eS) {}
+    thImgGatePass();
+  }, GATE_MAX_MS);
+  /* 把句柄挂到模块级，thImgGatePass 里负责清 —— 否则放行后定时器还在，
+     45 秒后又会跑一遍（虽然 _thImgGatePending 已空会早退，但句柄不该泄漏）。 */
+  _thImgGateTimer = gateTimer;
+
   thImgPrefetch(list, function (done, total, failed, ok) {
     var pct = total ? Math.round(done / total * 100) : 100;
     var bad = failed.length;
@@ -13331,55 +13679,49 @@ function thImgGateRun(urls, onPass, opts) {
   }, 16).then(function (r) {   /* ★ v154：并发 10 → 16（全量几百张，得拉快点） */
     var cost = Date.now() - started;
     var bad = r.failed.length;
-    if (!bad) {
-      thImgGateSet({ sub: '素材齐了，正在进入…', pct: 100, num: r.total + ' / ' + r.total, show: [] });
-      setTimeout(function () { thImgGatePass(); }, Math.max(0, 320 - cost));
-      return;
+
+    /* ══ ★ 2026-11-16 00:02：**拉不到的一律跳过，绝不把人卡在门外** ══════════
+       玩家原话：「加载不出来的可以跳过，有玩家被卡了10分钟，别他妈让这种事情再发生」。
+
+       ── 原来有多坏 ──────────────────────────────────────────────────
+       旧逻辑是「有失败就不放行」，只给「重试」和「取消」两个按钮。
+       于是只要有一张图挂在某个抽风的图床上（jsDelivr 抖一下、某张 404），
+       玩家就会卡在开局那一屏，点多少次重试都还是那几张 —— 有人卡了十分钟。
+       一张图换玩家十分钟，这是绝对不能接受的交易。
+
+       ── 现在的规则 ──────────────────────────────────────────────────
+       **只要没有「还在下载中」的，就直接放行。** 失败的记一笔、给个提示，
+       进游戏后那张图现拉；拉不到就是个空底色，不影响玩。
+       重试按钮还在，但它是**可选**的，不再是唯一出路。
+
+       ⚠ 不许再加回「失败就不放行」的守卫。真要保画面，正确做法是
+         在 thImgBind 那一层做占位/渐变兜底，不是拿开局闸门当人质。 */
+    if (bad) {
+      try {
+        console.warn('[素材] ' + bad + ' 张没拉下来，已跳过（不影响进入）：'
+          + r.failed.slice(0, 8).join(' , ') + (bad > 8 ? ' …' : ''));
+      } catch (eWarn) {}
+      try { TH_IMG_GATE_SKIPPED = r.failed.slice(); } catch (eSk) {}
     }
-    /* ★ v154：有失败就**不放行**。玩家要求「必须全部下载完才能玩」，
-       所以这里只给「重试」和「取消」，绝不给「仍然进入」。 */
+
+    /* 一律放行。文案分两种，让玩家知道刚才发生了什么，但不拦他。 */
     thImgGateSet({
-      sub: bad + ' 张没下载下来（图床抽风 / 网络抖动）。点「重试」继续补，补不齐不进游戏。',
+      sub: bad
+        ? (bad + ' 张没拉下来，已跳过（进游戏后用到再补，不影响游玩）')
+        : '素材齐了，正在进入…',
       pct: 100,
-      num: (r.total - bad) + ' / ' + r.total + ' · 失败 ' + bad,
-      show: ['retry']
+      num: (r.total - bad) + ' / ' + r.total + (bad ? ' · 跳过 ' + bad : ''),
+      show: []
     });
-    /* 重试按钮：只重拉失败的那几张 */
-    var el = thImgGate();
-    if (!el) return;
-    el.__thGateFailed = r.failed;
-    var bRetry = el.querySelector('[data-th-gate-act="retry"]');
-    if (bRetry) {
-      bRetry.onclick = function (ev) {
-        ev.stopPropagation();
-        var again = (el.__thGateFailed || []).slice();
-        if (!again.length) return;
-        thImgGateSet({ sub: '重试中…', pct: 0, num: '0 / ' + again.length, show: [] });
-        thImgPrefetch(again, function (d, t, f) {
-          thImgGateSet({ pct: t ? Math.round(d / t * 100) : 100, num: d + ' / ' + t + (f.length ? ' · 失败 ' + f.length : '') });
-        }, 4).then(function (r2) {
-          if (!r2.failed.length) {
-            thImgGateSet({ sub: '都补齐了，正在进入…', pct: 100, num: r2.total + ' / ' + r2.total, show: [] });
-            setTimeout(thImgGatePass, 260);
-          } else {
-            el.__thGateFailed = r2.failed;
-            /* ★ v154：还是失败也不放行，让玩家继续重试（可能是图床临时抽风） */
-            thImgGateSet({
-              sub: '还有 ' + r2.failed.length + ' 张没下载下来。再点一次「重试」，或稍后再试。',
-              pct: 100, num: (r2.total - r2.failed.length) + ' / ' + r2.total,
-              show: ['retry']
-            });
-          }
-        });
-      };
-    }
-    var bEnter = el.querySelector('[data-th-gate-act="enter"]');
-    if (bEnter) { bEnter.onclick = function (ev) { ev.stopPropagation(); thImgGatePass(); }; }
+    /* 留一点时间让玩家看到结果，但别久等 —— 最多 700ms */
+    setTimeout(function () { thImgGatePass(); }, Math.max(0, 520 - cost));
+    return;
   });
 }
 function thImgGatePass() {
   var fn = _thImgGatePending;
   _thImgGatePending = null;
+  if (_thImgGateTimer) { try { clearTimeout(_thImgGateTimer); } catch (eCt) {} _thImgGateTimer = null; }
   thImgGateClose();
   if (typeof fn === 'function') { try { fn(); } catch (e) {} }
 }
@@ -13567,9 +13909,12 @@ function thImgReloadAll(silent) {
   /* ④ ★ v158：全量重拉，不再只拉「当前篇章」。
      旧实现走 thImgUrlsForArc(当前篇章)：只重下这一篇的 100 来张，
      立绘、插图、别篇场景图纹丝不动 —— 玩家原话「只重载一点点」。
-     现在走 thImgUrlsEverything()：全卡所有场景 + 立绘 + 插图，一次拉完。 */
+
+     ★ 2026-11-15：这里必须传 'all' —— 这是玩家**主动点**的重载按钮，
+       要的就是「连别的季节、连插图一起重拉」。开局闸门那边才用默认的省流模式，
+       两者共用同一个函数但模式不同，别把这里也改成省流（那按钮就废了）。 */
   var urls = [];
-  try { urls = thImgUrlsEverything(); } catch (e5) {}
+  try { urls = thImgUrlsEverything('all'); } catch (e5) {}
   if (!urls.length) {
     /* 兜底：万一全量清单拿不到，至少把当前篇章拉了 */
     try {
@@ -14472,17 +14817,19 @@ var TH_ARC_ROSTER_SEED = (function () {
   var APT_PEERS = {
     '神谷健太': { 姓名: '神谷健太', 心里话: '这个月加班费该到账了吧，家里的事她会看着办。', 地点: '公寓楼下', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在203的沙发上看着电视睡过去了' },
     '早川慎二': { 姓名: '早川慎二', 心里话: '她又把我的那份也盛好了，明天再说谢谢吧。', 地点: '公寓3楼走廊', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在303里洗完澡就躺下了' },
-    '白石恭介': { 姓名: '白石恭介', 心里话: '今天那批新香的前调调晚了，她大概已经睡了。', 地点: '公寓4楼走廊-407号房', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在407的工作台边趴着，手里还捏着试香纸' },
-    '智本大和': { 姓名: '智本大和', 心里话: '结奈说纸箱明天再拆，那我先歇了。', 地点: '公寓2楼走廊-201号门', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在201的新家里对着没拆完的纸箱打盹' },
-    '冈坂日川': { 姓名: '冈坂日川', 心里话: '千晴又把锅里多煮了一份，她说只是习惯。', 地点: '公寓3楼走廊-305号房', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在305的主卧先睡着了，太郎的被子还没盖好' },
-    '冈坂太郎': { 姓名: '冈坂太郎', 心里话: '明天要把新画的恐龙给楼下那个叔叔看。', 地点: '公寓3楼走廊-305号房', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在305的小床上抱着恐龙玩偶睡，被子踢到脚边' }
+    '白石恭介': { 姓名: '白石恭介', 心里话: '今天那批新香的前调调晚了，她大概已经睡了。', 地点: '公寓4楼走廊-407号门', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在407的工作台边趴着，手里还捏着试香纸' },
+    '智本大和': { 姓名: '智本大和', 心里话: '结奈搬去 301 和她弟弟住了，我这边还挺安静。', 地点: '公寓楼下', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '回家', 具体正在做: '在公寓楼下站了一会儿才转身走，手里拎着给结奈带的水果' },
+    '冈坂日川': { 姓名: '冈坂日川', 心里话: '千晴又把锅里多煮了一份，她说只是习惯。', 地点: '公寓3楼走廊-305号门', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在305的主卧先睡着了，太郎的被子还没盖好' },
+    '冈坂太郎': { 姓名: '冈坂太郎', 心里话: '明天要把新画的恐龙给楼下那个叔叔看。', 地点: '公寓3楼走廊-305号门', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在305的小床上抱着恐龙玩偶睡，被子踢到脚边' }
   };
   Object.keys(APT_PEERS).forEach(function (n) {
     if (!out['公寓'].peer[n]) out['公寓'].peer[n] = APT_PEERS[n];
   });
 
-  /* ★ 夏越村补齐：白坂结奈 / 智本大和（公寓 201 的姐姐与姐夫，户籍在公寓，
-     但 v131 起三处连通，回村时他们也会出现）。
+  /* ★ 夏越村补齐：白坂结奈 / 智本大和（户籍在**公寓**，一个是住 301 的亲姐、
+     一个是她的男朋友；v131 起三处连通，回村时他们也会出现）。
+     ★ 2026-11-16：结奈的住处从 201 改成 301（和 {{user}} 同住），201 空置。
+       大和没搬进这栋楼，所以他的地点是「公寓楼下」而不是某个房号。
      这几位旧 ARC_ROSTER 里算村里的，但 INIT_PATCH 从来没给过变量 —— 正是
      「切篇章之后那些人不见了」被漏掉的一半。
 
@@ -14490,10 +14837,10 @@ var TH_ARC_ROSTER_SEED = (function () {
      玩家原话：「志藤一家都删了」。删的不只是界面上的名字，是这套人设本身 ——
      留着的每一条都会在下一轮提示词里被模型读到，迟早自己长回来。 */
   var VILLAGE_EXTRA_MAIN = {
-    '白坂结奈': { 姓名: '白坂结奈', 心里话: '弟弟总算搬来了这栋楼，以后想见他连车都不用开。', 剧情线: '初始日常', 好感度: 90, 小穴: '饱满柔软。', 奶子: 'E罩杯，丰满白皙。', 足部: '精致优美。', 大腿: '白皙嫩滑。', 警惕值: 0, 恶堕值: 80, 被偷拍照片: 0, 地点: '公寓2楼走廊-201号门', 在场状态: false, 正在做: '做家务', 具体正在做: '在 201 里把最后一摞纸箱推到墙边，直起腰抹了把汗', 穿着: '白色宽松长袖T恤（圆领、袖子挽到小臂），下身蓝色牛仔短裤（裤脚翻边），腿上黑色薄丝袜' }
+    '白坂结奈': { 姓名: '白坂结奈', 心里话: '总算和弟弟住在一个屋檐下了，以后想见他连车都不用开。', 剧情线: '初始日常', 好感度: 90, 小穴: '饱满柔软。', 奶子: 'E罩杯，丰满白皙。', 足部: '精致优美。', 大腿: '白皙嫩滑。', 警惕值: 0, 恶堕值: 80, 被偷拍照片: 0, 地点: '301室-主卧', 在场状态: false, 正在做: '做家务', 具体正在做: '在 301 的客厅里把最后一摞纸箱推到墙边，直起腰抹了把汗', 穿着: '白色宽松长袖T恤（圆领、袖子挽到小臂），下身蓝色牛仔短裤（裤脚翻边），腿上黑色薄丝袜' }
   };
   var VILLAGE_EXTRA_PEER = {
-    '智本大和': { 姓名: '智本大和', 心里话: '结奈说纸箱明天再拆，那我先歇了。', 地点: '公寓2楼走廊-201号门', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '睡觉', 具体正在做: '在201的新家里对着没拆完的纸箱打盹' }
+    '智本大和': { 姓名: '智本大和', 心里话: '结奈搬去 301 和她弟弟住了，我这边还挺安静。', 地点: '公寓楼下', 心理阶段: '阶段一-无敌意', 在场状态: false, 正在做: '回家', 具体正在做: '在公寓楼下站了一会儿才转身走，手里拎着给结奈带的水果' }
   };
   Object.keys(VILLAGE_EXTRA_MAIN).forEach(function (n) {
     if (!out['夏越村'].main[n]) out['夏越村'].main[n] = VILLAGE_EXTRA_MAIN[n];
@@ -17557,8 +17904,8 @@ var APARTMENT_PLACES = [
   '公寓楼下', '公寓对面公园', '便利店前', '便利店里',
   '公寓2楼走廊', '公寓3楼走廊', '公寓4楼走廊',
   '公寓2楼走廊-201号门', '公寓2楼走廊-203号门',
-  '公寓3楼走廊-303号房', '公寓3楼走廊-305号房',
-  '公寓4楼走廊-405号房', '公寓4楼走廊-407号房',
+  '公寓3楼走廊-303号门', '公寓3楼走廊-305号门',
+  '公寓4楼走廊-405号门', '公寓4楼走廊-407号门',
   '301室-门口', '301室-客厅', '301室-厨房', '301室-主卧',
   '301室-次卧1', '301室-浴室', '301室-杂物间', '301室-阳台',
   /* ★ 19:12：女主家的室内房间（世界书《地点总表 公寓篇》里列了 17 个，
@@ -26402,7 +26749,11 @@ async function updateContainer(shell) {
        闸门挂了也不能把人卡死：拿不到 urls 就直接进。 */
     var urls = [];
     try {
-      /* ★ v154：全量。所有插图 + 所有立绘 + 所有场景图，一个不落。 */
+      /* ★ 2026-11-15：**省流模式**（不带参数）。
+         场景图只取当前季节那一套，插图一律不进开局闸门。
+         玩家原话：「别鸡巴加载这么多」「以他妈当前季节为主」。
+         实测神社那 19 组图：全量 246 张 → 当前季 82 张。
+         要全量得显式传 'all'，那是「🖼 重载全部」按钮的事，不要在这里传。 */
       if (typeof thImgUrlsEverything === 'function') urls = thImgUrlsEverything();
       if (!urls || !urls.length) {
         var __arc0 = thPendingArc || '夏越村';

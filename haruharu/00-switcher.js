@@ -41,6 +41,182 @@
   try { HD = HW.document; } catch (e) { HD = document; }
   if (!HD) return;
 
+  /* ══ ★ 2026-11-15 23:5x 回滚：这里曾经有一段「`__SPR_LOADER_GEN__ < 2` 就把整张卡
+     拦死、只留一屏『版本过低，请下载最新卡重导』」的闸门，上线十分钟就被玩家实锤
+     「全炸了」，已整块删除。**不要再加回来，也不要换个名字加回来。**
+
+     ── 它为什么一定会炸 ────────────────────────────────────────────────
+     这段的原意是「新卡才广播 GEN=2、老卡不广播 ⇒ 老卡一律拦」。听上去对，
+     但漏掉了唯一要紧的事实：**玩家手里拿的本来就是之前发出去的那张卡**，
+     那份 loader 里根本没有 GEN 这个变量。
+     于是 GEN 恒为 0，「小于 2」在**每一个真实玩家**身上都成立 ⇒ 一上线全服白屏，
+     一个都进不去。我拿刚重出的新卡自测是通的，因为新卡才带 GEN=2 ——
+     这正好是最没用的那种自测。
+
+     ── 教训（留着，别删）────────────────────────────────────────────────
+     **「需要玩家先换卡/重导才能成立」的判据，绝对不能拿来当开机闸门。**
+     凡是想靠「卡内刚下发的新变量」做判断，先问一句：老卡里这个变量是什么？
+     只要答案是「不存在」，就不能让「值为空」等于「拦停」——
+     那等于把判据的默认值设成了「全员有罪」。
+
+     ── 那「让老卡显示版本过低」这个需求呢 ──────────────────────────────
+     它由 loader 自己完成，不需要这里配合：老卡的 loader 只会去 git 仓库，
+     而 git 侧的业务脚本我们已撤掉、COS 才是唯一来源 ⇒ 老卡拉不到东西，
+     停的是它自己那屏「拉取失败」。
+     换句话说：**老卡是「拉不到」，不是「被判定为老」**。判不出来就别判。 */
+
+  /* ★ 唯一还留着的闸：loader 明确报「有几个文件没拉到」时，别让玩家进去。
+     缺 10-core 是白屏，缺 13-gal 是没插图，缺 00-switcher 是这个球没了 ——
+     都是「看起来能用、其实半残」，比明说更坑。
+
+     ★ 判据只有一条：__SPR_HOT_PARTIAL__ 非空（= loader 自己知道缺了哪几个）。
+       **绝不许加「等 N 秒还没 READY 就判死」这种超时分支**：loader 是 await
+       逐个加载的，本脚本（COMMON 第三个）跑起来时 GAME/TEXT 那 5 个还没开始
+       拉，任何基于时间的判死都只是在赌网速 —— 赌输一次就是全服白屏。
+       超时只允许做一件事：**停止轮询**，绝不拦停。 */
+  (function hotGate() {
+    var STEP = 300, MAX_TICKS = 200, n = 0;   /* 200 × 300ms = 60s 后只是不再看了 */
+
+    function tick() {
+      var partial = '', ready = 0;
+      try { partial = String(HW.__SPR_HOT_PARTIAL__ || ''); } catch (e1) {}
+      if (partial) { showHotPullFail(partial); return; }
+      try { ready = Number(HW.__SPR_HOT_READY__ || 0) || 0; } catch (e2) {}
+      if (ready === 1) return;          /* 全拉到了，收工 */
+      if (++n >= MAX_TICKS) return;     /* 超时 = 停止轮询，**不拦** */
+      setTimeout(tick, STEP);
+    }
+    setTimeout(tick, STEP);
+  })();
+
+  /* ══ 拦停屏：脚本这次没拉全 ═══════════════════════════════════════════
+     ★ 唯一调用点是顶上 hotGate，判据只有一条：__SPR_HOT_PARTIAL__ 非空。
+     也就是说这张屏**只在 loader 自己知道「缺了哪几个文件」时才挂**，
+     永远不会因为「读不到某个新标记」而误伤 —— 2026-11-15 全服白屏就是
+     误伤出来的（见文件顶上那段回滚说明）。
+
+     ── 为什么缺一个文件就整卡拦停，而不让玩家凑合玩 ────────────────────
+     缺 10-core 是白屏，缺 13-gal 是没插图，缺 00-switcher 是悬浮球没了。
+     共同点是「看起来能用、其实半残」，而且残的地方玩家未必看得出来 ——
+     用缺件的脚本继续跑，会把存档变量写成新旧混杂，比打不开更糟。
+     所以宁可明说「这次先别进去」。
+
+     ★ 注意：这张屏**不许**再承担「版本过低 / 请重导卡」那套语义。
+       老卡根本走不到这里 —— 老卡 loader 只会去那个已废弃的 git 仓库，
+       拿不到脚本，停的是它自己那屏拉取失败。判不出来就别判。 */
+  function showHotPullFail(missFiles) {
+    var MID = 'th-hot-fail-mask', SID = 'th-hot-fail-style';
+    var cardVer = '', cardSeq = 0;
+    try { cardVer = String(HW.__SPR_CARD_VER__ || HW.__SPR_CARD_VER || ''); } catch (e1) {}
+    try { cardSeq = Number(HW.__SPR_SEQ__ || 0) || 0; } catch (e2) {}
+    var tag = cardVer ? (cardVer + (cardSeq ? ' · seq ' + cardSeq : '')) : '';
+    var miss = String(missFiles || '').split(',').filter(function (x) { return !!x; });
+    if (!miss.length) miss = ['(未报告具体文件)'];
+
+    function paint() {
+      try {
+        if (HD.getElementById(MID)) return;
+        if (!HD.getElementById(SID)) {
+          var st = HD.createElement('style');
+          st.id = SID;
+          st.textContent = [
+            '#th-hot-fail-mask{position:fixed;inset:0;z-index:2147483647!important;',
+            'display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;',
+            'background:radial-gradient(120% 90% at 50% 0%,#1c1a16 0%,#0d0c0a 55%,#070706 100%);',
+            'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;',
+            'color:#e8e2d4;overflow:auto;-webkit-font-smoothing:antialiased;}',
+            '#th-hot-fail-mask *{box-sizing:border-box;}',
+            '.th-hf-card{position:relative;width:100%;max-width:520px;padding:38px 34px 30px;',
+            'border-radius:18px;text-align:center;',
+            'background:linear-gradient(180deg,rgba(38,34,27,.96),rgba(20,18,15,.98));',
+            'border:1px solid rgba(212,175,95,.34);',
+            'box-shadow:0 0 0 1px rgba(0,0,0,.6),0 26px 70px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,236,190,.07);}',
+            '.th-hf-card::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;border-radius:18px 18px 0 0;',
+            'background:linear-gradient(90deg,transparent,#d4af5f 22%,#f3dfa6 50%,#d4af5f 78%,transparent);opacity:.85;}',
+            '.th-hf-eyebrow{font-size:10px;letter-spacing:.42em;color:#8d8064;text-transform:uppercase;',
+            'margin:0 0 14px;padding-left:.42em;}',
+            '.th-hf-title{margin:0 0 6px;font-size:29px;font-weight:700;letter-spacing:.09em;color:#f0dda6;',
+            'text-shadow:0 0 26px rgba(212,175,95,.32);}',
+            '.th-hf-sub{margin:0 0 22px;font-size:12.5px;letter-spacing:.16em;color:#7d735c;}',
+            '.th-hf-rule{height:1px;margin:0 auto 22px;width:62%;',
+            'background:linear-gradient(90deg,transparent,rgba(212,175,95,.42),transparent);}',
+            '.th-hf-body{margin:0 0 20px;font-size:14px;line-height:2;color:#b9b1a0;text-align:left;}',
+            '.th-hf-body b{color:#f0dda6;font-weight:600;}',
+            '.th-hf-act{display:inline-block;margin:4px auto 18px;padding:13px 30px;border-radius:10px;',
+            'font-size:15px;font-weight:700;letter-spacing:.06em;color:#201a0d;',
+            'background:linear-gradient(180deg,#f3dfa6,#d4af5f);',
+            'box-shadow:0 8px 24px rgba(212,175,95,.26),inset 0 1px 0 rgba(255,255,255,.5);}',
+            '.th-hf-note{margin:0 0 16px;font-size:12px;line-height:1.95;color:#6d6553;text-align:left;',
+            'border-left:2px solid rgba(212,175,95,.26);padding-left:12px;}',
+            '.th-hf-btn{display:inline-block;margin-top:2px;padding:9px 22px;border-radius:8px;cursor:pointer;',
+            'font-size:12.5px;letter-spacing:.05em;color:#cbbd97;background:rgba(212,175,95,.09);',
+            'border:1px solid rgba(212,175,95,.3);transition:background .16s,color .16s;}',
+            '.th-hf-btn:hover{background:rgba(212,175,95,.18);color:#f0dda6;}',
+            '.th-hf-foot{margin:18px 0 0;font-size:10.5px;letter-spacing:.1em;color:#4f4a3e;}'
+          ].join('');
+          (HD.head || HD.documentElement).appendChild(st);
+        }
+
+        var d = HD.createElement('div');
+        d.id = MID;
+        d.innerHTML = [
+          '<div class="th-hf-card">',
+          '<p class="th-hf-eyebrow">Hot Update Failed</p>',
+          '<h1 class="th-hf-title">脚本没拉全</h1>',
+          '<p class="th-hf-sub">这次先别进去</p>',
+          '<div class="th-hf-rule"></div>',
+          '<p class="th-hf-body">卡是新的，但<b>热更源这次没把脚本给全</b>。<br>',
+          '现在只认腾讯 COS 一条通道，它没通就没有第二个地方可以退。</p>',
+          '<div class="th-hf-act">检查网络后刷新</div>',
+          '<p class="th-hf-note">缺的文件：', miss.join('、'), '<br>',
+          '少任何一个都会变成「看起来能用、其实半残」，所以这里直接拦住。<br>',
+          '跟你的存档没关系，刷新重试即可。</p>',
+          '<div class="th-hf-btn" data-thhf="reload">重新加载</div>',
+          '<p class="th-hf-foot">', tag ? '卡内版本 ' + tag : '卡内版本未知', '</p>',
+          '</div>'
+        ].join('');
+        (HD.body || HD.documentElement).appendChild(d);
+
+        d.addEventListener('click', function (ev) {
+          var t = ev && ev.target;
+          if (!t || !t.getAttribute || t.getAttribute('data-thhf') !== 'reload') return;
+          try { HW.location.reload(); } catch (eR) {}
+        });
+      } catch (e) {
+        try { console.error('[热更拦截] 提示层挂载失败', e); } catch (e3) {}
+      }
+    }
+
+    if (HD.readyState === 'loading') HD.addEventListener('DOMContentLoaded', paint, { once: true });
+    else paint();
+    /* 酒馆助手偶尔会把 body 整个换掉（切楼层 / 重渲染），补一次挂载，幂等 */
+    try {
+      setTimeout(paint, 800);
+      setTimeout(paint, 2600);
+    } catch (eT) {}
+
+    /* ══ 遮罩必须一直是最顶上的那一层 ══════════════════════════════════
+       本脚本是 COMMON 第三个，只比 10-core 早一个文件 —— 拦停之后 10-core 照样
+       会加载并把全屏壳（z-index 2147483646）搭起来。遮罩写的是 2147483647，
+       数字上盖得住，但有两个坑：
+         · 酒馆助手 / 10-core 会往 body 追加新的层叠上下文（transform、filter、
+           will-change 任意一个都会），届时 z-index 只在它自己那层里比，谁后挂谁在上；
+         · 玩家点一下、滚一下，10-core 可能把某些浮层 reflow 到 body 末尾。
+       所以除了数字，还要**保证节点顺序在最后**：每次 body 子节点有变动就把它搬回末尾。
+       这不会引起死循环 —— 搬的是同一个节点，且只在「它不再是最后一个」时才搬。 */
+    try {
+      var mo = new (HW.MutationObserver || window.MutationObserver)(function () {
+        var m = HD.getElementById(MID);
+        if (!m) { paint(); return; }
+        var b = HD.body || HD.documentElement;
+        if (b && b.lastElementChild !== m) {
+          try { b.appendChild(m); } catch (eA) {}
+        }
+      });
+      mo.observe(HD.body || HD.documentElement, { childList: true });
+    } catch (eMO) {}
+  }
+
   function readMode() {
     /* ★ v10.9：先读玩家自己选的那个。
        旧逻辑靠「[同层] 脚本里有 enabled=true」判模式，但热更卡把 13 个业务脚本
