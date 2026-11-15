@@ -4342,33 +4342,12 @@ var STYLE = `<style id="th-gal-shell-style">
   /* 切换中：不让连点 */
   .th-gal-btn-arc.is-switching { opacity: 0.5 !important; pointer-events: none !important; }
 
-  /* ★ v115：对话框里的「格式故障说明」条 —— 玩家点了对话框就该看见 */
-  .th-gal-dlg-broken-note {
-    position: absolute !important;
-    inset: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    gap: 7px !important;
-    padding: 12px 14px !important;
-    box-sizing: border-box !important;
-    background: rgba(12, 18, 30, 0.93) !important;
-    color: #e2e8f0 !important;
-    font-size: calc(11px * var(--ui-scale, 1)) !important;
-    line-height: 1.65 !important;
-    text-align: left !important;
-    overflow-y: auto !important;
-    z-index: 3 !important;
-  }
-  .th-gal-dlg-broken-note .th-dbn-title {
-    color: #fbbf24 !important;
-    font-weight: 700 !important;
-    font-size: calc(12px * var(--ui-scale, 1)) !important;
-  }
-  .th-gal-dlg-broken-note .th-dbn-why { color: #cbd5e1 !important; }
-  .th-gal-dlg-broken-note .th-dbn-how { color: #cbd5e1 !important; }
-  .th-gal-dlg-broken-note .th-dbn-a { color: #4ade80 !important; font-weight: 700 !important; }
-  .th-gal-dlg-broken-note .th-dbn-b { color: #67e8f9 !important; font-weight: 700 !important; }
+  /* ★ v1.29：原来的 .th-gal-dlg-broken-note 整段样式已删除。
+     那块「⚠ 未识别到正文内容 / 你极大概率是截断或回空了」的说明条
+     用 inset:0 会把整个对话框盖住，正文看不见，还带发光蓝绿字（#4ade80 / #67e8f9）。
+     作者要求是「检测不到正文标签时展示原文」，不是展示故障说明。
+     没有正文标签时由 setRawText 的兜底分支把原文铺进框里，那才是唯一口径。
+     ⚠ 别再把这套样式加回来 —— 只要 class 在，任何旧代码路径都能把它渲染出来。 */
 
 
   /* ★ v38：房里超过两个人时右上角出「多」，点开是小框，能直接换左右立绘 */
@@ -19275,64 +19254,24 @@ function hasDialogueTagInLatest() {
   return false;
 }
 
-/* ══ ★ v115：对话框里的「格式故障说明」条 ══════════════════════════════════
-   用户原话要显示的内容（一字不改地落到界面上）：
-     未识别到正文内容 → 极大概率是截断或回空 → 不是卡的问题，只是单纯破不了线。
-     验证办法：点「查看历史楼层」，看最新楼层是不是空的/一半就没了。
-       是 → 重 roll；不是 → 点上方「格式补全」。
-   为什么单独做一层而不是往 body 里塞文字：render() 每次都会重写 body.innerHTML，
-   塞进 body 会被下一次心跳（700ms）冲掉。所以做成 stage 里的独立节点，反复设置幂等。 */
+/* ══ ★ v1.29：这段说明条已**物理删除**，不是停用 ══════════════════════
+   作者原话：「我他妈说了检测不到正文标签时，展示原文」。
+   而这块「⚠ 未识别到正文内容 / 你极大概率是截断或回空了」的说明条，
+   `inset:0` 把整个对话框盖住，正文一个字都看不见，还带发光蓝绿字。
+
+   v115 那版只是写了 `return false` 停用 —— 函数体、CSS、8 个调用点全都留着。
+   后果：**任何一个旧缓存里的 10-core.js 都会把它原样渲染出来**，
+   而且从代码上看「已经停用了」，排查时会被 `return false` 骗过去。
+   （这次就是被骗了一整轮。）
+
+   现在连函数体一起删掉，只留空壳给调用点，它们调了也不会出任何东西。
+   对应 CSS（.th-gal-dlg-broken-note 那一段）也一并删除。 */
 var DLG_BROKEN_NOTE_ID = 'th-gal-dlg-broken-note';
 
 function showDialogueBrokenNote() {
-  /* ★ 11-14：**整个停用**。
-     玩家一小时前的原话：「没检测到标签直接展示原文」。
-     而这块「⚠ 未识别到正文内容 / 你极大概率是截断或回空了」的说明条，
-     实际效果是把正文整个盖住 —— 明明右边写着 1/29·解析、正文解析得好好的，
-     框里却只剩这句提示，还能翻页。
-     兜底逻辑本来就会把原文铺进框里（this.pages = [_fbText]），
-     有字就显示字，不需要这块说明。所以这里直接返回，永不显示。 */
+  /* 永久空实现。不要再往这里加任何界面元素 ——
+     没有正文标签时由 setRawText 的兜底分支把原文铺进对话框，那才是唯一口径。 */
   return false;
-  try {
-    var doc = getDoc();
-    var shell = doc && doc.querySelector ? doc.querySelector('#th-gal-shell-root') : null;
-    if (!shell) return false;
-    var stage = shell.querySelector('.th-gal-dialogue-stage');
-    if (!stage) return false;
-    var old = doc.getElementById(DLG_BROKEN_NOTE_ID);
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-
-    var box = doc.createElement('div');
-    box.id = DLG_BROKEN_NOTE_ID;
-    box.className = 'th-gal-dlg-broken-note';
-    /* 用 textContent 逐行拼，绝不拼 HTML —— 这句话里有尖括号，拼字符串会被当成标签吃掉 */
-    var l1 = doc.createElement('div');
-    l1.className = 'th-dbn-title';
-    l1.textContent = '⚠ 未识别到正文内容';
-    var l2 = doc.createElement('div');
-    l2.className = 'th-dbn-why';
-    l2.textContent = '你极大概率是截断或回空了。这不是卡的问题，只是单纯破不了线。';
-    var l3 = doc.createElement('div');
-    l3.className = 'th-dbn-how';
-    l3.textContent = '验证办法：点击「🕘 查看历史楼层」，看看最新楼层是不是空的，或者写到一半就没了。';
-    var l4 = doc.createElement('div');
-    l4.className = 'th-dbn-a';
-    l4.textContent = '▸ 是空的 / 一半就没了 → 直接重 roll。';
-    var l5 = doc.createElement('div');
-    l5.className = 'th-dbn-b';
-    l5.textContent = '▸ 不是空的（正文完整）→ 点上方「📐 格式补全」补一下标签。';
-    var l6 = doc.createElement('div');
-    l6.style.cssText = 'opacity:.55;font-size:calc(9px*var(--ui-scale,1));margin-top:2px;';
-    l6.textContent = '（这一楼没有正文标签，所以框里没字可显示；补全不会动你的剧情文字。）';
-
-    box.appendChild(l1); box.appendChild(l2); box.appendChild(l3);
-    box.appendChild(l4); box.appendChild(l5); box.appendChild(l6);
-    stage.appendChild(box);
-    stage.removeAttribute('hidden');
-    return true;
-  } catch (eBN) {
-    return false;
-  }
 }
 
 function hideDialogueBrokenNote() {
@@ -19639,7 +19578,24 @@ var DialogueReader = {
          两边每 700ms 抢一次 → 页码在 1/1 和 1/26 之间鬼畜。 */
       var _fbText = '';
       try { _fbText = compactProse(sanitizeRawProse(String(rawText || ''))); } catch (eFb) { _fbText = ''; }
-      if (_fbText && !isGenerating) {
+      /* ★ v1.29 兜底二重保险：sanitizeRawProse 里带着「正文锚点裁切」，
+         万一它把整段都判成思维链、返回空串，这里再退一步用**原始原文**。
+         作者的硬要求是「检测不到正文标签时展示原文」——
+         那就宁可把思维链也一起摊开给玩家看，也绝不能给他一片空白或者一句故障说明。 */
+      if (!_fbText) {
+        try {
+          var _fbBare = String(rawText || '')
+            .replace(/<think(?:ing)?[\s\S]*?<\/think(?:ing)?>/gi, '')
+            .replace(/<[^>]{1,80}>/g, '')
+            .trim();
+          _fbText = compactProse(_fbBare);
+        } catch (eFbBare) {}
+      }
+      /* ★ v1.29：**去掉 `&& !isGenerating`**。
+         原来流式生成期间检测不到标签就一路清空 + return，玩家在整段生成过程中
+         看到的是一个空框（或者那句故障说明）。现在流式也照铺，
+         靠下面的 _fbDone 幂等锁防止每 700ms 重排抖动。 */
+      if (_fbText) {
         var _fbSig = 'fb|' + _fbText.length + '|' + _fbText.slice(0, 24) + '|' + _fbText.slice(-24);
         this._fbFloor = String(rawText || '');
         this._fbSig = _fbSig;
