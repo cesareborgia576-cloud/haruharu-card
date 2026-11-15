@@ -38,7 +38,9 @@
 
   var STYLE_ID = 'gal-framework-styles';
   /* ★ v99：样式只要动过就必须换版本号 —— 否则老页面上旧样式会一直赖着不走 */
-  var STYLE_VER = 'v125-20261026';
+  /* ★ v170：加了关闭键样式 + 外置 ✕ 归位规则，必须换号，否则玩家看到的还是旧布局 */
+  /* ★ v171：加沉浸式观看（按钮 + 折叠状态卡/小地图 + 控制条飞左上角），再换一次 */
+  var STYLE_VER = 'v171-20261115';
   /* ★ v100：常驻读秒嗅探的周期（毫秒）。玩家手写进正文的 <插图> 标签，
      最迟一拍（1 秒）内就会被读到并显示；删掉标签同样一拍内消失。 */
   var POLL_MS = 1000;
@@ -46,6 +48,30 @@
   var CG_CONTAINER_ID = 'gal-cg-background';
   var CG_FIGURE_ID = 'gal-cg-figure';
   var NEXT_BTN_ID = 'gal-cg-next-btn';
+  /* ★ v166：上一张 + 控制条容器。三颗按钮装一个 flex 容器里，
+     间距交给 gap —— 以前两颗各自 absolute、各写一个 top，缩放就贴一起。 */
+  var PREV_BTN_ID = 'gal-cg-prev-btn';
+  var CTL_ID = 'gal-cg-ctl';
+  /* ★ v170：关闭键。玩家要求「关闭按钮要弄在暂停和播放按钮的中间」
+     —— 也就是控制条上「▶ 下一张」与「⏸ 暂停」之间那一格。
+     内置插图和外置插图**共用这一颗**：它是个「关掉当前这套插图」的统一出口，
+     点了先关外置（若开着），没有外置就关内置。见 onCloseCg()。 */
+  var CLOSE_BTN_ID = 'gal-cg-close-btn';
+  /* ★ v171：沉浸式观看开关。作者原话：
+     「再搞个沉浸式观看插图的按钮，也就是插图出来的时候。默认地图和玩家UI折叠起来，
+       此时播放按钮在最左上角。」
+     语义（和作者确认过）：
+       · 插图一出现就**自动**进沉浸态；
+       · 玩家点这颗按钮可以**退出**，退出偏好记进 localStorage，
+         以后同一台设备不再自动进（但按钮随时能手点进）；
+       · 沉浸态收的是「左上角状态卡 + 右上角小地图」，
+         对话框和剧情文字不动（玩家还得看台词）；
+       · 收掉这两块之后，控制条才飞得进**最左上角**（本来那儿被状态卡占着）。 */
+  var IMM_BTN_ID = 'gal-cg-imm-btn';
+  var LS_IMM_OFF = 'gal_cg_imm_off';     /* localStorage：'1' = 玩家主动退出过，别再自动进 */
+  /* 状态卡与小地图的 id —— 归 10-core.js 建，这里只负责收/放，不负责存在性 */
+  var STATUS_CARD_ID = 'th-gal-status-card';
+  var MINIMAP_ID = 'th-gal-minimap';
   /* ★ v125：自动循环开关按钮 + 周期 + 玩家偏好的存档键 */
   var AUTO_BTN_ID = 'gal-cg-auto-btn';
   var AUTO_MS = 1000;                    /* 默认 1 秒一张（Administrator 定的） */
@@ -224,9 +250,11 @@
   var NEW_ART_GALLERY_POOLS = {
 
     /* ── 春日久美子 ── */
-    '春日久美子|手势前戏': [
+    '春日久美子|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱前夕_12.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱前夕_13.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱前夕_13.png'
+    ],
+    '春日久美子|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__足交_25.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__足交_26.png'
     ],
@@ -268,10 +296,12 @@
     ],
 
     /* ── 吉川美穗 ── */
-    '吉川美穗|手势前戏': [
+    '吉川美穗|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱前夕+足交前夕_06.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱前夕_07.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱前夕_08.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱前夕_08.png'
+    ],
+    '吉川美穗|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__足交_12.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__足交_13.png'
     ],
@@ -296,14 +326,16 @@
     ],
 
     /* ── 神谷奈绪 ── */
-    '神谷奈绪|手势前戏': [
+    '神谷奈绪|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__做爱前夕_08.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__做爱前夕_09.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__做爱前夕_10.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__足交前夕+做爱前夕_21.png'
+    ],
+    '神谷奈绪|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__足交_18.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__足交_19.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__足交_20.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__足交前夕+做爱前夕_21.png'
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__足交_20.png'
     ],
     '神谷奈绪|手交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__手交+授乳_15.png',
@@ -336,11 +368,13 @@
     ],
 
     /* ── 山上椿芽 ── */
-    '山上椿芽|手势前戏': [
+    '山上椿芽|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-tsubaki@main/tsubaki__做爱前夕_13.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-tsubaki@main/tsubaki__做爱前夕_14.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-tsubaki@main/tsubaki__做爱前夕_15.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-tsubaki@main/tsubaki__做爱前夕_16.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-tsubaki@main/tsubaki__做爱前夕_16.png'
+    ],
+    '山上椿芽|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-tsubaki@main/tsubaki__足交_24.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-tsubaki@main/tsubaki__足交_25.png'
     ],
@@ -378,12 +412,14 @@
     ],
 
     /* ── 朝仓茜野 ── */
-    '朝仓茜野|手势前戏': [
+    '朝仓茜野|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__做爱前夕+足交前夕_13.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__做爱前夕_14.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__做爱前夕_15.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__做爱前夕+足交前夕_16.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__做爱前夕_17.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__做爱前夕_17.png'
+    ],
+    '朝仓茜野|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__足交_28.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__足交_29.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-akane@main/akane__足交_30.png',
@@ -426,11 +462,13 @@
     ],
 
     /* ── 御神木之灵 ── */
-    '御神木之灵|手势前戏': [
+    '御神木之灵|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kodama@main/kodama__做爱前夕+手交_10.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kodama@main/kodama__做爱前夕+足交前夕_11.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kodama@main/kodama__做爱前夕_12.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kodama@main/kodama__做爱前夕_13.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kodama@main/kodama__做爱前夕_13.png'
+    ],
+    '御神木之灵|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kodama@main/kodama__足交_22.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kodama@main/kodama__足交_23.png'
     ],
@@ -466,13 +504,15 @@
     ],
 
     /* ── 桃崎千鹤 ── */
-    '桃崎千鹤|手势前戏': [
+    '桃崎千鹤|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__做爱前夕_09.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__做爱前夕_10.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__做爱前夕_11.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__足交_16.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__足交_17.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__足交前夕+做爱前夕_18.png'
+    ],
+    '桃崎千鹤|足交': [
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__足交_16.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__足交_17.png'
     ],
     '桃崎千鹤|手交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__手交_13.png',
@@ -497,12 +537,14 @@
     ],
 
     /* ── 水野千晴 ── */
-    '水野千晴|手势前戏': [
+    '水野千晴|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-mizudori@main/mizudori__做爱前夕+足交前夕_10.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-mizudori@main/mizudori__做爱前夕_11.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-mizudori@main/mizudori__做爱前夕_12.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-mizudori@main/mizudori__做爱前夕_13.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-mizudori@main/mizudori__做爱前夕_14.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-mizudori@main/mizudori__做爱前夕_14.png'
+    ],
+    '水野千晴|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-mizudori@main/mizudori__足交_21.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-mizudori@main/mizudori__足交_22.png'
     ],
@@ -535,12 +577,14 @@
     ],
 
     /* ── 白坂结奈 ── */
-    '白坂结奈|手势前戏': [
+    '白坂结奈|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__做爱前夕_14.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__做爱前夕_15.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__做爱前夕_16.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__做爱前夕_17.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__做爱前戏_18.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__做爱前戏_18.png'
+    ],
+    '白坂结奈|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__足交_28.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__足交_29.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__足交_30.png',
@@ -583,15 +627,17 @@
     ],
 
     /* ── 白蔵主 ── */
-    '白蔵主|手势前戏': [
+    '白蔵主|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__做爱前夕_12.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__做爱前夕_13.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__做爱前夕_14.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__足交前夕+做爱前夕_25.png'
+    ],
+    '白蔵主|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__足交_21.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__足交_22.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__足交_23.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__足交_24.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__足交前夕+做爱前夕_25.png'
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__足交_24.png'
     ],
     '白蔵主|手交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-byakuro@main/byakuro__手交_18.png'
@@ -623,11 +669,13 @@
     ],
 
     /* ── 神代凛音 ── */
-    '神代凛音|手势前戏': [
+    '神代凛音|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱前夕+足交前夕_14.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱前夕_15.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱前夕_16.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱前夕_17.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱前夕_17.png'
+    ],
+    '神代凛音|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__足交_29.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__足交_30.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__足交_31.png',
@@ -669,10 +717,12 @@
     ],
 
     /* ── 斋宫若叶 ── */
-    '斋宫若叶|手势前戏': [
+    '斋宫若叶|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱前夕+足交前夕_08.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱前夕_09.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱前夕_10.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱前夕_10.png'
+    ],
+    '斋宫若叶|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__足交_20.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__足交_21.png'
     ],
@@ -710,12 +760,14 @@
     ],
 
     /* ── 春日葵 ── */
-    '春日葵|手势前戏': [
+    '春日葵|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱前夕+足交前夕_10.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱前夕_11.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱前夕_12.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__足交_24.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__足交前夕+做爱前夕_25.png'
+    ],
+    '春日葵|足交': [
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__足交_24.png'
     ],
     '春日葵|手交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__手交_21.png',
@@ -752,9 +804,11 @@
     ],
 
     /* ── 西村百花 ── */
-    '西村百花|手势前戏': [
+    '西村百花|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱前夕_09.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱前夕_10.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱前夕_10.png'
+    ],
+    '西村百花|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__足交_21.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__足交_22.png'
     ],
@@ -792,12 +846,14 @@
     ],
 
     /* ── 春日静奈 ── */
-    '春日静奈|手势前戏': [
+    '春日静奈|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱前夕+足交前夕_09.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱前夕_10.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱前夕_11.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱前夕+足交前夕_12.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱前夕_13.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱前夕_13.png'
+    ],
+    '春日静奈|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__足交_22.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__足交_23.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__足交_24.png',
@@ -837,13 +893,15 @@
     ],
 
     /* ── 香本千玲 ── */
-    '香本千玲|手势前戏': [
+    '香本千玲|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱前夕_11.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱前夕_12.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱前夕_13.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__足交_21.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__足交_22.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__足交前夕+做爱前夕_23.png'
+    ],
+    '香本千玲|足交': [
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__足交_21.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__足交_22.png'
     ],
     '香本千玲|手交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__手交_17.png',
@@ -877,9 +935,11 @@
     ],
 
     /* ── 藤宫紫苑 ── */
-    '藤宫紫苑|手势前戏': [
+    '藤宫紫苑|做爱前夕': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shion@main/shion__手势前戏_18.png',
-      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shion@main/shion__手势前戏_19.png',
+      'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shion@main/shion__手势前戏_19.png'
+    ],
+    '藤宫紫苑|足交': [
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shion@main/shion__足交_22.png',
       'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shion@main/shion__足交_23.png'
     ],
@@ -933,37 +993,53 @@
     }
     return false;
   }
-  /* 三态取图：角色没新图 → 整套用旧图；有新图 → 再按动作组回退；融合时拼队列 */
+  /* 三态取图 —— ★ 两套**互为兜底**，任何一态都不许出空画面。
+     ⚠ 作者 00:31 明确过：玩「旧插图」的人，碰上本来就没有旧图的角色 / 动作，
+       必须拿新图顶上（新图是全的）。以前那句 `if (v === '旧插图') return GALLERY_POOLS[key]`
+       旧池没有就是 undefined ⇒ 那个人直接没图，这是错的。
+     三个方向都要能回退：
+       旧插图   → 旧图优先；旧图没有 → 新图
+       新插图   → 新图优先；新图没有（角色整套 / 单个动作）→ 旧图
+       新旧融合 → 两套拼一条队列（新在前、旧接后、URL 去重） */
   function poolOf(key) {
     var v = galArtSetOf();
-    if (v === '旧插图') return GALLERY_POOLS[key];
-    /* ① 这个角色整套没给新插图 → 全部动作默认使用旧插图 */
-    if (!galCharHasNew(String(key || '').split('|')[0])) return GALLERY_POOLS[key];
-    var np = NEW_ART_GALLERY_POOLS[key];
     var op = GALLERY_POOLS[key];
-    if (np && np.length) {
-      if (v === '新插图') return np;
-      /* ★ 新旧融合：新组在前、旧组接后，同一张 URL 一轮里只出现一次 */
-      if (!op || !op.length) return np;
+    var np = NEW_ART_GALLERY_POOLS[key];
+    var hasOp = !!(op && op.length);
+    var hasNp = !!(np && np.length);
+
+    if (v === '旧插图') {
+      if (hasOp) return op;
+      if (hasNp) return np;               /* ★ 旧图没有 → 用新图顶上 */
+      return op;
+    }
+
+    if (v === '新旧融合') {
+      if (!hasNp) return op;
+      if (!hasOp) return np;
       var out = [], seen = {}, i;
       for (i = 0; i < np.length; i++) if (np[i] && !seen[np[i]]) { seen[np[i]] = 1; out.push(np[i]); }
       for (i = 0; i < op.length; i++) if (op[i] && !seen[op[i]]) { seen[op[i]] = 1; out.push(op[i]); }
       return out;
     }
-    return op;                            /* ② 该动作没新图 → 回退旧图 */
+
+    /* 新插图：角色整套没新图 → 旧图；该动作没新图 → 旧图 */
+    if (!galCharHasNew(String(key || '').split('|')[0])) return hasOp ? op : np;
+    if (hasNp) return np;
+    return op;
   }
-  /* 新旧库合并的键集合（只用于「未命中」时列可选动作，旧库一个键都不丢） */
+  /* 新旧库合并的键集合（只用于「未命中」时列可选动作）。
+     ★ 00:31：**键永远合并** —— 旧插图模式也会用到新图兜底，
+       再按版本裁掉新池的键，那批「旧池没有、新池有」的动作就查不到了。 */
   function poolKeys() {
-    var out = {}, k, v = galArtSetOf();
+    var out = {}, k;
     for (k in GALLERY_POOLS) if (Object.prototype.hasOwnProperty.call(GALLERY_POOLS, k)) out[k] = 1;
-    if (v !== '旧插图') {
-      for (k in NEW_ART_GALLERY_POOLS) if (Object.prototype.hasOwnProperty.call(NEW_ART_GALLERY_POOLS, k)) out[k] = 1;
-    }
+    for (k in NEW_ART_GALLERY_POOLS) if (Object.prototype.hasOwnProperty.call(NEW_ART_GALLERY_POOLS, k)) out[k] = 1;
     return out;
   }
   /* 队列签名带版本：局内切版本时签名必变，setQueue 会立刻重建整条队列 */
   function galArtTag() { return '[' + galArtSetOf() + ']|'; }
-  try { HOST.__galArtSetOf = galArtSetOf; HOST.__galNewPools = NEW_ART_GALLERY_POOLS; } catch (eExp) {}
+  try { HOST.__galArtSetOf = galArtSetOf; HOST.__galNewPools = NEW_ART_GALLERY_POOLS; HOST.__galPoolOf = poolOf; HOST.__galPoolKeys = poolKeys; } catch (eExp) {}
 
   /* 动作文字 → 动作键（模型怎么写都能对上）
      ★ v125：新增 4 个动作，**判定顺序很要紧** —— 长词必须先判，
@@ -973,6 +1049,11 @@
     /* ① 前戏：手势 O 圈吐舌头（一轮一次，且永远排最前） */
     if (a.indexOf('手势') !== -1 || a.indexOf('O圈') !== -1 || a.indexOf('o圈') !== -1 ||
         a.indexOf('Ｏ圈') !== -1 || a.indexOf('吐舌') !== -1 || a.indexOf('圈口') !== -1) return '手势前戏';
+    /* ★ v166：新图池里「手势前戏」这个键已拆成「做爱前夕」与「足交」（原来塞进一个键里的图根本不是手势）。
+       必须排在下面「做爱」之前 ——「做爱前夕」里就含「做爱」两字，
+       不提前接住就会被当成普通做爱，去查一个不存在的图组。 */
+    if (a.indexOf('足交') !== -1) return '足交';
+    if (a.indexOf('前夕') !== -1) return '做爱前夕';
     /* ② 授乳手交：必须先于「手交」「乳交」（它两个词里都沾一点） */
     if (a.indexOf('授乳') !== -1 || (a.indexOf('哺乳') !== -1)) return '授乳手交';
     /* ★ v128：男性坐起、抱脸埋胸的姿势**不再单列**，一律算「女上位」。
@@ -1171,11 +1252,6 @@
       '  left: 0 !important; top: 0 !important;',
       '  width: 100% !important; height: 100% !important;',
       '  z-index: 34 !important;',
-      '}',      '#' + NEXT_BTN_ID + '.in-shell {',
-      '  position: absolute !important;',
-      '  right: 10px !important;',
-      '  bottom: 6px !important;',
-      '  left: auto !important;',
       '}',
       '#' + CG_CONTAINER_ID + '.active { opacity: 1 !important; }',
       'body.gal-cg-active #character, body.gal-cg-active .expression-holder, body.gal-cg-active .character-avatar {',
@@ -1245,20 +1321,231 @@
       '  backdrop-filter: blur(8px) !important;',
       '}',
       '#' + AUTO_BTN_ID + '.is-shown { display: flex !important; }',
-      /* ★ v10.7：自动开关也要能嵌进壳内，否则壳里只有推进按钮、开关还飘在外面 */
-      '#' + AUTO_BTN_ID + '.in-shell {',
-      '  position: absolute !important;',
-      '  left: 10px !important;',
-      '  right: auto !important;',
-      '  bottom: 6px !important;',
-      '}',
+      '/* ★ v166：自动开关不再单独定位，统一收进控制条 */',
       '#' + AUTO_BTN_ID + ':hover { border-color: #93c5fd !important; }',
       '#' + AUTO_BTN_ID + '.is-fixed {',
       '  opacity: 0.72 !important;',
       '  border-color: rgba(148, 163, 184, 0.6) !important;',
       '  color: #cbd5e1 !important;',
       '}',
-      '#' + AUTO_BTN_ID + ' .dot { font-size: 10px !important; }'
+      '#' + AUTO_BTN_ID + ' .dot { font-size: 10px !important; }',
+      /* ★ v166：插图控制条 ——「◀ 上一张 / ▶ 下一张 n/m / ⏸ 暂停」三颗装进同一个 flex 容器。
+         为什么重构：11-14 那版是两个各自 absolute 的按钮，靠
+         top: calc(10px + 56px*scale) 与 calc(44px + 56px*scale) 硬算出 34px 间距，
+         手机上一缩放就贴成一片；而且「搬到主角状态卡下方」只写在窄屏媒体查询里，
+         宽屏照旧贴底部，玩家看到的就是「说了没改」。
+         现在：一个容器 + gap 8px，绝不会互贴；容器整体落在主角状态卡正下方，
+         位置由 JS（placeCtl）按卡片实测高度算，卡片变高变矮都不会压上去；
+         宽屏窄屏同一套规则。容器在视口内 absolute，没有壳时切 .is-float 退回 fixed。
+         z-index 47：压在图(34/35)和状态卡(46)之上、对话框(80)之下。 */
+      '#' + CTL_ID + ' {',
+      '  position: absolute !important;',
+      '  left: 8px !important; right: auto !important;',
+      '  top: 72px !important; bottom: auto !important;',
+      '  z-index: 47 !important;',
+      '  display: none;',
+      '  align-items: center !important;',
+      '  gap: 8px !important;',
+      '  flex-wrap: wrap !important;',
+      '  max-width: calc(100% - 16px) !important;',
+      '  box-sizing: border-box !important;',
+      '}',
+      '#' + CTL_ID + '.is-shown { display: flex !important; }',
+      '#' + CTL_ID + '.is-float {',
+      '  position: fixed !important;',
+      '  left: 36px !important; top: auto !important; bottom: 84px !important;',
+      '  z-index: 2147483641 !important;',
+      '}',
+      '#' + PREV_BTN_ID + ' {',
+      '  display: none;',
+      '  align-items: center !important;',
+      '  gap: 5px !important;',
+      '  padding: 5px 14px !important;',
+      '  border-radius: 18px 6px 18px 6px !important;',
+      '  border: 1.5px solid rgba(217, 187, 122, 0.72) !important;',
+      '  background: linear-gradient(135deg, rgba(24, 20, 36, 0.94), rgba(52, 28, 64, 0.96)) !important;',
+      '  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7) !important;',
+      '  color: #ffeccc !important;',
+      '  font-size: 13px !important;',
+      '  font-weight: 700 !important;',
+      '  letter-spacing: 1px !important;',
+      '  cursor: pointer !important;',
+      '  user-select: none !important;',
+      '  backdrop-filter: blur(8px) !important;',
+      '  transition: transform 0.18s, border-color 0.18s !important;',
+      '}',
+      '#' + PREV_BTN_ID + '.is-shown { display: flex !important; }',
+      '#' + PREV_BTN_ID + ':hover { transform: translateY(-2px) !important; border-color: #f472b6 !important; }',
+      '#' + PREV_BTN_ID + ':active { transform: scale(0.97) !important; }',
+      /* ★ v170：关闭键。方头方脑的圆形 ✕，夹在「下一张」和「暂停」之间。
+         故意做得比两侧窄（32px 见方、无文字标签）—— 它是「退出口」，
+         不该和「上一张/下一张」抢视觉重量；hover 变红提示这是关闭动作。 */
+      '#' + CLOSE_BTN_ID + ' {',
+      '  display: none;',
+      '  align-items: center !important;',
+      '  justify-content: center !important;',
+      '  width: 32px !important;',
+      '  height: 30px !important;',
+      '  padding: 0 !important;',
+      '  border-radius: 8px !important;',
+      '  border: 1.5px solid rgba(217, 187, 122, 0.72) !important;',
+      '  background: linear-gradient(135deg, rgba(24, 20, 36, 0.94), rgba(52, 28, 64, 0.96)) !important;',
+      '  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7) !important;',
+      '  color: #ffeccc !important;',
+      '  font-size: 14px !important;',
+      '  font-weight: 700 !important;',
+      '  line-height: 1 !important;',
+      '  cursor: pointer !important;',
+      '  user-select: none !important;',
+      '  backdrop-filter: blur(8px) !important;',
+      '  transition: transform 0.18s, border-color 0.18s, color 0.18s !important;',
+      '}',
+      '#' + CLOSE_BTN_ID + '.is-shown { display: flex !important; }',
+      '#' + CLOSE_BTN_ID + ':hover { transform: translateY(-2px) !important; border-color: #f87171 !important; color: #fca5a5 !important; }',
+      '#' + CLOSE_BTN_ID + ':active { transform: scale(0.94) !important; }',
+      /* ★ v166：这条必须排在最后 —— 同为一个 id（#gal-cg-ctl > *），
+         写在前面会被下面 #gal-cg-next-btn 的 position:fixed 盖回去。 */
+      '#' + CTL_ID + ' > * {',
+      '  position: static !important;',
+      '  left: auto !important; right: auto !important;',
+      '  top: auto !important; bottom: auto !important;',
+      '  margin: 0 !important;',
+      '  box-sizing: border-box !important;',
+      '}',
+      /* ★ v170：外置插图那颗 ✕ 现在也住在控制条里，样式统一托管。
+         它靠 inline display:none / flex 控制显隐（老代码就是这套），
+         所以这里不再写 display，只补视觉与 hover，避免和 inline 打架。 */
+      '#gal-ext-illust-btn {',
+      '  position: static !important;',
+      '  left: auto !important; right: auto !important;',
+      '  top: auto !important; bottom: auto !important;',
+      '  margin: 0 !important;',
+      '}',
+      '#gal-ext-illust-btn:hover { transform: translateY(-2px) !important; border-color: #f87171 !important; color: #fca5a5 !important; }',
+      '#gal-ext-illust-btn:active { transform: scale(0.94) !important; }',
+      /* ══════════ ★ v171：沉浸式观看 ══════════════════════════════════════
+         作者原话：「再搞个沉浸式观看插图的按钮，也就是插图出来的时候。
+                   默认地图和玩家UI折叠起来，此时播放按钮在最左上角。」
+         ──────────────────────────────────────────────────────────────────
+         按钮住在控制条里（末尾），不另起一块 —— 因为沉浸态下控制条会飞到
+         最左上角，按钮要是挂在别处，玩家在沉浸态就找不到「退出」了。
+         视觉上给它金色描边 + 比 ✕ 稍宽一点，和「翻页」三颗区分开：
+         它切的是**画面模式**，不是翻页。 */
+      '#' + IMM_BTN_ID + ' {',
+      '  display: none;',
+      '  align-items: center !important;',
+      '  justify-content: center !important;',
+      '  gap: 5px !important;',
+      '  padding: 6px 12px !important;',
+      '  border-radius: 999px !important;',
+      '  border: 1.5px solid rgba(232, 196, 120, 0.9) !important;',
+      '  background: linear-gradient(135deg, rgba(40, 30, 16, 0.94), rgba(64, 44, 20, 0.96)) !important;',
+      '  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 10px rgba(232, 196, 120, 0.22) !important;',
+      '  color: #ffe6b8 !important;',
+      '  font-size: 12px !important;',
+      '  font-weight: 800 !important;',
+      '  letter-spacing: 0.5px !important;',
+      '  line-height: 1 !important;',
+      '  white-space: nowrap !important;',
+      '  cursor: pointer !important;',
+      '  user-select: none !important;',
+      '  backdrop-filter: blur(8px) !important;',
+      '  transition: transform 0.18s, border-color 0.18s, color 0.18s !important;',
+      '}',
+      '#' + IMM_BTN_ID + '.is-shown { display: inline-flex !important; }',
+      '#' + IMM_BTN_ID + ':hover { transform: translateY(-2px) !important; border-color: #fbbf24 !important; color: #fff3d6 !important; }',
+      '#' + IMM_BTN_ID + ':active { transform: scale(0.96) !important; }',
+      /* 已沉浸：按钮变「退出」态，压暗、不再抢眼（此刻玩家的注意力该在图和台词上） */
+      '#' + IMM_BTN_ID + '.is-on {',
+      '  border-color: rgba(255, 255, 255, 0.5) !important;',
+      '  background: rgba(12, 14, 20, 0.82) !important;',
+      '  color: #e6edf6 !important;',
+      '  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.66) !important;',
+      '}',
+
+      /* ── 沉浸态本体：壳上挂 .th-gal-immersive ────────────────────────────
+         收哪两块是作者定过的：「状态卡 + 小地图，都折叠」。对话框不动 ——
+         玩家还得看台词，把对话也收了等于图在放、人在猜。
+         ⚠ 状态卡必须 display:none（不是 opacity:0）：它 pointer-events 本来是 none，
+           但藏不干净会继续占着左上角那块，控制条飞过去就被它压着（z-index 46 > 47？不，47 更高，
+           但视觉上会叠字）。整块摘掉最干净。 */
+      '.th-gal-shell-root.th-gal-immersive .th-gal-status-card {',
+      '  display: none !important;',
+      '}',
+      /* 小地图走「折叠」而不是「隐藏」：折成那颗 40px 朱印圆，
+         想要地图的玩家还能点开（这是「折叠」二字的原意）。
+         形态复用 .is-mm-folded，不在这里重写一套 40px 圆 —— 见 JS 里 immersiveApply()。 */
+      '.th-gal-shell-root.th-gal-immersive .th-gal-minimap {',
+      '  opacity: 0.62 !important;',
+      '  transition: opacity 0.22s ease !important;',
+      '}',
+      '.th-gal-shell-root.th-gal-immersive .th-gal-minimap:hover {',
+      '  opacity: 1 !important;',
+      '}',
+      /* 沉浸态时把「展开顶栏」那颗拉手也压下去 —— 它钉在右边中间，
+         是常驻可点的，会破坏沉浸感。留在原地但变淡，想点还是点得到。 */
+      '.th-gal-shell-root.th-gal-immersive .th-gal-hud-grip {',
+      '  opacity: 0.18 !important;',
+      '  transition: opacity 0.22s ease !important;',
+      '}',
+      '.th-gal-shell-root.th-gal-immersive .th-gal-hud-grip:hover {',
+      '  opacity: 1 !important;',
+      '}',
+      /* ★ 控制条飞最左上角。left/top 走 inline（placeCtl 里 setProperty important），
+         这里只负责「过渡」——有过渡才像「飞过去」，而不是瞬移一下。
+         过渡只给 top/left，别给 transform：控制条自己是定位上下文。 */
+      '#' + CTL_ID + '.is-immersive {',
+      '  transition: top 0.24s ease, left 0.24s ease !important;',
+      '}',
+      /* ★ 沉浸态下控制条必须**紧凑**：五颗（◀ ▶ ✕ ⏸ 🖼）横排，
+         按原尺寸算 ≈355px，手机竖屏视口内只有 ~359px —— 刚好卡线，
+         随便一个字变宽就换行成两行、把图压掉一块。
+         这里把 padding / gap / 字号一起收紧，实测能塞进 320px 以内。
+         文字不删（删了玩家认不出哪颗是哪颗），只缩比例。 */
+      '.th-gal-shell-root.th-gal-immersive #' + CTL_ID + ' {',
+      '  gap: 6px !important;',
+      '  max-width: calc(100% - 16px) !important;',
+      '}',
+      '.th-gal-shell-root.th-gal-immersive #' + CTL_ID + ' > * {',
+      '  font-size: 11.5px !important;',
+      '  padding: 5px 9px !important;',
+      '  letter-spacing: 0 !important;',
+      '}',
+      '.th-gal-shell-root.th-gal-immersive #' + CLOSE_BTN_ID + ' {',
+      '  width: 28px !important;',
+      '  height: 27px !important;',
+      '  padding: 0 !important;',
+      '  font-size: 13px !important;',
+      '}',
+      '.th-gal-shell-root.th-gal-immersive #' + IMM_BTN_ID + ' {',
+      '  padding: 5px 10px !important;',
+      '  font-size: 11.5px !important;',
+      '}',
+      /* ★ 沉浸态控制条半透明：它现在压在图的最左上角（作者要求的位置），
+         实心一块会硬生生削掉画面一角。默认 .86 透明，悬停回 1 ——
+         不挡视线，但想点时又看得清。
+         ⚠ 只给 opacity，不给 visibility/pointer-events：必须一直点得到。 */
+      '.th-gal-shell-root.th-gal-immersive #' + CTL_ID + ' {',
+      '  opacity: 0.88 !important;',
+      '  transition: top 0.24s ease, left 0.24s ease, opacity 0.2s ease !important;',
+      '}',
+      '.th-gal-shell-root.th-gal-immersive #' + CTL_ID + ':hover {',
+      '  opacity: 1 !important;',
+      '}',
+      /* 手机上再收一档：把「沉浸观看」写成纯图标 + 更短的字 */
+      '@media (max-width: 420px) {',
+      '  .th-gal-shell-root.th-gal-immersive #' + CTL_ID + ' > * { font-size: 11px !important; padding: 4px 7px !important; }',
+      '  .th-gal-shell-root.th-gal-immersive #' + CTL_ID + ' .label { font-size: 11px !important; }',
+      '  .th-gal-shell-root.th-gal-immersive #' + NEXT_BTN_ID + ' .num { font-size: 10px !important; }',
+      '}',
+      /* ★ 极窄屏（≤360px）：五颗按钮按原尺寸排是 332px，而 320 视口只有 304px 可用
+         —— 「沉浸观看」会被挤到第二行、孤零零一个，比藏掉难看多了。
+         这里把它的文字收掉只留图标（沉浸态下图标本来就是 ✕，语义够清楚），
+         省下来的 ~48px 刚好让五颗排回一行。title 里仍写着完整说明。 */
+      '@media (max-width: 360px) {',
+      '  .th-gal-shell-root.th-gal-immersive #' + IMM_BTN_ID + ' .imm-label { display: none !important; }',
+      '  .th-gal-shell-root.th-gal-immersive #' + IMM_BTN_ID + ' { padding: 4px 8px !important; }',
+      '}',
     ].join('\n');
     doc.head.appendChild(style);
   }
@@ -1302,6 +1589,24 @@
       fg.decoding = 'async';
       doc.body.appendChild(fg);
     }
+    /* ★ v166：控制条容器。三颗按钮都挂它里面，位置只由容器决定。 */
+    if (!doc.getElementById(CTL_ID)) {
+      var ctl = doc.createElement('div');
+      ctl.id = CTL_ID;
+      doc.body.appendChild(ctl);
+    }
+    var ctlBox = doc.getElementById(CTL_ID);
+    /* ★ v166：上一张。到头（第 1 张）再点回最后一张，和「下一张」到末尾回第一张对称。 */
+    if (!doc.getElementById(PREV_BTN_ID)) {
+      var pbtn = doc.createElement('div');
+      pbtn.id = PREV_BTN_ID;
+      pbtn.innerHTML = '<span class="arrow">◀</span><span class="label">上一张</span>';
+      pbtn.onclick = function (e) {
+        e.stopPropagation();
+        stepGallery(-1, true);
+      };
+      if (ctlBox) ctlBox.appendChild(pbtn); else doc.body.appendChild(pbtn);
+    }
     if (!doc.getElementById(NEXT_BTN_ID)) {
       var btn = doc.createElement('div');
       btn.id = NEXT_BTN_ID;
@@ -1310,13 +1615,13 @@
         e.stopPropagation();
         stepGallery(1, true);
       };
-      doc.body.appendChild(btn);
+      if (ctlBox) ctlBox.appendChild(btn); else doc.body.appendChild(btn);
     }
     /* ★ v125：自动 / 固定 开关。点了就切模式并存偏好，不用刷新页面。 */
     if (!doc.getElementById(AUTO_BTN_ID)) {
       var abtn = doc.createElement('div');
       abtn.id = AUTO_BTN_ID;
-      abtn.innerHTML = '<span class="dot">●</span><span class="label">自动 1 秒</span>';
+      abtn.innerHTML = '<span class="dot">⏸</span><span class="label">暂停</span>';
       abtn.onclick = function (e) {
         e.stopPropagation();
         state.autoFixed = !state.autoFixed;
@@ -1324,26 +1629,131 @@
         paintAutoBtn();
         restartAutoTimer();
       };
-      doc.body.appendChild(abtn);
+      if (ctlBox) ctlBox.appendChild(abtn); else doc.body.appendChild(abtn);
+    }
+    /* ★ v170：关闭键。**必须建在「暂停」之后、但要插到它前面** ——
+       玩家要的位置是「下一张 | ✕关闭 | 暂停」，而暂停键在上面那一步已经 append 过了。
+       所以这里用 insertBefore(close, autoBtn) 把它塞进中间，而不是 appendChild。
+       ★ 幂等：已经是这个位置就一个字节都不动，否则每次 ensureDOM 都会重排一次、
+         白白触发 MutationObserver 抖一下。 */
+    if (!doc.getElementById(CLOSE_BTN_ID)) {
+      var cbtn = doc.createElement('div');
+      cbtn.id = CLOSE_BTN_ID;
+      cbtn.innerHTML = '<span class="x">✕</span>';
+      cbtn.title = '关闭插图（关掉后可在面板「🖼 重新打开插图」找回）';
+      cbtn.onclick = function (e) {
+        e.stopPropagation();
+        onCloseCg();
+      };
+      if (ctlBox) {
+        var autoEl = doc.getElementById(AUTO_BTN_ID);
+        if (autoEl && autoEl.parentNode === ctlBox) ctlBox.insertBefore(cbtn, autoEl);
+        else ctlBox.appendChild(cbtn);
+      } else {
+        doc.body.appendChild(cbtn);
+      }
+    }
+    /* ★★ v171：沉浸式观看开关。
+       作者原话：「再搞个沉浸式观看插图的按钮，也就是插图出来的时候。
+                 默认地图和玩家UI折叠起来，此时播放按钮在最左上角。」
+       放在控制条**最后一格**（暂停键右边）：它切的是画面模式，
+       和「上一张/下一张/✕/暂停」这一排操作不是一个类别，靠边站最不碍事。
+       ⚠ 必须是控制条的孩子。沉浸态控制条整体飞到左上角，
+         按钮要是不在条里，玩家进了沉浸就找不到「退出」了。 */
+    if (!doc.getElementById(IMM_BTN_ID)) {
+      var ibtn = doc.createElement('div');
+      ibtn.id = IMM_BTN_ID;
+      ibtn.innerHTML = '<span class="imm-ico">🖼</span><span class="imm-label">沉浸观看</span>';
+      ibtn.title = '藏起地图与状态卡，把画面让给插图（再点一次退出）';
+      ibtn.onclick = function (e) {
+        e.stopPropagation();
+        toggleImmersive();
+      };
+      if (ctlBox) ctlBox.appendChild(ibtn); else doc.body.appendChild(ibtn);
+    }
+    /* ★ v166：热更后旧页面里三颗按钮还挂在 body 上（旧脚本建的），
+       这里统一收进容器，不然它们会继续漂在底部叠字。 */
+    if (ctlBox) {
+      var kids = [doc.getElementById(PREV_BTN_ID), doc.getElementById(NEXT_BTN_ID),
+                  doc.getElementById(CLOSE_BTN_ID), doc.getElementById(AUTO_BTN_ID),
+                  doc.getElementById(IMM_BTN_ID)];
+      for (var ki = 0; ki < kids.length; ki++) {
+        var kd = kids[ki];
+        if (kd && kd.parentNode !== ctlBox) { try { ctlBox.appendChild(kd); } catch (eK) {} }
+      }
+      /* ★ v170：顺序也要守住 —— 上面这段 appendChild 是「补漏」，
+         万一关闭键被追加到了最后（暂停键后面），这里再摆正一次。
+         只在位置不对时动，避免每拍都重排。 */
+      try {
+        var cEl = doc.getElementById(CLOSE_BTN_ID), aEl = doc.getElementById(AUTO_BTN_ID);
+        var nEl = doc.getElementById(NEXT_BTN_ID);
+        if (cEl && aEl && cEl.nextSibling !== aEl) ctlBox.insertBefore(cEl, aEl);
+        else if (cEl && nEl && !aEl && cEl.previousSibling !== nEl) ctlBox.insertBefore(cEl, nEl.nextSibling);
+      } catch (eOrd) {}
     }
   }
 
   /* ★ v125：开关按钮的文案 —— 说的是「现在是什么模式」，不是「点了会怎样」，
      免得玩家看着「固定」两个字以为当前已经固定了。 */
+  /* ★★ v170：**统一的「关闭插图」出口。**
+     玩家原话：「插图无法关上，关闭按钮要弄在暂停和播放按钮的中间」。
+
+     以前的问题：内置插图（卡里自带图组）**根本没有关闭键** ——
+     控制条上只有「上一张 / 下一张 / 暂停」，想关只能去齿轮面板找开关，
+     而那个开关藏得深，玩家会直接判定"关不掉"。外置插图有个 ✕，但钉在右上角。
+
+     现在一颗键管两套，按「当前真正在显示哪一套」决定关谁：
+       ① 外置开着且有图 → 关外置（它的图层在内置之上，玩家看到的就是它）
+       ② 否则 → 关内置（写 SPR_ILLUST_ON=off，paint() 会把整层收干净）
+     两套都关完还留着图是不可能的 —— 这就是「关得掉」的保证。
+
+     ★ 为什么不一次全关：外置关掉后内置会**原地接着播**（extRender 的 yieldCg 只藏不销毁），
+       一起关掉的话玩家点一下就没图了，想回来看还得两个开关都打开，太粗暴。
+       先关看得见的那个，再点一次才关另一个 —— 符合直觉。 */
+  function onCloseCg() {
+    var did = '';
+    try {
+      /* ① 外置优先：它 z-index 70 压在内置之上，玩家眼里的「这张图」就是它 */
+      if (typeof extOn !== 'undefined' && extOn && extQueue && extQueue.length) {
+        extOn = false;
+        try { HOST.localStorage.setItem('SPR_EXT_ILLUST', 'off'); } catch (e1) {}
+        extQueue = []; extIdx = 0;
+        try { extRender(); } catch (e2) {}
+        try { extPaintBtn(); } catch (e3) {}
+        did = 'ext';
+      } else {
+        /* ② 内置：走 localStorage + paint()，和齿轮面板里那个开关是同一条路
+              （判据单一，不会出现"面板说开着、控制条说关了"） */
+        try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'off'); } catch (e4) {}
+        try { paint(); } catch (e5) {}
+        did = 'cg';
+      }
+    } catch (e) {}
+
+    try { extToast(did === 'ext' ? '🖼 外置插图已关闭（可在面板重新打开）'
+                                : '🖼 插图已关闭（可在面板重新打开）'); } catch (eT) {}
+    /* 通知 10-core 那边同步面板上「重新打开插图」的可用状态 */
+    try { if (HOST.__thSyncExtIllustBtn) HOST.__thSyncExtIllustBtn(); } catch (eS) {}
+    return did;
+  }
+
   function paintAutoBtn() {
     var doc = getDoc();
     var b = doc.getElementById(AUTO_BTN_ID);
     if (!b) return;
     var lab = b.querySelector('.label');
     var dot = b.querySelector('.dot');
+    /* ★ v166：改成播放器语义 —— 玩家口里就叫它「暂停」。
+       正在自动翻：显示「暂停」（点了就停）；已经停了：显示「继续」（点了就接着翻）。
+       以前写「自动 1 秒 / 固定」，描述的是当前状态，玩家得先猜一下点了会怎样。 */
     if (state.autoFixed) {
       if (b.classList) b.classList.add('is-fixed');
-      if (lab) lab.textContent = '固定';
-      if (dot) dot.textContent = '■';
+      if (lab) lab.textContent = '继续';
+      if (dot) dot.textContent = '▶';
     } else {
       if (b.classList) b.classList.remove('is-fixed');
-      if (lab) lab.textContent = '自动 1 秒';
-      if (dot) dot.textContent = '●';
+      if (lab) lab.textContent = '暂停';
+      if (dot) dot.textContent = '⏸';
     }
   }
 
@@ -1372,6 +1782,226 @@
      现在直接把两层搬进 .th-gal-shell-viewport，用 absolute + 100% 跟视口同尺寸：
      视口多大图就多大，多余的边由视口的 overflow:hidden 收掉。
      没有壳（在聊天区裸看）时才退回整窗 fixed。 */
+  /* ══════════ ★ v171：沉浸式观看 ══════════════════════════════════════════
+     作者原话：「再搞个沉浸式观看插图的按钮，也就是插图出来的时候。
+               默认地图和玩家UI折叠起来，此时播放按钮在最左上角。」
+
+     ── 设计（三件事，别混） ───────────────────────────────────────────────
+     ① **默认自动进**：插图一出来就折。作者要的「默认」就是这个意思 ——
+        玩家不该为了看图先去点一个按钮。
+     ② **退出会被记住**：点「退出沉浸」后写 localStorage，
+        以后同一台设备不再自动进。否则每个图组都强行折一次，
+        玩家会觉得「我自己关掉的东西怎么又自己开了」。
+        （这是和作者确认过的语义：自动进，但可记住退出。）
+     ③ **手动永远可用**：不管记不记得退出，控制条上那颗按钮随时能点，进出都行。
+
+     ── 收哪两块（也是作者定的） ───────────────────────────────────────────
+     · 左上角玩家状态卡（#th-gal-status-card）→ display:none（整块摘掉）
+     · 右上角小地图（#th-gal-minimap）→ 折成 40px 朱印圆（**折叠**，不是隐藏：
+       想要地图的玩家还能点开，这才是「折叠」二字的本意）
+     · 对话框与台词**不动** —— 玩家还得看剧情，把对话也收了就是图在放、人在猜。
+
+     ── 为什么不用 display:none 收小地图 ───────────────────────────────────
+     小地图已有成熟的折叠机制（.is-mm-folded，v155，状态存 localStorage）。
+     再写一套「隐藏」会得到两个互不相干的开关：玩家点过沉浸的折叠、
+     又自己展开过地图，退出沉浸时该恢复成哪个？—— 必有一方说错。
+     所以沉浸态**只驱动那一套**：进的时候记下玩家原本的折叠状态，
+     强折；退的时候还原回去。一个状态源，不会打架。 */
+  var _immRestoreMm = null;     /* 进沉浸前小地图的折叠态；null = 没记过 */
+
+  function immPrefOff() {
+    try { return HOST.localStorage.getItem(LS_IMM_OFF) === '1'; } catch (e) { return false; }
+  }
+  function immPrefSetOff(off) {
+    try { HOST.localStorage.setItem(LS_IMM_OFF, off ? '1' : '0'); } catch (e) {}
+  }
+  function immIsOn() {
+    try {
+      var sh = getDoc().getElementById('th-gal-shell-root');
+      return !!(sh && sh.classList && sh.classList.contains('th-gal-immersive'));
+    } catch (e) { return false; }
+  }
+
+  /* 小地图：取/设折叠态。**优先用 10-core.js 暴露的函数**，
+     这样内存兜底（TH_MM_FOLD_MEM）由它维护，我只调不猜。
+     ⚠ 设的时候必须用 thMmPreviewFold（不写 localStorage 的那个）——
+       沉浸态强折是「临时效果」，用正式版会把玩家的地图偏好改成「折叠」，
+       他中途刷新一次就永久折着、自己都找不到是怎么变的。
+     拿不到那几个函数（10-core 还没跑 / 文字版没这套）时，
+     退回直接改 class —— 至少视觉上是对的。 */
+  function immMmGet() {
+    try {
+      if (typeof HOST.thMmIsFolded === 'function') return !!HOST.thMmIsFolded();
+    } catch (e1) {}
+    try {
+      var mm = getDoc().getElementById(MINIMAP_ID);
+      if (mm && mm.classList) return mm.classList.contains('is-mm-folded');
+    } catch (e2) {}
+    return false;
+  }
+  function immMmSet(fold) {
+    try {
+      if (typeof HOST.thMmPreviewFold === 'function') { HOST.thMmPreviewFold(!!fold); return; }
+    } catch (e1) {}
+    try {
+      var mm = getDoc().getElementById(MINIMAP_ID);
+      if (mm && mm.classList) mm.classList.toggle('is-mm-folded', !!fold);
+    } catch (e2) {}
+  }
+
+  /* 真正把沉浸态落到界面上。on=true 进、false 出。幂等，随便重复调。 */
+  function immersiveApply(on) {
+    var doc = getDoc();
+    var shell = null;
+    try { shell = doc.getElementById('th-gal-shell-root'); } catch (e0) {}
+
+    /* 小地图的「原状」只在**进入那一刻**记一次。
+       不记的话：进出两次之后，玩家自己原本展开的地图会被永久折着 —— 那是篡改玩家设置。 */
+    if (on) {
+      if (_immRestoreMm === null) {
+        try { _immRestoreMm = immMmGet(); } catch (eG) { _immRestoreMm = false; }
+      }
+      immMmSet(true);
+    } else {
+      if (_immRestoreMm !== null) {
+        try { immMmSet(_immRestoreMm); } catch (eR) {}
+        _immRestoreMm = null;
+      }
+    }
+
+    /* 壳类：状态卡 display:none 靠它。壳不在（文字版 / 裸看）时照样不影响 —— 
+       没有状态卡就没有可收的东西，但按钮文案得对，所以类还是照挂。 */
+    try {
+      if (shell && shell.classList) shell.classList.toggle('th-gal-immersive', !!on);
+    } catch (eS) {}
+
+    /* 控制条挪位：placeCtl 读壳上的类决定去 8/8 还是状态卡下方 */
+    try { placeCtl(); } catch (eP) {}
+    /* ★ 退出沉浸时状态卡刚从 display:none 回来，**同一帧里量不到高度**
+       （cr.height 会是 0），placeCtl 就会退回 72px 常量 ——
+       于是控制条跳到「状态卡下方」时压住了卡片。
+       下一帧再量一次就准了。只用 rAF，不挂 setTimeout（rAF 跟着渲染走，页签切走不会乱跑）。 */
+    if (!on) {
+      try {
+        (HOST.requestAnimationFrame || window.requestAnimationFrame || function (f) { setTimeout(f, 16); })(
+          function () { try { placeCtl(); } catch (eP2) {} }
+        );
+      } catch (eRaf) {}
+    }
+
+    /* 按钮自己的形态（「沉浸观看」↔「退出沉浸」） */
+    paintImmBtn();
+  }
+
+  function paintImmBtn() {
+    var doc = getDoc();
+    var b = doc.getElementById(IMM_BTN_ID);
+    if (!b) return;
+    var on = immIsOn();
+    if (b.classList) b.classList.toggle('is-on', on);
+    var ico = b.querySelector('.imm-ico');
+    var lab = b.querySelector('.imm-label');
+    if (ico) ico.textContent = on ? '✕' : '🖼';
+    if (lab) lab.textContent = on ? '退出沉浸' : '沉浸观看';
+    b.title = on
+      ? '退出沉浸：地图与状态卡回到原来那样'
+      : '藏起地图与状态卡，把画面让给插图（再点一次退出）';
+  }
+
+  /* 玩家点了这颗按钮 —— 这是**明确的意图**，所以两种情况的偏好都要写：
+     进 → 清掉「别再自动进」；出 → 记上「别再自动进」。 */
+  function toggleImmersive() {
+    var willOn = !immIsOn();
+    if (willOn) immPrefSetOff(false);
+    else immPrefSetOff(true);
+    immersiveApply(willOn);
+  }
+
+  /* 出图时调用：按偏好决定要不要自动进。
+     ★ 只在「真的开始出图」那一刻调一次，不要放进每秒的 paint 轮询里 ——
+       那样玩家手动退出后，下一秒轮询又把它推进去，按钮等于坏了。 */
+  function immersiveAutoEnter() {
+    if (immPrefOff()) return;            /* 玩家明确退出过：尊重 */
+    if (immIsOn()) return;               /* 已经在里面了：幂等，别重复记原状 */
+    immersiveApply(true);
+  }
+
+  /* 图没了 / 玩家关掉插图：一定要退出来，并且**不写偏好**（这不是玩家的选择）。
+     否则下次出图就进不去了。 */
+  function immersiveAutoExit() {
+    if (!immIsOn()) return;
+    immersiveApply(false);
+  }
+
+  /* ★ v171：当前**任一**插图通道是否在显示。
+     两套插图（内置 SPR_ILLUST_ON / 外置 SPR_EXT_ILLUST）必须一起判 ——
+     只认内置的话，玩家开着智绘姬那种外置图时，沉浸态会立刻被 paint 判成「没图」而退出，
+     表现就是「点了沉浸，一秒后自己弹回去」。 */
+  function anyIllustShown() {
+    try { if (illustEnabled() && (state.queue || []).length) return true; } catch (e1) {}
+    try { if (typeof extOn !== 'undefined' && extOn && extQueue && extQueue.length) return true; } catch (e2) {}
+    return false;
+  }
+
+  /* 唯一的「该不该沉浸」判据。两个方向都收在这里：
+       · 有图 → 没被玩家否决就进（否决过一次就再也不自动进，但手点仍然有效）
+       · 没图 → 一定退出，且不写偏好
+     任何会改变「有没有图」的地方都调它，不要各自实现一套判断。 */
+  function immersiveSync() {
+    if (anyIllustShown()) immersiveAutoEnter();
+    else immersiveAutoExit();
+  }
+
+  /* ★ v166：把控制条放在主角状态卡正下方。
+     为什么必须实测：状态卡里有名字 / 日期 / 金钱三行，字号跟着 --ui-scale 走，
+     高度不是常数（手机小屏更矮、桌面更宽更扁）。写死一个 top 迟早压上去。
+     没有状态卡（壳没渲染 / 玩家还没开局）时退回 72px 的固定值。
+     坐标系：优先用 offsetParent（就是 .th-gal-shell-viewport），
+     拿不到时退回两个 rect 相减，再退不回就用常量。 */
+  function placeCtl() {
+    try {
+      var doc = getDoc();
+      var ctl = doc.getElementById(CTL_ID);
+      if (!ctl) return;
+      /* 没壳时走 .is-float（fixed 贴底），不能写 top，不然会把 bottom 起生效的定位打死 */
+      if (ctl.classList && ctl.classList.contains('is-float')) return;
+      /* ★★ v171：沉浸态 —— 控制条进**最左上角**（作者原话「此时播放按钮在最左上角」）。
+         为什么能进：沉浸态把左上角状态卡整块摘掉了（display:none），
+         那块 8px/8px 的位置本来就是空的了。
+         这里写 left/top 都得带 important，基础规则里 left:8px / top:72px 都带 important。
+         8px 是与状态卡原来的 left 对齐、也和场景名对齐，视觉上贴齐左边界。 */
+      var imm = false;
+      try {
+        var sh = doc.getElementById('th-gal-shell-root');
+        imm = !!(sh && sh.classList && sh.classList.contains('th-gal-immersive'));
+      } catch (eImm) {}
+      if (imm) {
+        if (ctl.classList) ctl.classList.add('is-immersive');
+        ctl.style.setProperty('left', '8px', 'important');
+        ctl.style.setProperty('top', '8px', 'important');
+        ctl.style.setProperty('right', 'auto', 'important');
+        ctl.style.setProperty('bottom', 'auto', 'important');
+        return;
+      }
+      if (ctl.classList) ctl.classList.remove('is-immersive');
+      var card = doc.getElementById('th-gal-status-card');
+      var top = 0;
+      var host = ctl.offsetParent || ctl.parentNode;
+      if (card && host && host.getBoundingClientRect && card.getBoundingClientRect) {
+        var cr = card.getBoundingClientRect();
+        var hr = host.getBoundingClientRect();
+        if (cr.height > 0) top = Math.round(cr.bottom - hr.top + 8);
+      }
+      if (!(top > 0)) top = 72;
+      /* ★ 必须带 important：基础规则里写的是 top: 72px !important，
+         行内样式不带 important 根本压不过它（这是上一版改了不生效的典型坑）。 */
+      ctl.style.setProperty('left', '8px', 'important');
+      ctl.style.setProperty('top', top + 'px', 'important');
+      ctl.style.setProperty('right', 'auto', 'important');
+      ctl.style.setProperty('bottom', 'auto', 'important');
+    } catch (e) {}
+  }
+
   function syncCgRect() {
     var doc = getDoc();
     var box = doc.getElementById(CG_CONTAINER_ID);
@@ -1383,33 +2013,28 @@
       vp = (shell && shell.querySelector) ? shell.querySelector('.th-gal-shell-viewport') : null;
     } catch (e) { vp = null; }
 
-    var nb = doc.getElementById(NEXT_BTN_ID);
-    var ab = doc.getElementById(AUTO_BTN_ID);
+    var ctl = doc.getElementById(CTL_ID);
 
     if (vp) {
       try { if (box.parentNode !== vp) vp.appendChild(box); } catch (e1) {}
       try { if (fig && fig.parentNode !== vp) vp.appendChild(fig); } catch (e2) {}
-      /* ★ v10.7：按钮搬进游戏视口。以前只有图和黑幕进壳，按钮还是 fixed 在
-         整个窗口上，看着像贴在酒馆界面左下角的播放器。 */
-      try { if (nb && nb.parentNode !== vp) vp.appendChild(nb); } catch (eN1) {}
-      try { if (ab && ab.parentNode !== vp) vp.appendChild(ab); } catch (eA1) {}
+      /* ★ v166：按钮不再各自搬，整个控制条搬进游戏视口就位。 */
+      try { if (ctl && ctl.parentNode !== vp) vp.appendChild(ctl); } catch (eC1) {}
       if (box.classList) box.classList.add('in-shell');
       if (fig && fig.classList) fig.classList.add('in-shell');
-      if (nb && nb.classList) nb.classList.add('in-shell');
-      if (ab && ab.classList) ab.classList.add('in-shell');
+      if (ctl && ctl.classList) { ctl.classList.remove('is-float'); ctl.classList.add('in-shell'); }
       try { box.style.left = ''; box.style.top = ''; box.style.width = ''; box.style.height = ''; } catch (e3) {}
       try { if (fig) { fig.style.left = ''; fig.style.top = ''; fig.style.width = ''; fig.style.height = ''; } } catch (e4) {}
+      placeCtl();
       return;
     }
 
     try { if (box.parentNode !== doc.body) doc.body.appendChild(box); } catch (e5) {}
     try { if (fig && fig.parentNode !== doc.body) doc.body.appendChild(fig); } catch (e6) {}
-    try { if (nb && nb.parentNode !== doc.body) doc.body.appendChild(nb); } catch (eN2) {}
-    try { if (ab && ab.parentNode !== doc.body) doc.body.appendChild(ab); } catch (eA2) {}
+    try { if (ctl && ctl.parentNode !== doc.body) doc.body.appendChild(ctl); } catch (eC2) {}
     if (box.classList) box.classList.remove('in-shell');
     if (fig && fig.classList) fig.classList.remove('in-shell');
-    if (nb && nb.classList) nb.classList.remove('in-shell');
-    if (ab && ab.classList) ab.classList.remove('in-shell');
+    if (ctl && ctl.classList) { ctl.classList.remove('in-shell'); ctl.classList.add('is-float'); }
     try {
       box.style.left = '0px'; box.style.top = '0px';
       box.style.width = '100vw'; box.style.height = '100vh';
@@ -1468,6 +2093,20 @@
       btn.classList.remove('is-single');
       var ab0 = doc.getElementById(AUTO_BTN_ID);
       if (ab0) ab0.classList.remove('is-shown');   /* ★ v125：没图时开关也一起收 */
+      /* ★ v166：整条控制条一起收（上一张 / 下一张 / 暂停 三颗是一体的） */
+      var ctl0 = doc.getElementById(CTL_ID);
+      if (ctl0) ctl0.classList.remove('is-shown');
+      var pb0 = doc.getElementById(PREV_BTN_ID);
+      if (pb0) pb0.classList.remove('is-shown');
+      /* ★ v170：没图了，关闭键也一起收（不然空框挂个 ✕ 让人以为界面坏了） */
+      var cl0 = doc.getElementById(CLOSE_BTN_ID);
+      if (cl0) cl0.classList.remove('is-shown');
+      /* ★ v171：沉浸键也收，并且**一定要退出沉浸态** ——
+         图没了还折着地图和状态卡，玩家会以为界面坏了。
+         这里调 immersiveAutoExit（不写偏好），下次出图照样能自动进。 */
+      var im0 = doc.getElementById(IMM_BTN_ID);
+      if (im0) im0.classList.remove('is-shown');
+      immersiveAutoExit();
       doc.body.classList.remove('gal-cg-active');
       setShellCgOn(false);
       return;
@@ -1552,13 +2191,41 @@
        v125 原来让单张也显示「仅 1 张 1/1」，理由是「免得玩家以为翻页坏了」；
        实际效果是左下角常驻一个带 ▶ 的紫色斜角块，被当成播放器/插槽，更迷惑。
        单张没有可翻的东西，按钮和「自动/固定」开关一起收掉。 */
+    /* ★★ v170：**只有 1 张时也要露出关闭键。**
+       玩家的原话是「插图无法关上」——而绝大多数插图就是**一张**。
+       旧逻辑在 group.length <= 1 时把整条控制条收掉（连关闭键一起），
+       于是单张图**永远没有关闭按钮**，只能去齿轮面板找开关。
+       现在：单张只收「上一张 / 下一张 / 暂停」（确实没得翻、没得自动），
+       但控制条本身和关闭键保留 —— 有关闭键在，玩家才认为「关得掉」。 */
     if (group.length <= 1) {
       btn.classList.remove('is-shown');
       btn.classList.remove('is-single');
       var ab1 = doc.getElementById(AUTO_BTN_ID);
-      if (ab1) ab1.classList.remove('is-shown');
+      if (ab1) ab1.classList.remove('is-shown');   /* 单张没得自动翻，收掉 */
+      var pb1 = doc.getElementById(PREV_BTN_ID);
+      if (pb1) pb1.classList.remove('is-shown');   /* 单张没得翻，收掉 */
+      /* 控制条 + 关闭键留着 */
+      var ctl1 = doc.getElementById(CTL_ID);
+      if (ctl1) ctl1.classList.add('is-shown');
+      var cl1 = doc.getElementById(CLOSE_BTN_ID);
+      if (cl1) {
+        cl1.classList.add('is-shown');
+        cl1.title = '关闭插图（关掉后可在面板「🖼 重新打开插图」找回）';
+      }
+      /* ★ v171：单张也要有沉浸键 —— 玩家最常看到的就是单张，
+         不给键等于这个功能对大多数人不存在。 */
+      var im1 = doc.getElementById(IMM_BTN_ID);
+      if (im1) im1.classList.add('is-shown');
+      placeCtl();
+      /* ★ v171：出图即自动进沉浸（按偏好）。放在「队列已确认」之后 ——
+         前面那段还在图下载/校验（可能 404 / 超时），那种情况下折掉 UI 是白折。 */
+      immersiveSync();
       return;
     }
+    /* ★ v166：控制条整体亮出来，三颗按钮同进同出。 */
+    var ctlEl = doc.getElementById(CTL_ID);
+    if (ctlEl) ctlEl.classList.add('is-shown');
+    placeCtl();
     btn.classList.add('is-shown');
     btn.classList.remove('is-single');
     var numEl = btn.querySelector('.num');
@@ -1567,9 +2234,23 @@
     if (labelEl) {
       labelEl.textContent = (state.index >= group.length - 1) ? '回到第一张' : '下一张';
     }
+    var pbtn = doc.getElementById(PREV_BTN_ID);
+    if (pbtn) {
+      pbtn.classList.add('is-shown');
+      var plab = pbtn.querySelector('.label');
+      if (plab) plab.textContent = (state.index <= 0) ? '最后一张' : '上一张';
+    }
     var abtn = doc.getElementById(AUTO_BTN_ID);
     if (abtn) abtn.classList.add('is-shown');
+    /* ★ v170：多张时关闭键也一起亮（和控制条同进同出） */
+    var clb = doc.getElementById(CLOSE_BTN_ID);
+    if (clb) clb.classList.add('is-shown');
+    /* ★ v171：多张时沉浸键也亮（和控制条同进同出） */
+    var imb = doc.getElementById(IMM_BTN_ID);
+    if (imb) imb.classList.add('is-shown');
     paintAutoBtn();
+    /* ★ v171：出图即自动进沉浸（按偏好）。同样放在「队列已确认」之后。 */
+    immersiveSync();
   }
 
   /* 推进：step=+1 往后一张；wrap=true 时到最后一张再点回到第一张
@@ -1841,10 +2522,12 @@
   var EXT_MAX = 12;
   var extQueue = [];
   var extIdx = 0;
-  /* 默认开。玩家的原话是「遇到那个格式就显示，没检测到就用我们的，默认显示，
-     而不是要自己打开」—— 所以这儿不读设置、不摆开关姿态，直接 true；
-     关掉是玩家主动做的事，关掉之后才有「重新打开插图」这一说。 */
-  var extOn = true;
+  /* ★ 21:45：默认**关**。
+     以前默认开，于是每 1.5 秒扫一遍 #chat 里所有 <img>，把别的插件 / 素材库的
+     图标、缩略图也当成"外置插图"抓进来（玩家反映：莫名其妙冒出各种图标）。
+     现在默认显示我们自己的插图；玩家点「🖼 兼容智绘姬」才切到外置那一套，
+     再点一下切回来。 */
+  var extOn = false;
   var extTimer = null;
 
   /* 内置插图总开关（状态栏「功能」页控制）。默认开。 */
@@ -1914,11 +2597,15 @@
       } catch (eY) {}
     }
 
-    if (!show) { el.style.opacity = '0'; yieldCg(false); return; }
+    if (!show) { el.style.opacity = '0'; yieldCg(false); try { immersiveSync(); } catch (eIm0) {} return; }
     var src = extQueue[extIdx] || '';
     el.style.backgroundImage = src ? 'url("' + src + '")' : 'none';
     el.style.opacity = '1';
     yieldCg(true);
+    /* ★ v171：外置图也算「正在出图」，同样触发沉浸。
+       ⚠ 不能只在内置那条链上触发 —— 玩家开着智绘姬时，内置队列可能是空的，
+         光看内置会判成「没图」，沉浸态会被 paint 立刻撤掉（表现：点了就弹回去）。 */
+    try { immersiveSync(); } catch (eIm1) {}
   }
 
   function extAdd(src) {
@@ -1932,12 +2619,23 @@
   function extPick(img) {
     if (!img || img.tagName !== 'IMG') return '';
     try {
-      if (img.closest && img.closest('.mes_avatar, .avatar, .mes_avatar_img, .expression-holder, .avatar img')) return '';
+      /* 头像 / 表情 / 我们自己的插图块 / 游戏壳里的任何图标，一律不算 */
+      if (img.closest && img.closest('.mes_avatar, .avatar, .mes_avatar_img, .expression-holder, ' +
+        '#th-gal-shell-root, .thillu, #gal-ext-illust')) return '';
+      /* ★ 21:45：按钮、工具栏、菜单里的图**不是插图**。玩家看到的「各种图标」
+         基本都是从这儿漏进去的 —— 别的插件把图标库挂在聊天区里，
+         旧判据只看尺寸，200px 的素材缩略图照样过。 */
+      if (img.closest && img.closest('button, .menu, .toolbar, .drawer, [class*="icon"], [class*="Icon"], ' +
+        '[class*="emoji"], [class*="Emoji"], [class*="avatar"], [class*="Avatar"], [class*="thumb"]')) return '';
     } catch (e0) {}
     var src = img.currentSrc || img.getAttribute('src') || '';
     if (!src || !/^(https?:\/\/|blob:|data:image\/)/i.test(src)) return '';
+    /* 明显是图标/表情的 data URI 直接丢（外置插图不可能是几十字节的 svg 图标） */
+    if (/^data:image\/svg/i.test(src)) return '';
     var w = img.naturalWidth || 0, h = img.naturalHeight || 0;
-    if (w && h && (w < 200 || h < 200)) return '';    /* 图标 / 表情 */
+    if (w && h && (w < 240 || h < 240)) return '';    /* 图标 / 表情 / 缩略图 */
+    var lw = img.width || 0, lh = img.height || 0;
+    if (lw && lh && (lw < 160 || lh < 160)) return '';
     return src;
   }
 
@@ -1945,24 +2643,34 @@
     var doc = extDoc();
     if (!doc) return 0;
     var added = 0, s, i, j, k;
-    var list = doc.querySelectorAll('#chat img, .mes_text img, .mes img');
-    for (i = 0; i < list.length; i++) { s = extPick(list[i]); if (s && extAdd(s)) added++; }
+    /* ★ 21:45：关掉的时候连扫都不扫 —— 不扫就不会攒脏图，也不会有隐形开销 */
+    if (!extOn) {
+      if (extQueue.length) { extQueue = []; extIdx = 0; extRender(); extPaintBtn(); }
+      return 0;
+    }
+    /* ★ 21:45：只认「最近 3 楼的正文区」。以前扫 #chat 全量，
+       历史楼里别人插的图、插件自己的图都被算进来。 */
+    var mes = doc.querySelectorAll('.mes');
+    var boxes = [], bi;
+    for (bi = Math.max(0, mes.length - 3); bi < mes.length; bi++) {
+      var bx = mes[bi] && mes[bi].querySelector ? mes[bi].querySelector('.mes_text') : null;
+      if (bx) boxes.push(bx);
+    }
+    if (!boxes.length) { var fb = doc.querySelector('.mes_text'); if (fb) boxes.push(fb); }
+    for (bi = 0; bi < boxes.length; bi++) {
+      var il0 = boxes[bi].querySelectorAll('img');
+      for (i = 0; i < il0.length; i++) { s = extPick(il0[i]); if (s && extAdd(s)) added++; }
+    }
     /* 插件把图装 iframe 的情况 */
-    var fr = doc.querySelectorAll('#chat iframe, .mes_text iframe, .mes iframe');
+    var fr = doc.querySelectorAll('.mes_text iframe, .mes iframe');
     for (j = 0; j < fr.length; j++) {
       try {
         var inner = fr[j].contentDocument;
         if (!inner) continue;
         var il = inner.querySelectorAll('img');
         for (k = 0; k < il.length; k++) { s = extPick(il[k]); if (s && extAdd(s)) added++; }
-        /* iframe 内用背景图渲染的情况 */
-        var all = inner.querySelectorAll('div,span,section,p');
-        for (k = 0; k < all.length; k++) {
-          var bg = '';
-          try { bg = inner.defaultView.getComputedStyle(all[k]).backgroundImage || ''; } catch (eB) { bg = ''; }
-          var mm = bg.match(/url\(["']?([^"')]+)["']?\)/);
-          if (mm && /^(https?:\/\/|blob:|data:image\/)/i.test(mm[1])) { if (extAdd(mm[1])) added++; }
-        }
+        /* ★ 21:45：不再扫 iframe 里的 background-image。
+           插件界面上到处是背景图做的图标/按钮底纹，那正是"抓到图标"的另一半来源。 */
       } catch (eF) {}
     }
     if (added) { extIdx = extQueue.length - 1; extRender(); }
@@ -1978,13 +2686,40 @@
       b.id = EXT_BTN;
       b.type = 'button';
       b.textContent = '✕';
-      b.title = '关闭插图（关掉后可在齿轮面板 → 界面 → 重新打开插图）';
-      /* z-index 81：比对话框的 80 高一层，对话框不透明时也不会被压住 */
-      b.setAttribute('style', 'position:absolute;top:10px;right:10px;z-index:81;width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(217,187,122,.55);background:rgba(14,12,10,.72);color:#e6c884;font-size:16px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);');
+      b.title = '关闭插图（关掉后可在面板「🖼 重新打开插图」找回）';
+      /* ★★ v170：**不再钉在右上角，收进控制条。**
+         作者原话：「关闭按钮要弄在暂停和播放按钮的中间」。
+         旧样式是 position:absolute; top:10px; right:10px —— 浮在图右上角，
+         和控制条那一排按钮完全不在一个视觉体系里，玩家会以为是两个东西。
+         现在 mediator 由 syncExtBtnToCtl() 把它塞进 #gal-cg-ctl 里、
+         排在「下一张」与「暂停」之间（和内置插图的关闭键同一个位置）。
+         样式统一交给 CSS 里的 #gal-cg-ctl > * 规则（position:static），
+         所以这里的 inline 只需要管外观、不再写 top/right。 */
+      b.setAttribute('style', 'display:none;align-items:center;justify-content:center;width:32px;height:30px;padding:0;border-radius:8px;border:1.5px solid rgba(217,187,122,.72);background:linear-gradient(135deg,rgba(24,20,36,.94),rgba(52,28,64,.96));box-shadow:0 6px 18px rgba(0,0,0,.7);color:#ffeccc;font-size:14px;font-weight:700;line-height:1;cursor:pointer;user-select:none;backdrop-filter:blur(8px);transition:transform .18s,border-color .18s,color .18s;');
       b.addEventListener('click', function (ev) { ev.stopPropagation(); extToggle(); });
-      vp.appendChild(b);
+      /* ★ v170：先挂 body 兜底，syncExtBtnToCtl 下一拍会把它搬进控制条。
+         不直接 append 到 vp：那时候控制条可能还没建出来。 */
+      (doc.body || vp).appendChild(b);
     }
+    try { syncExtBtnToCtl(); } catch (eS) {}
     return b;
+  }
+
+  /* ★★ v170：把外置插图的 ✕ 搬进控制条，并摆到「暂停」前面（= 下一张与暂停之间）。
+     幂等：位置已经对了就一个字节不动，否则每 1.5 秒的 extScan 都会重排一次、白白抖一下。 */
+  function syncExtBtnToCtl() {
+    var doc = extDoc();
+    if (!doc) return;
+    var b = doc.getElementById(EXT_BTN);
+    var ctl = doc.getElementById(CTL_ID);
+    if (!b || !ctl) return;
+    var autoEl = doc.getElementById(AUTO_BTN_ID);
+    if (b.parentNode !== ctl) {
+      if (autoEl && autoEl.parentNode === ctl) ctl.insertBefore(b, autoEl);
+      else ctl.appendChild(b);
+    } else if (autoEl && autoEl.parentNode === ctl && b.nextSibling !== autoEl) {
+      ctl.insertBefore(b, autoEl);
+    }
   }
 
   function extPaintBtn() {
@@ -1993,22 +2728,37 @@
     /* 只在「开着且有图」时露出关闭键。没图的时候挂着个 ✕ 会让人以为界面坏了。 */
     var show = !!(extOn && extQueue.length);
     b.style.display = show ? 'flex' : 'none';
-    b.title = '关闭插图（关掉后可在齿轮面板 → 界面 → 重新打开插图）';
+    b.title = '关闭插图（关掉后可在面板「🖼 重新打开插图」找回）';
+    /* ★ v170：外置图露头时，内置那颗关闭键就藏起来 ——
+       否则同一排会出现两个 ✕（一个关外置、一个关内置），玩家根本分不清。
+       判据单一：谁在显示，就只留谁的关闭键。 */
+    try {
+      var cl = getDoc().getElementById(CLOSE_BTN_ID);
+      if (cl) {
+        if (show) cl.classList.remove('is-shown');
+        else if (illustEnabled() && (state.queue || []).length) cl.classList.add('is-shown');
+      }
+    } catch (eCl) {}
   }
 
   function extToggle() {
-    /* 这个按钮现在是单向的「关闭」，不是开关。要重新打开走齿轮面板里的
-       「重新打开插图」—— 那才是玩家关了之后会去找的地方。 */
-    extOn = false;
+    /* ★ 21:45：真正的开关（右上角那颗 ✕ 也能来回切） */
+    extOn = !extOn;
+    try { HOST.localStorage.setItem('SPR_EXT_ILLUST', extOn ? 'on' : 'off'); } catch (e) {}
+    if (extOn) { extScan(); extIdx = Math.max(0, extQueue.length - 1); }
+    else { extQueue = []; extIdx = 0; }
     extRender();
     extPaintBtn();
-    try { HOST.localStorage.setItem('SPR_EXT_ILLUST', 'off'); } catch (e) {}
-    extToast('🖼 已关闭插图 · 齿轮面板 → 界面 → 重新打开插图');
+    extToast(extOn ? '🖼 已切换为外置插图（兼容智绘姬）' : '🖼 已切回我们自己的插图');
+    try { if (HOST.__thSyncExtIllustBtn) HOST.__thSyncExtIllustBtn(); } catch (eS) {}
   }
 
   function extBoot() {
-    /* 老存档里可能留着 off（玩家以前手动关过），尊重它；没有记录就是开。 */
-    try { if (HOST.localStorage.getItem('SPR_EXT_ILLUST') === 'off') extOn = false; } catch (e) {}
+    /* ★ 21:45：默认关。只有玩家自己点过「兼容智绘姬」并留下 on，才会开。 */
+    try {
+      var _extPref = HOST.localStorage.getItem('SPR_EXT_ILLUST');
+      extOn = (_extPref === 'on');
+    } catch (e) { extOn = false; }
     try {
       HOST.__sprExtIllust = {
         toggle: extToggle,
@@ -2033,8 +2783,40 @@
         get: function () { return illustEnabled(); }
       };
     } catch (e2) {}
-    extScan();
-    if (!extTimer) extTimer = setInterval(function () { try { extScan(); extPaintBtn(); } catch (e3) {} }, 1500);
+    /* ★ v170：兜底 —— 上面那个大 try 万一在挂 __sprExtIllust 时抛了，
+       __sprIllust 就永远不存在，面板上「重新打开插图」会摸不到 API。
+       这里补一次，保证内置插图的开关**始终**有出口（判据单一：只有这一份实现）。 */
+    if (!HOST.__sprIllust) {
+      try {
+        HOST.__sprIllust = {
+          set: function (on) {
+            try { HOST.localStorage.setItem('SPR_ILLUST_ON', on ? 'on' : 'off'); } catch (eS2) {}
+            try { paint(); } catch (eP2) {}
+            try { extToast(on ? '🖼 内置插图：开' : '🖼 内置插图：关'); } catch (eT2) {}
+          },
+          get: function () { return illustEnabled(); }
+        };
+      } catch (e3) {}
+    }
+    if (extOn) extScan(); else { extQueue = []; extIdx = 0; extRender(); extPaintBtn(); }
+    /* ★ v171：把沉浸式的口子也挂出去（HOST + window 两处），
+       面板 / 快捷指令想切就切，不用去猜按钮在哪。
+       ⚠ 只挂「查询 / 切换 / 强制进出」四件，不挂内部 apply —— 内部那个不写偏好，
+         外面误调会让玩家的「别再自动进」失效。 */
+    try {
+      HOST.__sprImmersive = {
+        isOn: immIsOn,
+        toggle: toggleImmersive,
+        enter: function () { immersiveApply(true); },
+        exit: function () { immersiveApply(false); },
+        prefOff: immPrefOff           /* true = 玩家明确退出过，不再自动进 */
+      };
+      window.__sprImmersive = HOST.__sprImmersive;
+    } catch (eImmApi) {}
+    /* ★ 21:45：关着的时候不要每 1.5 秒全量扫 DOM（白耗性能、还可能攒脏图） */
+    if (!extTimer) extTimer = setInterval(function () {
+      try { if (extOn) { extScan(); extPaintBtn(); } } catch (e3) {}
+    }, 1500);
   }
 
   function init() {

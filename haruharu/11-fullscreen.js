@@ -69,6 +69,19 @@ var STYLES = '<style id="' + STYLE_ID + '">' +
 '  width: 100vw !important; height: 100% !important;' +
 '  object-fit: cover !important; object-position: center !important;' +
 '}' +
+/* ★ 11-14 18:00：作者要求手机宽度下**只显示一个立绘**。
+   这一条已经在 10-core.js 的渲染代码里做掉了（thIsNarrowScreen → 只生成左位、
+   舞台切 is-solo），所以竖屏全屏下根本不会再出现 .is-duo 双人舞台。
+   之前给双人位压 48% 宽的整套 CSS 随之撤掉 —— 留着就是死代码，还容易误导。
+   下面只保留「单人立绘防超宽被 overflow 切掉」这一层兜底，不改人物大小。
+   现场单人 / 说话立绘层两个来源都覆盖。 */
+'@media (orientation: portrait) {' +
+'#' + PORTAL_ID + '.active .th-gal-standing-stage.is-solo .th-gal-standing-img, ' +
+'#' + PORTAL_ID + '.active .th-gal-dlg-char-layer .th-gal-standing-img {' +
+'  max-width: 92% !important; max-height: 82% !important;' +
+'  object-fit: contain !important; object-position: bottom center !important;' +
+'}' +
+'}' +
 '</style>';
 
 var originalParent = null;
@@ -216,6 +229,21 @@ function initPlugin() {
     }
   });
 }
+
+/* ★ 11-14 17:20：给标题屏的「手机模式 / 电脑模式」一个可靠入口。
+   以前 open/close 是 IIFE 私有函数，外部只能去模拟点击悬浮球，
+   而悬浮球可能被拖动 / 被重画，点不中就是"点了没反应"。 */
+try {
+  (HOST || window).__TH_STAGE_PORTAL__ = {
+    open: openStagePortal,
+    close: closeStagePortal,
+    toggle: toggleStagePortal,
+    isOpen: function () {
+      var p = getDoc().getElementById(PORTAL_ID);
+      return !!(p && p.classList.contains('active'));
+    }
+  };
+} catch (eApi) {}
 
 if (getDoc().readyState === 'loading') {
   getDoc().addEventListener('DOMContentLoaded', initPlugin);

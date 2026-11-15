@@ -92,6 +92,7 @@ var MvuSelfHealing = (function() {
       ".th-gal-mvu-badge{display:inline-block!important;padding:4px 10px!important;margin-bottom:12px!important;background:rgba(245,158,11,.15)!important;border:1px solid rgba(245,158,11,.5)!important;border-radius:999px!important;color:#fbbf24!important;font-size:11px!important;font-weight:600!important;letter-spacing:1px!important;}",
       ".th-gal-mvu-title{font-size:17px!important;font-weight:700!important;color:#fff!important;margin-bottom:8px!important;}",
       ".th-gal-mvu-desc{font-size:13px!important;line-height:1.6!important;color:#cbd5e1!important;margin-bottom:18px!important;min-height:40px!important;}",
+      ".th-gal-mvu-probe{font-size:11px!important;line-height:1.5!important;color:#94a3b8!important;background:rgba(15,23,42,.6)!important;border:1px dashed rgba(148,163,184,.35)!important;border-radius:6px!important;padding:6px 8px!important;margin:0 0 14px!important;word-break:break-all!important;font-family:ui-monospace,Consolas,monospace!important;text-align:left!important;}",
       ".th-gal-mvu-spinner{width:28px!important;height:28px!important;margin:0 auto 16px!important;border:3px solid rgba(245,158,11,.2)!important;border-top-color:#f59e0b!important;border-radius:50%!important;animation:thGalSpin .8s linear infinite!important;}",
       "@keyframes thGalSpin{to{transform:rotate(360deg);}}",
       ".th-gal-mvu-actions{display:flex!important;flex-wrap:wrap!important;gap:8px!important;justify-content:center!important;}",
@@ -282,30 +283,78 @@ var MvuSelfHealing = (function() {
      ④ 里面 <JSONPatch> JSON 标签在不在；⑤ 那段 JSON 有没有闭合（能不能 parse 成数组）。
      「好感度没写」「时间没更」「Analysis 有没有」「缺哪个字段」——一律不查、不报。
      返回：问题清单（空数组 = 格式正常）。 */
+  /* 剥掉思维链：这些内容里的 <UpdateVariable> 只是举例，不是这一轮真写的。
+     三种形态都要认（现场都出现过）：
+       · 成对 <think_nya>…</think_nya>
+       · 只剩闭合 </think_nya><!--</think>-->（开标签被预设吃掉）
+       · 完全没有开标签、但存在 think 类闭合标签（正文恒在它之后） */
+  function stripThinkForVar(s) {
+    var t = String(s == null ? '' : s);
+    /* 注释先删：<!--</think>--> 这种假闭合会让「最靠后的闭合标签」判断错位 */
+    t = t.replace(/<!--[\s\S]*?-->/g, '');
+    /* 成对的整块删（think / think_nya / thinking / reasoning / thought） */
+    t = t.replace(/<\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\b[^>]*>[\s\S]*?<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi, '');
+    /* 还有开标签残留 = 有未闭合的推演，直接切掉，避免它的尾巴冒充正文 */
+    t = t.replace(/<\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\b[^>]*>[\s\S]*$/i, '');
+    /* 孤立闭合：没有任何开标签时，开头到最靠后的闭合标签整段丢 */
+    var re = /<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi;
+    var lastEnd = -1, m;
+    while ((m = re.exec(t)) !== null) lastEnd = m.index + m[0].length;
+    if (lastEnd > 0) t = t.slice(lastEnd);
+    return t;
+  }
+
   function checkVarFormat(text) {
     var problems = [];
-    var s = String(text == null ? "" : text);
-    if (!s.trim()) { problems.push("本楼完全没有变量块"); return problems; }
+    var raw = String(text == null ? '' : text);
+    if (!raw.trim()) { problems.push('本楼完全没有变量块'); return problems; }
 
-    /* ① 变量标签在不在  ② 闭没闭  ③ 有没有两份 */
-    var openVar = (s.match(/<UpdateVariable\b[^>]*>/gi) || []).length;
-    var closeVar = (s.match(/<\/UpdateVariable\s*>/gi) || []).length;
-    if (openVar === 0) {
-      problems.push("缺少 &lt;UpdateVariable&gt; 变量标签");
-    } else {
-      if (closeVar === 0 || closeVar < openVar) problems.push("&lt;UpdateVariable&gt; 标签未闭合");
-      if (openVar > 1) problems.push("&lt;UpdateVariable&gt; 出现了 " + openVar + " 份（每轮只允许一份）");
+    var s = stripThinkForVar(raw);
+    if (!s.trim()) { problems.push('本楼完全没有变量块'); return problems; }
+
+    /* ★ 23:10【口径变更】以前按「世界书约定的三层格式」判，外壳缺失也报。
+       作者决定改成**只看 MVU 实际会执行什么** —— 也就是只看 <JSONPatch>…</JSONPatch>。
+       实测依据（MVU 官方源码逐行转译后跑过四种写法）：
+         · 删光 <UpdateVariable>、只留 <JSONPatch>  → MVU 照样执行，变量真的变了
+         · 只在 <UpdateVariable> 里放裸 JSON        → MVU 解析出 0 条，变量不动
+         · <JSONPatch> 没闭合                        → 被 closed 过滤，丢弃
+       所以判据只有一条：**有没有一个闭合、且内容是合法数组的 <JSONPatch>**。
+       MVU 会把所有闭合块都执行（flatMap），任一块能用就算这一楼有救。 */
+    var re = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>([\s\S]*?)<\s*\/\s*(?:JSONPatch|json_?patch)\s*>/gi;
+    var closed = 0, good = 0, bad = 0;
+    var m;
+    while ((m = re.exec(s)) !== null) {
+      closed++;
+      if (lcsParsePatch(String(m[1] || ''), true)) good++;
+      else bad++;
+    }
+    if (good > 0) return problems;                    /* 至少一块能执行 → MVU 会写进去 */
+    if (closed > 0) {
+      problems.push('&lt;JSONPatch&gt; 里的 JSON 不是合法数组（' + bad + ' 块都解析失败）');
+      return problems;
     }
 
-    /* ④ 里面的 JSONPatch 标签在不在  ⑤ 那段 JSON 闭没闭合 */
-    var openJp = (s.match(/<(?:JSONPatch|json_?patch)\b[^>]*>/gi) || []).length;
-    var closeJp = (s.match(/<\/(?:JSONPatch|json_?patch)\s*>/gi) || []).length;
-    if (openJp === 0) {
-      problems.push("变量块里缺少 &lt;JSONPatch&gt; JSON 标签");
-    } else {
-      if (closeJp === 0 || closeJp < openJp) problems.push("&lt;JSONPatch&gt; 标签未闭合");
-      if (!lcsParsePatch(s, true)) problems.push("&lt;JSONPatch&gt; 里的 JSON 没闭合、或不是合法数组");
+    /* 一个闭合块都没有：看是不是「有开标签没闭合」 */
+    var openOnly = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>([\s\S]*)$/i.exec(s);
+    if (openOnly) {
+      if (lcsParsePatch(String(openOnly[1] || ''), true)) {
+        problems.push('&lt;JSONPatch&gt; 没有闭合（JSON 能解析，但 MVU 会丢弃未闭合的块，变量写不进去）');
+      } else {
+        problems.push('&lt;JSONPatch&gt; 没有闭合，JSON 也解析不出来');
+      }
+      return problems;
     }
+
+    /* 完全没有 JSONPatch 标签 */
+    if (/<\s*UpdateVariable\b/i.test(s)) {
+      problems.push('有 &lt;UpdateVariable&gt; 但没有 &lt;JSONPatch&gt; 标签（MVU 只认 JSONPatch，变量写不进去）');
+      return problems;
+    }
+    if (lcsParsePatch(s, true)) {
+      problems.push('整楼只有裸 JSON，没有 &lt;JSONPatch&gt; 标签（MVU 不会解析）');
+      return problems;
+    }
+    problems.push('本楼没有变量块');
     return problems;
   }
 
@@ -871,12 +920,23 @@ var MvuSelfHealing = (function() {
         "<div class=\"th-gal-mvu-badge\" id=\"th-mvu-badge\">🩺 MVU 变量自愈中心 (非同层版)</div>" +
         "<div class=\"th-gal-mvu-title\" id=\"th-mvu-title\">变量状态检查</div>" +
         "<div class=\"th-gal-mvu-desc\" id=\"th-mvu-status-desc\">每 2 秒轮询嗅探监控中...</div>" +
+        /* ★ v141：实测探针 —— 把脚本**真正读到的那一楼**摊开给玩家看。
+           玩家手动改完消息、回面板仍显示「格式正常」时，这一行能立刻分清：
+             · 字数/标签数变了 → 读到的是新内容，判定就是这样；
+             · 还是旧数字     → 读的不是你改的那一楼（swipe 旧副本 / 读错楼层）。 */
+        "<div class=\"th-gal-mvu-probe\" id=\"th-mvu-probe\">🔬 正在读取最新楼层…</div>" +
         "<div class=\"th-gal-mvu-spinner\" id=\"th-mvu-spinner\" style=\"display: none;\"></div>" +
         "<div class=\"th-gal-mvu-actions\">" +
-          "<button type=\"button\" class=\"th-gal-mvu-btn\" data-act=\"fast-repair\">⚡ 快速轻量补算 (推荐)</button>" +
-          "<button type=\"button\" class=\"th-gal-mvu-btn th-gal-mvu-btn-deep\" data-act=\"deep-repair\">🧠 全文精细补算 (全上下文)</button>" +
+          /* ★ v140：按天元录口径重做 —— 不再分「精简/精细」，只分「改不改内容」：
+             左 = 按正文重写（**默认·完整版**）：完整规则 + 全上下文，让模型按正文重新推一次。
+                  「快速/精简」已彻底下架 —— 补算只走完整那套，宁可贵一点也要把资料补全。
+             右 = 只补格式：把这一楼 AI 已经写好的补丁原样抽出来、补齐标签，
+                  **一个数值都不动、不调模型**。 */
+          "<button type=\"button\" class=\"th-gal-mvu-btn th-gal-mvu-btn-deep\" data-act=\"rewrite-repair\">🧠 按正文重写（完整版·默认）</button>" +
+          "<button type=\"button\" class=\"th-gal-mvu-btn\" data-act=\"format-repair\">🩹 只补格式（不动内容·本地）</button>" +
           "<button type=\"button\" class=\"th-gal-mvu-btn th-gal-mvu-btn-sec\" data-act=\"skip-time\">⏩ 推进时间(+15m)</button>" +
           "<button type=\"button\" class=\"th-gal-mvu-btn th-gal-mvu-btn-sec\" data-act=\"open-api-cfg\">⚙️ API 设置</button>" +
+          "<button type=\"button\" class=\"th-gal-mvu-btn th-gal-mvu-btn-sec\" data-act=\"recheck\">🔄 重新检测</button>" +
           "<button type=\"button\" class=\"th-gal-mvu-btn th-gal-mvu-btn-sec\" data-act=\"close\" id=\"th-mvu-btn-close-main\">✖ 关闭</button>" +
         "</div>" +
       "</div>" +
@@ -922,11 +982,15 @@ var MvuSelfHealing = (function() {
       var tab = btn.getAttribute("data-tab");
 
       if (tab) { switchTab(tab); return; }
-      if (act === "fast-repair") { runRepair("fast"); return; }
-      if (act === "deep-repair") { runRepair("deep"); return; }
+      /* ★ v140：老的 fast/deep 两个 act 名留着只做**兼容映射** ——
+         万一页面里还挂着旧面板（热更中途、老 HTML 缓存），点「快速」也一律走完整版，
+         绝不因为按钮名对不上就点了没反应。 */
+      if (act === "rewrite-repair" || act === "deep-repair" || act === "fast-repair") { runRepair("rewrite"); return; }
+      if (act === "format-repair") { runRepair("format"); return; }
       if (act === "skip-time") { applyQuickFallback(); return; }
       if (act === "open-api-cfg") { showView("cfg"); return; }
       if (act === "back-main") { showView("main"); return; }
+      if (act === "recheck") { refreshStatusNow(); return; }
       if (act === "close") { handleCloseRequest(); return; }
       if (act === "test-api") { testCustomApi(); return; }
       if (act === "fetch-models") { fetchCustomModels(); return; }
@@ -1117,7 +1181,16 @@ var MvuSelfHealing = (function() {
     }
   }
 
-  function callFastRepairApi(prose) {
+  /* ══════════════════════════════════════════════════════════════════════
+     ★ v140：补算只剩一种口径 —— **完整版**
+     作者 2026-11-14：「变量补全改为完整的默认，不再存在快速了，肯定往好了完整的资料更新去」
+     ⇒ 原来的 fast / deep 两档合并成一条：
+       · 提示词取原来 fast 那份（它才是完整的《规则铁律 + 篇章人物速查 + 当前变量快照》）
+       · 上下文取原来 deep 那份（往前 16 楼正文，看得到关系与时间跨度）
+     两样都要才叫「完整」—— 任何一边单拿都是残的。
+     ⚠ 不要再把「精简/快速」加回来：那条路省的是 token，赔的是变量准确性。
+     ══════════════════════════════════════════════════════════════════════ */
+  function callRewriteApi(ctx, targetIdx, prose) {
     var cfg = getActiveApiConfig();
     if (!cfg) throw new Error("未配置 API 通道，请点击「⚙️ API 设置」选择或填写");
 
@@ -1148,42 +1221,316 @@ var MvuSelfHealing = (function() {
       "4. 【当前篇章】：" + curArc + "。同场主要角色：" + roster.roles + "；苦主角色：" + roster.victims + "。\n" +
       "5. 【当前变量快照基准】：\n" + varSnapshot;
 
-    var msgs = [{ role: "user", content: "【最新楼层剧情正文】：\n" + prose + "\n\n请根据上述正文，严格输出 <UpdateVariable> 变量更新块：" }];
+    /* 上下文：往前 16 楼正文（剥掉变量块，只送剧情），让模型判断得了关系进展与时间跨度 */
+    var msgs = [];
+    var startIdx = Math.max(0, targetIdx - 16);
+    for (var i = startIdx; i < targetIdx; i++) {
+      var m = ctx.chat[i];
+      if (!m) continue;
+      var txt = extractProse(messageTextOf(m));
+      if (txt) msgs.push({ role: m.is_user ? "user" : "assistant", content: txt.slice(0, 1200) });
+    }
+    msgs.push({ role: "user", content: "【最新楼层剧情正文】：\n" + prose + "\n\n请根据上述正文（以及前面的上下文），严格输出 <UpdateVariable> 变量更新块：" });
+
     return executeApiCall(cfg, msgs, sysPrompt);
   }
 
-  function callDeepRepairApi(ctx, targetIdx, prose) {
-    var cfg = getActiveApiConfig();
-    if (!cfg) throw new Error("未配置 API 通道，请点击「⚙️ API 设置」选择或填写");
+  /* ══════════════════════════════════════════════════════════════════════
+     「只补格式」的取数：从这一楼原文里找出 AI **已经写好**的补丁，并记住它的位置
+     口径与天元录 08-外置变量补全.js 的 pickPatchText 一致（改一处必须改另一处）：
+       · 把所有闭合的 <JSONPatch> 块**全收集**，从后往前挑（最后一块最可能是定稿）
+       · 一个闭合块都没有才走兜底：未闭合的开标签 → 最像数组的 `[...]` → 裸对象 `{...}`
+     ★ 为什么要带位置：写回时必须**就地替换**那一小段，块以外的每个字都要原样保留。
+       旧写法「剥掉旧块 → 正文 + 新块拼到末尾」会把思维链吃掉、把块搬到消息最后、
+       还会让 <StatusPlaceHolderImpl/> 从收尾变成被夹在中间（天元录 v308 踩过）。
+     返回 { body, kind, st, en }；body 为空串 = 这一楼确实没有可补的内容（不许凭空编）。
+     ══════════════════════════════════════════════════════════════════════ */
+  function pickPatchAnywhere(rawText) {
+    var s = String(rawText == null ? "" : rawText);
+    var thinkEnd = thinkTailStart(s);
 
-    var sd = null;
-    try { sd = (typeof stat_data !== "undefined" && stat_data) ? stat_data : null; } catch (eSd) {}
-    var curArc = (sd && sd.全局 && sd.全局.当前篇章) ? sd.全局.当前篇章 : "夏越村";
-    var roster = ROSTER_DATA[curArc] || ROSTER_DATA["夏越村"];
-    var varSnapshot = getCurrentVariablesSnapshot();
+    /* ① 闭合的 <JSONPatch>…</JSONPatch>：全收集（思维链里的草稿块不算） */
+    var re = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>([\s\S]*?)<\s*\/\s*(?:JSONPatch|json_?patch)\s*>/ig;
+    var blocks = [], m;
+    while ((m = re.exec(s)) !== null) {
+      if (m.index < thinkEnd) continue;
+      var b = String(m[1] || "").replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+      if (b) blocks.push({ body: b, kind: "tag", st: m.index, en: m.index + m[0].length });
+    }
+    for (var i = blocks.length - 1; i >= 0; i--) {
+      if (/"op"|"path"/.test(blocks[i].body)) return blocks[i];
+    }
+    if (blocks.length) return blocks[blocks.length - 1];
 
-    var msgs = [];
-    var startIdx = Math.max(0, targetIdx - 16);
-    for (var i = startIdx; i <= targetIdx; i++) {
-      var m = ctx.chat[i];
-      if (!m) continue;
-      var role = m.is_user ? "user" : "assistant";
-      var txt = extractProse(messageTextOf(m));
-      if (txt) msgs.push({ role: role, content: txt.slice(0, 1200) });
+    /* ② 只有开标签、没有闭合 —— MVU 会整块丢弃，所以必须认出来补上闭合 */
+    var openRe = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>/ig;
+    var om;
+    while ((om = openRe.exec(s)) !== null) {
+      if (om.index < thinkEnd) continue;
+      var rest = s.slice(om.index + om[0].length);
+      var tail = takeJsonTail(rest);
+      if (tail) {
+        return { body: tail, kind: "open", st: om.index, en: om.index + om[0].length + tail.length };
+      }
     }
 
-    var sysPrompt = "你负责对当前Galgame进行全上下文深度变量推演。根据历史上下文与本轮正文，计算必须更新的变量，输出严格的格式（必须包含完整的 Analysis 分析段落）：\n" +
-      "<UpdateVariable>\n<Analysis>\n" +
-      "- Time passed: 剧情流逝说明\n" +
-      "- Dramatic update: No.\n" +
-      "- Variable analysis:\n" +
-      "  - 角色互动与在场状态分析\n" +
-      "</Analysis>\n<JSONPatch>\n[\n" +
-      "  {\"op\":\"replace\",\"path\":\"/时间/精确时间\",\"value\":\"新时间\"}\n" +
-      "]\n</JSONPatch>\n</UpdateVariable>\n\n" +
-      "【规则铁律】：严禁更新任何地点路径！当前篇章：" + curArc + "。主要角色：" + roster.roles + "。当前变量参考：\n" + varSnapshot;
+    /* ③ 连标签都没有：全文找最像数组的一段（贪婪到最后一个 `]`，模型常写成多行） */
+    var ar = /\[\s*\{[\s\S]*\}\s*\]/.exec(s);
+    if (ar && ar.index >= thinkEnd && /"op"|"path"/.test(ar[0])) {
+      return { body: ar[0].trim(), kind: "array", st: ar.index, en: ar.index + ar[0].length };
+    }
+    var ae = /\[\s*\]/.exec(s);
+    if (ae && ae.index >= thinkEnd) {
+      return { body: "[]", kind: "empty", st: ae.index, en: ae.index + ae[0].length };
+    }
 
-    return executeApiCall(cfg, msgs, sysPrompt);
+    /* ④ 只剩一个裸对象（单条补丁漏了方括号） */
+    var ob = braceSliceAt(s, thinkEnd);
+    if (ob && /"op"|"path"/.test(ob.text)) {
+      return { body: "[" + ob.text + "]", kind: "object", st: ob.st, en: ob.en };
+    }
+    return { body: "", kind: "", st: -1, en: -1 };
+  }
+
+  /* 思维链结束后正文的起点：最后一个 think 类闭合标签的结束位置（没有则 -1） */
+  function thinkTailStart(s) {
+    var re = /<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi;
+    var last = -1, m;
+    while ((m = re.exec(String(s || ""))) !== null) last = m.index + m[0].length;
+    return last;
+  }
+
+  /* 取开标签之后那段 JSON 的结尾：到最后一个 `]` 或 `}` 为止（未闭合块专用）。
+     取不到成形的补丁就返回空串 —— 宁可报「没有内容」，也不能把正文当补丁写进去。 */
+  function takeJsonTail(rest) {
+    var t = String(rest || "").replace(/```(?:json)?/gi, "").replace(/```/g, "");
+    var cut = Math.max(t.lastIndexOf("]"), t.lastIndexOf("}"));
+    if (cut < 0) return "";
+    var body = t.slice(0, cut + 1).trim();
+    if (!/"op"|"path"/.test(body)) return "";
+    return body;
+  }
+
+  /* 从 from 之后找第一段**括号配对完整**的 `{...}`，跳过字符串内部的括号，
+     否则 value 里的 `{` `}` 会把配对带偏（例如 "value":"符{咒}"）。 */
+  function braceSliceAt(s, from) {
+    var src = String(s || "");
+    var start = src.indexOf("{", Math.max(0, from));
+    if (start < 0) return null;
+    var depth = 0, inStr = false, esc = false;
+    for (var i = start; i < src.length; i++) {
+      var ch = src.charAt(i);
+      if (inStr) {
+        if (esc) { esc = false; continue; }
+        if (ch === "\\") { esc = true; continue; }
+        if (ch === '"') inStr = false;
+        continue;
+      }
+      if (ch === '"') { inStr = true; continue; }
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) return { text: src.slice(start, i + 1), st: start, en: i + 1 };
+      }
+    }
+    return null;                     /* 没配对上（半截）→ 当没写 */
+  }
+
+  /* 「本地没有可补内容」时的实测证据。只陈述**扫到了什么**，不下结论。
+     ⚠ 存在的唯一理由：以前那句「这一楼没有 AI 写好的更新内容」是在没有任何证据的
+       情况下断言的 —— 而实际写了，只是形状不对。凡要说「你没写」，先拿得出这几项数字。 */
+  function describePatchEvidence(rawText) {
+    try {
+      var full = String(rawText == null ? "" : rawText);
+      if (!full.trim()) return "（这一楼是空的）";
+      var body = stripThinkForVar(full);
+      var heads = (body.match(/<\s*(?:JSONPatch|json_?patch)\b[^>]*>/ig) || []).length;
+      var tails = (body.match(/<\s*\/\s*(?:JSONPatch|json_?patch)\s*>/ig) || []).length;
+      var uHead = (body.match(/<\s*UpdateVariable\b[^>]*>/ig) || []).length;
+      var uTail = (body.match(/<\s*\/\s*UpdateVariable\s*>/ig) || []).length;
+      var bits = ["正文 " + full.length + " 字",
+                  "UpdateVariable 开/闭 " + uHead + "/" + uTail,
+                  "JSONPatch 开/闭 " + heads + "/" + tails];
+      var pk = pickPatchAnywhere(full);
+      if (pk.kind === "empty") {
+        bits.push("<JSONPatch> 里是空数组（一条补丁都没有，等于没写内容）");
+      } else if (pk.body) {
+        bits.push("扫到补丁正文 " + pk.body.length + " 字但解析不出来：" + pk.body.slice(0, 50).replace(/\s+/g, " ") + "…");
+      } else if (/["“](?:op|path)["”]\s*:/.test(body)) {
+        bits.push("正文里有 op/path 字样但取不出成对括号（多半是半截或中文引号）");
+      } else {
+        bits.push("正文里既没有补丁数组也没有补丁对象");
+      }
+      return "（实测：" + bits.join("；") + "）";
+    } catch (eEV) { return ""; }
+  }
+
+  /* 补丁白名单过滤 —— **两条路共用同一份**（只补格式 / 按正文重写）。
+     一份判断只能有一处实现，否则改一处漏一处，早晚漂成两套结论。 */
+  function sanitizeRepairOps(arr) {
+    var keep = [], dropped = [];
+    (arr || []).forEach(function(op) {
+      if (!op || !op.path) { dropped.push("缺 path"); return; }
+      var p = String(op.path).trim();
+      if (p.charAt(0) !== "/") p = "/" + p;
+      if (p === "/玩家位置" || p === "/地点" || p.indexOf("/主角信息/地点") === 0) {
+        dropped.push(p + "（地点由正文锚定，补丁不许改）");
+        return;
+      }
+      var topSeg = p.split("/")[1];
+      if (["时间", "主要角色列表", "苦主列表", "全局", "主角信息"].indexOf(topSeg) === -1) {
+        dropped.push(p + "（顶层 " + topSeg + " 不在白名单）");
+        return;
+      }
+      keep.push({ op: op.op, path: p, value: op.value });
+    });
+    return { keep: keep, dropped: dropped };
+  }
+
+  /* 把新块**就地**替换到原文里的旧块位置；块以外的每个字原样保留。
+     ⚠ 天元录 v308 的核心教训，别再退回「剥正文 + 拼到末尾」：
+       那样会 ① 把思维链一起吃 ② 把块搬到消息最后
+       ③ 让 <StatusPlaceHolderImpl/> 从收尾变成被夹在中间。 */
+  function replaceBlockInPlace(rawText, newBlock, pk) {
+    var s = String(rawText || "");
+    if (!pk || !pk.body || pk.st == null || pk.en == null || pk.st < 0) {
+      return appendBlockKeepingPlaceholder(s, newBlock);
+    }
+    var st = pk.st, en = pk.en;
+
+    /* 选中的块若被 <UpdateVariable> 包着，就连外壳一起换 —— 否则会剩一个空壳 */
+    var uRe = /<\s*UpdateVariable\b[^>]*>/ig, last = -1, mm;
+    while ((mm = uRe.exec(s)) !== null) {
+      if (mm.index < st) last = mm.index;
+      else break;
+    }
+    if (last >= 0 && s.slice(last, st).indexOf("</UpdateVariable") < 0) {
+      st = last;
+      var closeRe = /<\s*\/\s*UpdateVariable\s*>/ig;
+      closeRe.lastIndex = en;
+      var cm = closeRe.exec(s);
+      if (cm && s.slice(en, cm.index).trim() === "") en = cm.index + cm[0].length;
+    }
+
+    return s.slice(0, st) + newBlock + s.slice(en);
+  }
+
+  /* 原文里压根没有块（纯正文）：追加，但要放在 <StatusPlaceHolderImpl/> **前面**，
+     让占位符永远收尾 —— 与天元录同一条规矩。 */
+  function appendBlockKeepingPlaceholder(s, newBlock) {
+    var m = /(?:<|&lt;)StatusPlaceHolderImpl[\s\S]*?(?:>|&gt;)/i.exec(s);
+    var at = m ? m.index : s.length;
+    var head = s.slice(0, at).replace(/\s+$/, "");
+    var tailPart = s.slice(at);
+    return head + (head ? "\n\n" : "") + newBlock + (tailPart ? "\n" + tailPart : "");
+  }
+
+  /* 「只补格式」的写回：**原样**写入 finalMes（不再走 writeBackPatch 的「正文 + 块」拼装），
+     然后把补丁同步进 MVU 的 chat 层与消息层。 */
+  async function writeBackRaw(msgIndex, finalMes, opsArr) {
+    var ctx = getStContext();
+    if (!ctx || !Array.isArray(ctx.chat) || msgIndex < 0 || msgIndex >= ctx.chat.length) return;
+    var m = ctx.chat[msgIndex];
+    m.mes = finalMes;
+    var swId = m.swipe_id != null ? m.swipe_id : 0;
+    if (m.swipe_info && m.swipe_info[swId]) m.swipe_info[swId].mes = finalMes;
+    if (m.swipes && m.swipes.length) {
+      var cur = m.swipes[swId];
+      if (cur && typeof cur === "object") cur.mes = finalMes;
+      else m.swipes[swId] = finalMes;
+    }
+    try {
+      if (typeof setChatMessages === "function") {
+        await setChatMessages([{ message_id: msgIndex, mes: finalMes, message: finalMes }], { refresh: "none" });
+      }
+    } catch (eSet) {}
+    try { if (ctx.saveChat) ctx.saveChat(); } catch (eSave) {}
+    if (opsArr && opsArr.length) await applyOpsToStatData(opsArr, msgIndex, finalMes);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     ★ v140：只补格式（不调模型、不重写内容、一个数值都不改）★
+     保留这一楼 AI 已经写好的更新内容，只把 <UpdateVariable> 的形状补齐：
+     抽补丁 → 过白名单 → 重新序列化成规范块 → 写回 MVU 与消息层。
+     ⚠ 原文压根没写补丁 ⇒ 不能凭空造，明确报错让玩家改点「按正文重写」。
+     ⚠ 剔掉不合法的几条必须报出来，不静默。
+     ══════════════════════════════════════════════════════════════════════ */
+  async function runFormatOnly() {
+    if (_inFlight) { try { showToast('正在补算中，等这一次完成再用「只补格式」', 2000); } catch (eB) {} return; }
+    /* 本地路径也占 _inFlight：连点两次不会把同一楼写两遍（内容幂等，但没必要） */
+    _inFlight = true;
+    updateTopbarBtnState();
+    try { return await runFormatOnlyInner(); }
+    finally { _inFlight = false; updateTopbarBtnState(); }
+  }
+
+  async function runFormatOnlyInner() {
+    var ctx = getStContext();
+    var targetIdx = getLatestAIMessageIndex();
+    if (!ctx || !Array.isArray(ctx.chat) || targetIdx < 0) {
+      setStatus("❌ 未找到目标消息，请刷新重试", false);
+      return;
+    }
+
+    var targetMsg = ctx.chat[targetIdx];
+    var rawText = getMsgRawText(targetIdx);
+    var pk = pickPatchAnywhere(rawText);
+
+    if (!pk.body) {
+      setStatus("🩹 <b>只补格式：这一楼没扫到 AI 写好的补丁内容</b><br>" + describePatchEvidence(rawText)
+        + "<br>只补格式不会凭空编数值 —— 请点 <b>【🧠 按正文重写】</b> 让模型按正文重新写一次。", false);
+      return;
+    }
+    if (/^\[\s*\]$/.test(pk.body)) {
+      setStatus("🩹 <b>只补格式：这一楼写的是空数组</b>（一条补丁都没有，等于没写内容）<br>"
+        + "请点 <b>【🧠 按正文重写】</b> 让模型按正文重新写一次。", false);
+      return;
+    }
+
+    var ops = null;
+    try {
+      ops = JSON.parse(pk.body.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim());
+    } catch (eJ) {
+      setStatus("🩹 <b>只补格式：补丁内容不是合法 JSON，补不了</b><br>原因：" + (eJ.message || eJ)
+        + "<br>原文 " + pk.body.length + " 字：" + pk.body.slice(0, 60).replace(/\s+/g, " ") + "…"
+        + "<br>点 <b>【🧠 按正文重写】</b> 可以让模型重写一套。", false);
+      return;
+    }
+    if (!Array.isArray(ops)) ops = (ops && typeof ops === "object") ? [ops] : [];
+
+    var clean = sanitizeRepairOps(ops);
+    if (!clean.keep.length) {
+      setStatus("🩹 <b>只补格式：这一楼 " + ops.length + " 条补丁全部不合法，没有能写的内容</b><br>"
+        + (clean.dropped.slice(0, 3).join("<br>") || "（没有可用的补丁）")
+        + "<br>点 <b>【🧠 按正文重写】</b> 可以让模型重写一套。", false);
+      return;
+    }
+
+    var block = buildFullUpdateVariableBlock(rawText, clean.keep);
+    /* ★ 块里若自带 <StatusPlaceHolderImpl/>，就地替换会变成两份（原文那份还在）——
+       占位符归原楼层所有，这里把它从新块尾巴上摘掉。天元录的 buildBlock 本来就不带它。 */
+    block = String(block).replace(/\s*<StatusPlaceHolderImpl\s*\/?>(?=\s*$)/i, "");
+    /* ★ 就地替换：只换旧块那一小段 —— 正文 / 思维链 / 占位符位置一个字都不动 */
+    var finalMes = replaceBlockInPlace(rawText, block, pk);
+    await writeBackRaw(targetIdx, finalMes, clean.keep);
+
+    setStatus("✅ <b>只补格式完成</b>：" + clean.keep.length + " 条内容原样写回"
+      + (clean.dropped.length ? "（剔掉 " + clean.dropped.length + " 条非法：" + clean.dropped.slice(0, 2).join("；") + "）" : "")
+      + "。<br>数值一个都没改，正在恢复游玩...", false);
+
+    var btn = _topbarBtn || getDoc().querySelector(".mvu-heal-btn") || getDoc().querySelector(".th-gal-btn-mvu-heal");
+    if (btn) {
+      btn.setAttribute("data-keep-status", "true");
+      btn.innerHTML = "<span class=\"mvu-heal-icon\">✅</span><span class=\"mvu-heal-text\">格式已补齐</span>";
+      setTimeout(function() {
+        btn.removeAttribute("data-keep-status");
+        updateTopbarBtnState();
+      }, 2500);
+    }
+
+    setTimeout(function() {
+      dismissSuspension();
+    }, 700);
   }
 
   async function applyOpsToStatData(ops, targetMsgIdx, finalMes) {
@@ -1272,9 +1619,13 @@ var MvuSelfHealing = (function() {
   }
 
   async function runRepair(mode) {
+    /* ★ v140：「只补格式」是完全本地的一条路 —— 不进模型补算链，不占 _inFlight、不花 token */
+    if (mode === "format") return runFormatOnly();
+
     if (_inFlight) return;
     _inFlight = true;
-    _currentTaskName = (mode === "deep") ? "🧠 全文精细补算" : "⚡ 快速轻量补算";
+    /* ★ v140：不再有「精简 / 快速」—— 补算只有完整版这一种口径 */
+    _currentTaskName = "🧠 按正文重写（完整版）";
     _taskStartTime = Date.now();
     updateTopbarBtnState();
 
@@ -1305,12 +1656,8 @@ var MvuSelfHealing = (function() {
     var proseForAi = extractProse(preservedProse || rawText);
 
     try {
-      var reply = "";
-      if (mode === "deep") {
-        reply = await callDeepRepairApi(ctx, targetIdx, proseForAi);
-      } else {
-        reply = await callFastRepairApi(proseForAi);
-      }
+      /* ★ v140：只有一种补算口径 —— 完整版（完整规则 + 往前 16 楼上下文） */
+      var reply = await callRewriteApi(ctx, targetIdx, proseForAi);
 
       var match = reply.match(/<(?:JSONPatch|json_?patch)>([\s\S]*?)<\/(?:JSONPatch|json_?patch)>/i);
       if (!match) throw new Error("模型未返回合规的 <JSONPatch> 标签");
@@ -1318,14 +1665,9 @@ var MvuSelfHealing = (function() {
       var arr = JSON.parse(jsonStr);
       if (!Array.isArray(arr) || !arr.length) throw new Error("解析出空的补丁数组");
 
-      var validOps = arr.filter(function(op) {
-        if (!op || !op.path) return false;
-        var p = String(op.path).trim();
-        if (p === "/玩家位置" || p === "/地点" || p.indexOf("/主角信息/地点") === 0) return false;
-        var topSeg = p.split("/")[1];
-        if (["时间", "主要角色列表", "苦主列表", "全局", "主角信息"].indexOf(topSeg) === -1) return false;
-        return true;
-      });
+      /* 白名单过滤与「只补格式」共用同一份判断（sanitizeRepairOps），不许各写一套 */
+      var cleanOps = sanitizeRepairOps(arr);
+      var validOps = cleanOps.keep;
 
       if (!validOps.length) {
         validOps = [{ op: "replace", path: "/时间/精确时间", value: advanceClock("07:40", 15) }];
@@ -1541,6 +1883,52 @@ var MvuSelfHealing = (function() {
   var CONFIRM_ISSUE_MS = 1900;  /* 异常需持续这么久才真弹提示（≥ 一个轮询周期，防解析未落库误报） */
   var _lcsArmed = false;        /* 本会话是否已观察过一轮生成（未武装时不嗅，免得拿历史楼层误报） */
   var _sniffedKey = "";         /* 已经查过并弹过提示的楼层 —— 同一楼不重复骚扰 */
+  /* ★ 22:52：存档标识。以前键只有 "p" + 楼层号，新开一个存档时如果
+     CHAT_CHANGED 没触发，新档第一楼会继承旧档的「已提示过」——
+     表现就是「新档明明变量坏了，却一次都不提示、也不补算」。
+     天元录 v2.0 专门修过这个（它那边是「两个存档撞键」），我们这边更严重。 */
+  var _chatSig = "";
+  function currentChatSig() {
+    try {
+      var st = getStContext();
+      if (st) {
+        /* ① 最可靠：往 chatMetadata 里种一个 key，它随存档保存，绝不会两档同值 */
+        var md = null;
+        try { md = st.chatMetadata || null; } catch (eMd0) { md = null; }
+        if (md && typeof md === 'object') {
+          if (!md.__thChatKey) {
+            md.__thChatKey = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+          }
+          return String(md.__thChatKey);
+        }
+        /* ② 存档文件名 / ③ 角色 id —— chatId 是角色 id，只能当最后退路 */
+        var id = String(st.chatId || st.chat_id || '');
+        var fn = '';
+        try { fn = String((st.chatMetadata && (st.chatMetadata.file_name || st.chatMetadata.chat_file_name)) || ''); } catch (eFn) {}
+        if (fn) return 'f' + fn;
+        if (id) return 'c' + id;
+      }
+    } catch (e) {}
+    return '';
+  }
+  /* 1.2 秒对一次：变了就当换了存档，清掉所有「这一楼认过了」的记忆 */
+  var _chatSigAt = 0;
+  function watchChatSig() {
+    var now = Date.now();
+    if (now - _chatSigAt < 1200) return;
+    _chatSigAt = now;
+    var sig = currentChatSig();
+    if (!sig) return;
+    if (_chatSig && _chatSig !== sig) {
+      try { console.log('🩺 [变量自愈] 检测到存档变化 → 重置嗅探状态'); } catch (eL) {}
+      try {
+        _sniffedKey = ''; _pendingKey = ''; _pendingAt = 0; _hasIssue = false;
+        _lcsArmed = false; _pollAt = 0;
+        try { updateTopbarBtnState(); } catch (eU) {}
+      } catch (eR) {}
+    }
+    _chatSig = sig;
+  }
   var _pendingKey = "";         /* 疑似格式异常的楼层（等下一轮复核） */
   var _pendingAt = 0;           /* 第一次发现异常的时刻 */
   var _hasIssue = false;        /* 最新楼层有未处理的格式异常（只亮顶栏红标，绝不弹面板） */
@@ -1554,35 +1942,182 @@ var MvuSelfHealing = (function() {
   /* 格式异常的唯一出口 = 弹一条轻提示。
      **绝不**再弹「🩺 MVU 变量自愈中心」面板、**绝不**挂起游戏壳 ——
      玩家真要看详情 / 真要补算时，自己点顶栏「🩺 变量自愈」按钮即可。 */
+  /* ══ ★ v141：实测探针 ══════════════════════════════════════════════════
+     把脚本**真正读到的那一楼**摊开给玩家看：第几楼、多少字、JSONPatch / UpdateVariable
+     各有几个开标签、几个闭标签。
+     为什么必须有它：玩家手动把 JSON 删掉、面板却说「格式正常」时，只看结论永远分不清是
+       ① 检测没跑（没有轮询 / 被去重挡住 / 读的是缓存）
+       ② 检测跑了、但读的不是你改的那一楼（swipe 旧副本 / 读错楼层）
+     有了这一行：数字跟着变 = 读的是新内容；数字没变 = 读的不是你改的那一楼。
+     ⚠ 别把它做成「只在打开面板时算一次」—— 那样手动改完再回来看，永远看到旧数字。 */
+  function buildProbeText() {
+    var idx = getLatestAIMessageIndex();
+    if (idx < 0) return "🔬 读取：没有 AI 楼层";
+    var raw = getMsgRawText(idx);
+    var t = stripThinkForVar(String(raw || ""));
+    var jh = (t.match(/<\s*(?:JSONPatch|json_?patch)\b[^>]*>/ig) || []).length;
+    var jt = (t.match(/<\s*\/\s*(?:JSONPatch|json_?patch)\s*>/ig) || []).length;
+    var uh = (t.match(/<\s*UpdateVariable\b[^>]*>/ig) || []).length;
+    var ut = (t.match(/<\s*\/\s*UpdateVariable\s*>/ig) || []).length;
+    /* 判定也一并摊在这里：desc 是「打开面板那一刻」算的，探针是实时的。
+       两个结论不一致时，玩家一眼就知道该信哪个。 */
+    var probs = checkVarFormat(raw);
+    var verdict = probs.length === 0
+      ? "判定：正常"
+      : ("判定：异常 · " + String(probs[0] || "").replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
+    return "🔬 读取第 " + idx + " 楼 · " + String(raw || "").length + " 字"
+      + " · JSONPatch 开 " + jh + " / 闭 " + jt
+      + " · UpdateVariable 开 " + uh + " / 闭 " + ut
+      + "　→　" + verdict;
+  }
+
+  function paintProbe() {
+    try {
+      var el = getDoc().getElementById("th-mvu-probe");
+      if (!el) return;
+      var t = buildProbeText();
+      if (el.textContent !== t) el.textContent = t;
+    } catch (eP) {}
+  }
+
+  /* ══ ★ v141：手动「重新检测」（面板上的 🔄）══════════════════════════════
+     玩家手动改完楼层，不必等 2 秒轮询、也不必关掉重开面板 —— 点一下立刻按当前原文重判。
+     顺手把去重键与待确认状态清干净：这正是「改坏了却一直不报」的两个卡点。 */
+  function refreshStatusNow() {
+    _sniffedKey = ""; _pendingKey = ""; _pendingAt = 0; _pollAt = 0;
+    var idx = getLatestAIMessageIndex();
+    paintProbe();
+    if (idx < 0) { setStatus("❌ 没有可检测的楼层", false); return; }
+    var raw = getMsgRawText(idx);
+    var problems = checkVarFormat(raw);
+    if (!problems.length) {
+      _hasIssue = false;
+      try { updateTopbarBtnState(); } catch (eU) {}
+      setStatus("🟢 <b>变量块格式正常</b><br>刚重新检测过：这一楼的 &lt;JSONPatch&gt; 闭合、内容是合法数组。<br>（只查格式，不查缺哪个变量）", false);
+      hideVarBanner();
+      return;
+    }
+    _hasIssue = true;
+    try { updateTopbarBtnState(); } catch (eU2) {}
+    try { showVarBanner(problems); } catch (eVB1) {}
+    setStatus("🔴 <b style=\"color:#ef4444;\">变量块格式异常</b><br>" + formatProblemHtml(problems)
+      + "<br>已按你现在的原文重新检测过。本楼写了内容只是标签坏了 → 【🩹 只补格式】；压根没写 → 【🧠 按正文重写】。", false);
+  }
+
+  /* ══ ★ 23:56 作者：识别到变量有问题之后，跟顶部红条一样显示在屏幕中间最上方 ══
+     以前只有一条 toast，扫一眼就没了，玩家根本抓不到。
+     现在做成跟「有新版本」红条同款：水平居中、贴顶、红色渐变、点击进变量自愈面板。
+     ⚠ 两条红条都是 top:0 居中，会叠成一坨 —— 版本红条在的时候这条自动往下让 36px。
+     ⚠ 它只负责"提醒"，不写任何变量：点开面板后该怎么修还是那两颗按钮的事。 */
+  function showVarBanner(problems) {
+    var doc = getDoc();
+    if (!doc || !doc.body) return;
+    var shell = null;
+    try { shell = doc.querySelector("#th-gal-shell-root"); } catch (eV1) { shell = null; }
+    var el = null;
+    try { el = doc.getElementById("th-varbad-banner"); } catch (eV2) { el = null; }
+
+    if (!el) {
+      el = doc.createElement("div");
+      el.id = "th-varbad-banner";
+      el.setAttribute("style",
+        (shell ? "position:absolute;" : "position:fixed;") +
+        "top:0;left:50%;transform:translateX(-50%);" +
+        "z-index:2147483645;padding:8px 16px;border-radius:0 0 12px 12px;" +
+        "font-size:12.5px;line-height:1.4;letter-spacing:.02em;cursor:pointer;" +
+        "background:linear-gradient(160deg,#b91c1c,#7f1d1d);" +
+        "border:1px solid rgba(255,150,150,.6);border-top:0;color:#fff;" +
+        "box-shadow:0 10px 26px rgba(120,0,0,.55);font-family:inherit;" +
+        "display:flex;align-items:center;gap:7px;white-space:nowrap;" +
+        "max-width:96%;box-sizing:border-box;");
+      el.onclick = function (e) {
+        try { e.stopPropagation(); } catch (eV3) {}
+        try {
+          if (typeof MvuSelfHealing !== "undefined" && MvuSelfHealing &&
+              typeof MvuSelfHealing.openManualPanel === "function") {
+            MvuSelfHealing.openManualPanel(shell);
+          } else if (typeof window.__openMvuPanel === "function") {
+            window.__openMvuPanel();
+          }
+        } catch (eV4) {}
+      };
+      if (shell) {
+        try {
+          var sp = window.getComputedStyle(shell).position;
+          if (!sp || sp === "static") shell.style.setProperty("position", "relative", "important");
+        } catch (eV5) {}
+        try { shell.appendChild(el); } catch (eV6) { try { doc.body.appendChild(el); } catch (eV7) {} }
+      } else {
+        try { doc.body.appendChild(el); } catch (eV8) { return; }
+      }
+    } else if (shell && el.parentNode !== shell) {
+      try { shell.appendChild(el); } catch (eV9) {}    /* 界面重绘把它搬走了 → 挪回来 */
+    }
+
+    /* 版本红条在的时候往下让 —— 两条都是 top:0 居中，不让就叠成一坨 */
+    var verBar = null;
+    try { verBar = doc.getElementById("th-newver-banner"); } catch (eVB) { verBar = null; }
+    el.style.top = verBar ? "36px" : "0";
+
+    var n = (problems && problems.length) ? problems.length : 1;
+    el.innerHTML = '<span style="font-size:15px;">⚠️</span>'
+      + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">本楼变量块格式异常（' + n + ' 项）</span>'
+      + '<span style="padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);font-size:12px;">点击查看 / 补算</span>';
+  }
+
+  function hideVarBanner() {
+    try {
+      var el = getDoc().getElementById("th-varbad-banner");
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    } catch (eVH) {}
+  }
+
   function notifyIssue(problems) {
     try {
       var n = (problems && problems.length) ? problems.length : 1;
-      showToast("⚠️ 本楼变量块格式异常（" + n + " 项）· 点顶栏「🩺 变量自愈」可查看 / 补算", 5600);
+      /* ★ 23:56：除了 toast，再挂一条顶部红条（与「有新版本」同款） */
+      try { showVarBanner(problems); } catch (eVB0) {}
+      showToast("⚠️ 本楼变量块格式异常（" + n + " 项）· 点顶部红条或顶栏「🩺 变量自愈」可查看 / 补算", 5600);
     } catch (eN) {}
   }
 
   /* 轮询嗅探：心跳每秒调一次，函数内按 2 秒节流。
      同一楼只弹一次（_sniffedKey 去重）—— 不会每 2 秒反复骚扰。 */
   function pollSniff(hostBusy) {
+    try { watchChatSig(); } catch (eWS) {}
     var now = Date.now();
     if (now - _pollAt < POLL_SNIFF_MS) return;   /* 2 秒节流 */
     _pollAt = now;
     if (hostBusy) return;                        /* 生成中一律不查：正文还在流、MVU 还没落库 */
-    if (_isSuspended || _inFlight) return;       /* 面板已经开着 / 正在补算 → 不重复弹 */
+    /* ★ v141：面板开着时不再整个停摆 —— 只刷新「实测探针」，不弹提示。
+       以前这里直接 return，玩家手动把 JSON 删掉、回面板看还是旧结论（"格式正常"），
+       看起来就像检测压根没在轮询。 */
+    if (_isSuspended) { paintProbe(); return; }
+    if (_inFlight) return;                       /* 正在补算 → 不重复弹 */
     if (!_lcsArmed) return;                      /* 本会话还没观察过一轮完整生成 → 不嗅 */
     var idx = getLatestAIMessageIndex();
     if (idx < 0) return;
-    var key = "p" + idx;
+    var key = "p" + _chatSig + "#" + idx;    /* ★ 22:52：存档 + 楼层，两个存档不撞 */
     var rawText = getMsgRawText(idx);
     if (!rawText) return;
     var problems = checkVarFormat(rawText);
-    if (_sniffedKey === key) {                   /* 这一楼已经提示过 → 只复查红标该不该熄 */
-      if (problems.length === 0 && _hasIssue) { _hasIssue = false; updateTopbarBtnState(); }
+    /* ★ v141：去重只该省「同一份内容反复骚扰」，不该把这一楼永久判死。
+       以前一旦提示过就把 key 记死 —— 玩家之后把这楼改坏了（或改好又重新改坏）
+       再也不会报，还以为检测挂了。**恢复即解锁**，下一次坏了还能重新走确认流程。 */
+    if (_sniffedKey === key) {
+      if (problems.length === 0) {
+        _sniffedKey = "";
+        if (_hasIssue) { _hasIssue = false; updateTopbarBtnState(); }
+        hideVarBanner();
+      } else {
+        showVarBanner(problems);   /* 还坏着 → 保证红条在（关掉面板后能自己回来） */
+      }
       return;
     }
     if (problems.length === 0) {                 /* 格式正常 → 清掉待确认状态与红标 */
       _pendingKey = ""; _pendingAt = 0;
       if (_hasIssue) { _hasIssue = false; updateTopbarBtnState(); }
+      hideVarBanner();
       return;
     }
     /* 二次确认：首次发现「不对劲」只记下，不立刻弹。
@@ -1618,7 +2153,9 @@ var MvuSelfHealing = (function() {
       } catch (e) { return false; }
     },
     repair: function(mode) {
-      try { return runRepair(mode === "deep" ? "deep" : "fast"); }
+      /* ★ v140：外部只认两种 —— 'format'（本地只补格式）/ 其它一切（完整版重写）。
+         'fast' 这类老名字一律折到完整版，不再存在精简路径。 */
+      try { return runRepair(mode === "format" ? "format" : "rewrite"); }
       catch (e) { return Promise.reject(e); }
     },
     advanceTime: function() {
@@ -1676,7 +2213,38 @@ var MvuSelfHealing = (function() {
   try { if (window.parent && window.parent !== window) window.parent.__MvuApi = MvuApi; } catch (e) {}
 
   return {
-    isSuspended: function() { return _isSuspended; },
+    isSuspended: function() {
+      /* ══ ★ 22:18：挂起只在「补全面板真的开着」时成立 ══════════════════
+         现场：玩着玩着变量突然不再更新（前面几轮都正常）。
+         _isSuspended 是为「格式补全面板开着」服务的：开着时 updateContainer
+         每次都在开头 return，界面不重画。可玩家可能从**别的路径**把面板关掉
+         —— 切聊天、切篇章、全屏重排、按 ESC、点遮罩 —— 那些路径不走
+         closeFormatPanel()，于是 _isSuspended 永远停在 true：
+         变量在变、界面不动，看上去就是「突然不更新了」。
+         这里做自愈：每次问「挂起吗」都顺手对一下面板还在不在，
+         不在（或已 display:none）就自动解除。 */
+      try {
+        if (_isSuspended) {
+          var _d = null;
+          try { _d = getDoc(); } catch (eD0) { _d = null; }
+          var _m = _d ? _d.getElementById('th-mvu-suspend-modal') : null;
+          var _vis = false;
+          if (_m) {
+            try {
+              _vis = _m.style.display !== 'none' &&
+                     (_m.getClientRects().length > 0 || _m.offsetParent !== null);
+            } catch (eV) { _vis = false; }
+          }
+          if (!_vis) {
+            _isSuspended = false;
+            _inFlight = false;
+            try { if (typeof updateTopbarBtnState === 'function') updateTopbarBtnState(); } catch (eU) {}
+            try { console.warn('[变量自愈] 面板已不在，自动解除挂起（避免界面停止刷新）'); } catch (eW) {}
+          }
+        }
+      } catch (e) {}
+      return _isSuspended;
+    },
     isInFlight: function() { return _inFlight; },
     /* LCS：嗅探接口（主路 = 心跳每 1 秒调 pollSniff，函数内按 2 秒节流）
        v9 已删除旧的静默判定器 lcsFloor / lcsTick，以及随之失效的
@@ -1684,8 +2252,10 @@ var MvuSelfHealing = (function() {
     markStreaming: function() { lcsMarkStreaming(); },
     markFinished: function() { markFinished(); },
     pollSniff: function(hostBusy) { pollSniff(hostBusy); },
+    /* ★ v141：面板「🔄 重新检测」与外部脚本共用的入口（清去重 + 立刻按当前原文重判） */
+    recheck: function() { refreshStatusNow(); },
     /* 切聊天：清掉去重键、待确认状态与红标，免得换聊天后同楼层号漏查 */
-    resetChat: function() { _sniffedKey = ""; _pendingKey = ""; _pendingAt = 0; _hasIssue = false; _lcsArmed = false; _pollAt = 0; updateTopbarBtnState(); },
+    resetChat: function() { _sniffedKey = ""; _pendingKey = ""; _pendingAt = 0; _hasIssue = false; _lcsArmed = false; _pollAt = 0; hideVarBanner(); updateTopbarBtnState(); },
     api: MvuApi,
     openManualPanel: function(shell) {
       var targetIdx = getLatestAIMessageIndex();
@@ -1698,6 +2268,9 @@ var MvuSelfHealing = (function() {
       _isSuspended = true;
       updateTopbarBtnState();
       modal.style.display = "flex";
+      paintProbe();
+      /* 玩家已经点进来了 → 红条先收掉，别挡着面板。还坏着的话关面板后它会自己回来。 */
+      hideVarBanner();
       try { if (shell && shell.classList && shell.classList.add) shell.classList.add("th-gal-mvu-suspended"); } catch (eSc) {}
 
       var closeBtn = getDoc().getElementById("th-mvu-btn-close-main");
@@ -1712,8 +2285,8 @@ var MvuSelfHealing = (function() {
         setStatus("⏳ <b>正在进行 " + _currentTaskName + "...</b><br>已耗时 " + sec + " 秒，正在等待模型响应，请稍候...<br><span style=\"font-size:11px;color:#94a3b8;\">(关闭窗口不会中断后台补算，完成后将自动恢复)</span>", true);
       } else {
         var desc = valid
-          ? "🟢 <b>变量块格式正常</b><br>最新楼层：变量标签齐全、JSON 合法。（本判定只查格式，不查缺哪个变量）<br>若您认为好感度或时间数值需要重算，可选用下方两种模式重新核算。"
-          : "🔴 <b style=\"color:#ef4444;\">变量块格式异常</b><br>" + formatProblemHtml(problems) + "<br>可以点下面【⚡ 快速轻量补算】补齐；也可以直接点「✖ 关闭」继续玩，不会卡住你。";
+          ? "🟢 <b>变量块格式正常</b><br>最新楼层：变量标签齐全、JSON 合法。（本判定只查格式，不查缺哪个变量）<br>若您认为好感度或时间数值需要重算，可点【🧠 按正文重写】让模型按正文完整重推一遍。"
+          : "🔴 <b style=\"color:#ef4444;\">变量块格式异常</b><br>" + formatProblemHtml(problems) + "<br>本楼已经写了内容、只是标签坏了 → 点【🩹 只补格式】本地补齐，一个数值都不改；<br>本楼压根没写变量内容 → 点【🧠 按正文重写】让模型重写一套。<br>也可以直接点「✖ 关闭」继续玩，不会卡住你。";
         setStatus(desc, false);
       }
     }

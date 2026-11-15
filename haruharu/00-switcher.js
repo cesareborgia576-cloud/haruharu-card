@@ -105,6 +105,20 @@
   LABEL[GAME] = { icon: '🎮', name: '游戏版', sub: 'Galgame 全屏壳 · 连携 / 推演 / 立绘 / 标题界面' };
   LABEL[TEXT] = { icon: '📖', name: '文字版', sub: '酒馆原生气泡 · 状态栏 · 小地图追加输入框' };
 
+  /* ★ v1.27：「球上写什么字」。
+     作者原话：「那个游戏切换的悬浮球，改的更明显一点，玩家老不知道可以当场切换模式。
+     文字上改为『想玩文字版点我』，同理，如果是文字版了，就显示『想玩gal点我』」。
+     所以球上的文字**说的是「点我之后能去哪」，不是「我现在是什么」**。
+     当前模式仍要能一眼看出来 —— 放在前面那半句里（「游戏版 · 想玩文字版点我」），
+     光看图标太考验玩家了。 */
+  function ballTextOf(mode) {
+    return (mode === TEXT) ? '想玩 gal 点我' : '想玩文字版点我';
+  }
+  function ballFullTextOf(mode) {
+    var cur = LABEL[mode] ? LABEL[mode].name : '';
+    return cur + ' · ' + ballTextOf(mode);
+  }
+
   /* ── 找 SillyTavern / TavernHelper（多处探测，iframe 与宿主都试） ── */
   function pickCtx() {
     var cands = [];
@@ -200,6 +214,11 @@
     return !!oldValue;
   }
   function wantedBook(comment, mode, oldValue) {
+    /* ★ 23:43 作者：《[InitVar]初始变量》默认关闭，这个是不用开的。
+       它是 MVU 的初始变量模板 —— 开着等于每轮 prompt 都塞一份「开局初始值」，
+       模型会误以为每轮都要把变量重置回去。
+       ⚠ 只认这个精确名字；带「·非同层」后缀的是本卡自己的初始值，不在此列。 */
+    if (comment === '[InitVar]初始变量') return false;
     if (CFG.bookOffInText.indexOf(comment) >= 0) return mode === GAME;
     if (CFG.bookNonOnly.indexOf(comment) >= 0) return mode === TEXT;
     return !!oldValue;
@@ -287,7 +306,7 @@
     var embedded = 0;
     if (data.character_book && Array.isArray(data.character_book.entries)) {
       data.character_book.entries.forEach(function (e) {
-        e.enabled = wantedBook(String(e.comment || ''), mode, e.enabled);
+        setBookEnabled(e, wantedBook(String(e.comment || ''), mode, e.enabled));
         embedded++;
       });
     }
@@ -358,7 +377,7 @@
           try {
             var _wbList = await new Promise(function (res) {
               var el = document.createElement('script');
-              el.src = 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/wbpatch.js?t=' + Date.now();
+              el.src = swHotUrl('/wbpatch.js') + '?t=' + Date.now();
               var done = false;
               el.onload = function () { if (done) return; done = true; try { res(window.__TH_WBPATCH__ || []); } catch (eL) { res([]); } };
               el.onerror = function () { if (done) return; done = true; res([]); };
@@ -391,7 +410,7 @@
                 }
               } catch (eSync) {}
               if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
-              e.enabled = wantedBook(c, mode, e.enabled);
+              setBookEnabled(e, wantedBook(c, mode, e.enabled));
               /* 顺手抹掉正文里指向它的悬空引用，免得 prompt 里还提到「创作要求」 */
               try {
                 if (typeof e.content === 'string' && e.content.indexOf('《创作要求》') >= 0) {
@@ -445,7 +464,7 @@
               for (var i = 0; i < _embedded.length; i++) {
                 if (String(_embedded[i].comment || '') === nm) {
                   var cp = JSON.parse(JSON.stringify(_embedded[i]));
-                  cp.enabled = wantedBook(nm, mode, false);
+                  setBookEnabled(cp, wantedBook(nm, mode, false));
                   _add.push(cp);
                   break;
                 }
@@ -462,7 +481,7 @@
               try {
                 var _plist = await new Promise(function (res) {
                   var el = document.createElement('script');
-                  el.src = 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/wbpatch.js?t=' + Date.now();
+                  el.src = swHotUrl('/wbpatch.js') + '?t=' + Date.now();
                   var done = false;
                   el.onload = function () { if (done) return; done = true; try { res(window.__TH_WBPATCH__ || []); } catch (eL) { res([]); } };
                   el.onerror = function () { if (done) return; done = true; res([]); };
@@ -473,7 +492,7 @@
                   var nm = String(e.comment || '');
                   if (_missNames.indexOf(nm) < 0) return;
                   var cp = JSON.parse(JSON.stringify(e));
-                  cp.enabled = wantedBook(nm, mode, false);
+                  setBookEnabled(cp, wantedBook(nm, mode, false));
                   _add.push(cp);
                 });
                 oks.push('从线上取回条目原文 ' + _add.length + ' 条');
@@ -507,6 +526,22 @@
             errs.push('补入缺失条目失败：' + (eAdd && eAdd.message || eAdd));
           }
           if (hit === 0) errs.push('世界书里没匹配到任何模式条目，请确认卡内世界书已绑定');
+          /* ★ v167：上面那段走的是 updateLorebookEntriesWith —— 某些宿主会
+             **resolve 了但一个字都没写进去**（天元录原话：「球变色、世界书没动」）。
+             这里再用三级降级兜一次，而且**回读**验证：
+               · 一致 → 记一条成功，把用哪条通道写进去的也说清
+               · 不一致 → 直接进 errs。宁可让玩家看到"没写成"，也不要假成功。 */
+          try {
+            var _r2 = await wbSyncOnly({ list: window.__TH_WBPATCH__ || [] });
+            if (_r2 && _r2.ok) {
+              oks.push('世界书回读 ' + _r2.same + '/' + _r2.total + ' 条一致（' + _r2.how + '）');
+            } else {
+              errs.push('世界书回读不一致：' + ((_r2 && _r2.msg) || '未知') +
+                ((_r2 && _r2.tried && _r2.tried.length) ? ' / ' + _r2.tried.join(' / ') : ''));
+            }
+          } catch (eSync2) {
+            errs.push('世界书回读失败：' + ((eSync2 && eSync2.message) || eSync2));
+          }
           void before;
         } else {
           errs.push('没找到当前角色主世界书，内嵌 character_book 已改 ' + embedded + ' 条');
@@ -570,23 +605,46 @@
     '  font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif!important;',
     '  font-size:13px!important;line-height:1.55!important;color:var(--sw-tx)!important;user-select:none!important;',
     '  touch-action:none!important;}',
-    /* 手机端：避开底部输入框与手势条，球略小 */
+    /* 手机端：避开底部输入框与手势条 */
     '@media (max-width: 820px){',
     '  #spr-sw-root{right:10px!important;bottom:calc(84px + env(safe-area-inset-bottom,0px))!important;}',
-    '  #spr-sw-ball{width:46px!important;height:46px!important;}',
+    '  #spr-sw-ball{padding:9px 13px!important;min-height:42px!important;}',
+    '  #spr-sw-ball .sw-ico{font-size:15px!important;}',
+    '  #spr-sw-ball .sw-go{font-size:12px!important;}',
+    '  #spr-sw-ball .sw-cur{display:none!important;}',
     '  #spr-sw-panel{width:min(88vw,330px)!important;}',
     '}',
     '#spr-sw-root #spr-sw-panel{touch-action:auto!important;}',
     '#spr-sw-root[data-theme="dark"]{--sw-bg:#1e1f22;--sw-tx:#ecebe7;--sw-bd:#3a3b40;--sw-hi:#2b2c31;--sw-ac:#d9c7a3;--sw-dim:#a5a39c;}',
     '#spr-sw-root[data-theme="light"]{--sw-bg:#faf9f5;--sw-tx:#26241f;--sw-bd:#d8d5cc;--sw-hi:#f0eee7;--sw-ac:#7a6843;--sw-dim:#6d6a62;}',
-    '#spr-sw-ball{width:52px!important;height:52px!important;border-radius:50%!important;cursor:grab!important;touch-action:none!important;',
-    '  background:var(--sw-bg)!important;border:1px solid var(--sw-bd)!important;box-shadow:0 6px 20px rgba(0,0,0,.28)!important;',
-    '  display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;',
-    '  transition:transform .18s ease,box-shadow .18s ease!important;}',
-    '#spr-sw-ball:hover{transform:translateY(-2px)!important;box-shadow:0 9px 26px rgba(0,0,0,.34)!important;}',
+    /* ★★ v1.27：悬浮球从「52px 圆球」改成「带字的胶囊」。
+       作者原话：「改的更明显一点，玩家老不知道可以当场切换模式」。
+       原来是个圆球，里面只有一个图标 + 9px 的「游戏版」小字 ——
+       玩家根本不会去点它，因为看不出它是可点的按钮。
+       现在：横着排「🎮 游戏版 · 想玩文字版点我」，一眼就知道点它会换模式。 */
+    '#spr-sw-ball{display:inline-flex!important;flex-direction:row!important;align-items:center!important;',
+    '  gap:7px!important;padding:11px 16px 11px 14px!important;min-height:46px!important;',
+    '  border-radius:999px!important;cursor:pointer!important;touch-action:none!important;',
+    '  background:linear-gradient(135deg,var(--sw-bg),var(--sw-hi))!important;',
+    '  border:1.5px solid var(--sw-ac)!important;',
+    '  box-shadow:0 6px 22px rgba(0,0,0,.34),0 0 0 3px rgba(217,199,163,.12)!important;',
+    '  transition:transform .18s ease,box-shadow .18s ease,border-color .18s!important;}',
+    '#spr-sw-ball:hover{transform:translateY(-2px)!important;',
+    '  box-shadow:0 10px 28px rgba(0,0,0,.42),0 0 0 4px rgba(217,199,163,.2)!important;}',
     '#spr-sw-root.sw-drag #spr-sw-ball{cursor:grabbing!important;transform:none!important;transition:none!important;}',
-    '#spr-sw-ball .sw-ico{font-size:19px!important;line-height:1!important;}',
-    '#spr-sw-ball .sw-tag{font-size:9px!important;letter-spacing:.5px!important;color:var(--sw-dim)!important;margin-top:2px!important;}',
+    '#spr-sw-ball .sw-ico{font-size:17px!important;line-height:1!important;flex:0 0 auto!important;}',
+    '#spr-sw-ball .sw-cur{font-size:11px!important;font-weight:600!important;letter-spacing:.3px!important;',
+    '  color:var(--sw-ac)!important;flex:0 0 auto!important;white-space:nowrap!important;}',
+    '#spr-sw-ball .sw-cur::after{content:"·"!important;margin-left:6px!important;opacity:.55!important;}',
+    '#spr-sw-ball .sw-go{font-size:13px!important;font-weight:700!important;letter-spacing:.2px!important;',
+    '  color:var(--sw-tx)!important;white-space:nowrap!important;}',
+    /* 呼吸光圈：不看字也知道这颗是「活的」，会动的东西才像按钮 */
+    '@keyframes spr-sw-pulse{0%,100%{box-shadow:0 6px 22px rgba(0,0,0,.34),0 0 0 3px rgba(217,199,163,.12);}',
+    '  50%{box-shadow:0 6px 22px rgba(0,0,0,.34),0 0 0 7px rgba(217,199,163,.05);}}',
+    '#spr-sw-ball{animation:spr-sw-pulse 2.6s ease-in-out infinite!important;}',
+    '#spr-sw-ball:hover{animation:none!important;}',
+    '#spr-sw-root.sw-drag #spr-sw-ball{animation:none!important;}',
+    '@media (prefers-reduced-motion: reduce){#spr-sw-ball{animation:none!important;}}',
     '#spr-sw-panel{position:absolute!important;right:0!important;bottom:64px!important;width:330px!important;',
     '  background:var(--sw-bg)!important;border:1px solid var(--sw-bd)!important;border-radius:14px!important;',
     '  box-shadow:0 14px 44px rgba(0,0,0,.38)!important;padding:16px!important;display:none!important;}',
@@ -642,7 +700,7 @@
       '  <div id="sw-msg"></div>',
       '  <details id="sw-manual" style="display:none"><summary>手动切换清单</summary><pre id="sw-manual-txt"></pre></details>',
       '</div>',
-      '<div id="spr-sw-ball" title="切换游玩模式"><span class="sw-ico"></span><span class="sw-tag"></span></div>'
+      '<div id="spr-sw-ball" title="切换游玩模式"><span class="sw-ico"></span><span class="sw-cur"></span><span class="sw-go"></span></div>'
     ].join('');
     (HD.body || HD.documentElement).appendChild(root);
 
@@ -660,8 +718,12 @@
       var cur = readMode();
       try { HW.localStorage.setItem(KEY, cur); } catch (eLS) {}   /* 缓存对齐真值，防残留误导 */
       var L = LABEL[cur];
+      /* ★ v1.27：球上写「我现在是什么 + 点我能去哪」，
+         弹层（面板）里仍用原来的 icon + name + sub 三段式。 */
       ball.querySelector('.sw-ico').textContent = L.icon;
-      ball.querySelector('.sw-tag').textContent = L.name;
+      ball.querySelector('.sw-cur').textContent = L.name;
+      ball.querySelector('.sw-go').textContent = ballTextOf(cur);
+      ball.title = '当前：' + L.name + '\n点一下切换成' + (cur === TEXT ? '游戏版' : '文字版') + '（会写入卡数据并刷新网页）';
       HD.getElementById('sw-now').textContent = '当前：' + L.icon + ' ' + L.name + ' · ' + L.sub;
       for (var i = 0; i < opts.length; i++) {
         var on = opts[i].getAttribute('data-mode') === picked;
@@ -697,10 +759,19 @@
     });
     btnOk.addEventListener('click', async function () {
       if (busy || picked === readMode()) return;
+      doSwitch(picked);
+    });
+
+    /* ★★ v1.27：把「执行一次切换」抽成函数，好让标题屏 / 开局向导也能调。
+       原来这段逻辑整个焊死在 btnOk 的 click 里，外面想触发切换只能去模拟点击按钮 ——
+       而按钮在弹层里，不打开弹层就点不到。作者要「开局第一页选游戏版还是文字版」，
+       选文字版就得真去切模式，所以必须有一个能直接调的入口。 */
+    async function doSwitch(target) {
+      if (busy || target === readMode()) return { oks: [], errs: [], skipped: true };
+      picked = target;
       busy = true;
       paint();
       say('正在写入卡数据…');
-      var target = picked;
       var r;
       try { r = await applyMode(target); }
       catch (e) { r = { oks: [], errs: [String(e && e.message ? e.message : e)], fatal: true }; }
@@ -711,7 +782,7 @@
         HD.getElementById('sw-manual').style.display = 'block';
         HD.getElementById('sw-manual-txt').textContent = manualText(target);
         paint();
-        return;
+        return r;
       }
       try { HW.localStorage.setItem(KEY, target); } catch (e) {}
       var tail = r.errs.length ? ('\n提示：' + r.errs.join('；')) : '';
@@ -724,7 +795,20 @@
         try { HW.location.reload(); }
         catch (e) { try { window.location.reload(); } catch (e2) {} }
       }, 900);
-    });
+      return r;
+    }
+
+    /* ★ v1.27：给外部（标题屏、开局向导、文字版首楼入口）一个直接调用的口子。
+       两处都挂：脚本可能跑在 iframe 里，宿主 window 拿不到同一个引用。 */
+    function sprSwitchMode(target) {
+      var t = (target === 'text' || target === 'game') ? target : null;
+      if (!t) return Promise.resolve({ oks: [], errs: ['模式名不合法：' + target], fatal: true });
+      return doSwitch(t);
+    }
+    try { window.__SPR_SWITCH_MODE__ = sprSwitchMode; } catch (eS1) {}
+    try { HW.__SPR_SWITCH_MODE__ = sprSwitchMode; } catch (eS2) {}
+    try { window.__SPR_READ_MODE__ = readMode; } catch (eR1) {}
+    try { HW.__SPR_READ_MODE__ = readMode; } catch (eR2) {}
     /* ── v10.6：悬浮球可拖动 ────────────────────────────────────────
        原来只有 CSS 的 right/bottom，球是钉死的。这里补一套指针拖拽：
        · 位置写 localStorage，刷新后还在原处；
@@ -829,6 +913,1215 @@
       mo.observe(root, { attributes: true, attributeFilter: ['style', 'class'] });
     } catch (e) {}
   }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     ★ v167：世界书单项同步 / 只读检测 —— **不切模式也能跑**
+
+     为什么必须单开一个：条目正文的同步以前只挂在 applyMode() 里，而 applyMode
+     还会改脚本开关、正则、界面，最后 location.reload() 整页。想确认"书到底更新没有"，
+     代价是切一次模式 + 刷一次新 —— 所以玩家（和作者自己）根本没法确认。
+     这两个函数只碰世界书，做完就返回结果，**什么都不 reload**：
+
+       __TH_WB_SYNC__()  ① 按 comment 把线上 wbpatch 的正文写进去
+                         ② 补入书里缺的条目
+                         ③ **回读**逐条比对，报「多少条一致 / 哪几条不一致」
+       __TH_WB_READ__()  只读：书里《版本号测试》的正文 + 绑定的是哪本书
+
+     作者原话：「酒馆的世界书有时容易不更新，容易误导玩家。」——
+     版本号这一条就是给玩家和自己一眼看穿用的。
+     ══════════════════════════════════════════════════════════════════════ */
+  /* ★ 21:35：同样不能再写死 chunri/ —— 开发者卡的世界书同步必须拉 chunri-dev 的条目包，
+     否则版本号那一条会被写成玩家通道的旧值（表现为「同步了但还是旧版本号」）。 */
+  function swHotBase() {
+    var b = '';
+    try { b = String((HW && HW.__SPR_HOT_BASE__) || window.__SPR_HOT_BASE__ || ''); } catch (e0) {}
+    if (/^https?:\/\/[^\s]+$/.test(b)) return b.replace(/\/+$/, '');
+    var docs = [];
+    try { if (HD) docs.push(HD); } catch (e1) {}
+    try { if (document && docs.indexOf(document) < 0) docs.push(document); } catch (e2) {}
+    for (var d = 0; d < docs.length; d++) {
+      try {
+        var list = docs[d].querySelectorAll('script[src]');
+        for (var i = 0; i < list.length; i++) {
+          var u = String(list[i].src || '');
+          var m = /^(https?:\/\/[^\s?#]+?)\/[^\/?#]+\.js(?:[?#]|$)/.exec(u);
+          if (m && /\/chunri(?:-dev)?$/i.test(m[1])) return m[1];
+        }
+      } catch (e3) {}
+    }
+    return 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri';
+  }
+  function swHotUrl(path) {
+    var p = String(path || '');
+    if (p.charAt(0) !== '/') p = '/' + p;
+    return swHotBase() + p;
+  }
+
+  var WB_VER_ENTRY = '春日狂想曲·版本号';
+
+  /* ★ 11-15 03:05：**已经下架、需要顺手清掉的条目名**（本卡历史白名单）。
+     只放「我们自己发过、后来从条目包删了」的名字，绝不放玩家可能自建的常见名。
+     清理时必须再满足「正文为空」且「不在当前包里」——
+     玩家真往里写了内容就当他的东西，一个字节都不动。
+     当前只有一条：为验证同步链路临时插的空「测试」，验证完已从包里移除。 */
+  var GONE_ENTRIES = { '测试': 1 };
+
+  /* ══ 条目名到底在哪个字段？══════════════════════════════════════════
+     酒馆各版本不一样：comment / name / title，有的还会把标题塞进 key[0]。
+     我们同步时自己塞进去的条目，如果被宿主的保存流程规范化掉 comment，
+     再按 comment 去找就永远找不到 —— 玩家看到的就是
+     「点一下同步多了两条，但还是说书里没有」。所以名字要按多个字段取。 */
+  /* ══ ★ 00:35：世界书条目的**开关**与**顺序**，字段名各家不一样 ══════════
+     开关：SillyTavern 原生是 `disable`（true = 关），酒馆助手的包装层是 `enabled`
+           （false = 关）。以前只写 enabled —— 碰上认 disable 的宿主，等于一条都没改，
+           作者看到的就是「条目热更新是假的」。
+     顺序：ST 默认排序看 `order`（**降序**），切成「自定义排序」则看 `displayIndex`
+           （**升序**，真实存在 extensions.display_index 里）。两套都要写。
+     ⚠ 所以两边都写、反值对应，谁认哪个都能生效。以后加字段也照这个写法并排加。 */
+  function setBookEnabled(e, want) {
+    if (!e) return;
+    var on = !!want;
+    try { e.enabled = on; } catch (e1) {}
+    try { e.disable = !on; } catch (e2) {}
+    try { e.disabled = !on; } catch (e3) {}
+  }
+  function setBookOrder(e, idx) {
+    if (!e) return;
+    var i = Number(idx);
+    if (!isFinite(i)) return;
+    /* ★★ v167：order 必须和 displayIndex **同向**。
+       上一版写的是 `100 + (1000 - i) * 0.001` —— displayIndex 越小、order 越大。
+       ST 默认下拉里 value=0 是 Priority、value=13 是 Custom、
+       而 value=7（本机实测就是这个）是 <option data-order="asc" data-field="order">Order ↗ —— **升序**。
+       于是整张表被倒过来，玩家看到的就是「顺序没变 / 乱」。
+       现在：i 越大 order 越大，两种排序（升序 / 降序）里至少——
+         · 升序（Order ↗）：与 displayIndex 同向 ✓
+         · 降序（Order ↘）：与 displayIndex 反向 ✗
+       所以不能只靠 order。下面同步里另有一招：
+       把所有条目的 order 压成**同一个值**，让 primarySort 永远平手，
+       然后靠 tertiarySort（uid 升序）决定 —— 这样排序与玩家选哪个下拉无关。
+       但 uid 我们改不了（它是存档主键），所以最后还要写 displayIndex。
+       这里先把 order 改成同向，保证 Order ↗ 这个最常见的分支是对的。 */
+    try { e.displayIndex = i; } catch (e1) {}
+    try { e.display_index = i; } catch (e2) {}
+    try {
+      if (!e.extensions || typeof e.extensions !== 'object') e.extensions = {};
+      e.extensions.display_index = i;
+    } catch (e3) {}
+    /* order 同向递增，量级压在 100 以内（不影响注入优先级的感知） */
+    var ord = Math.round((10 + i * 0.001) * 1000) / 1000;
+    try { e.order = ord; } catch (e4) {}
+    try { e.insertion_order = ord; } catch (e5) {}
+  }
+
+  function wbEntryName(e) {
+    if (!e) return '';
+    var cand = [e.comment, e.name, e.title];
+    for (var i = 0; i < cand.length; i++) {
+      var v = String(cand[i] == null ? '' : cand[i]).trim();
+      if (v) return v;
+    }
+    try { if (Array.isArray(e.key) && e.key.length) return String(e.key[0] || '').trim(); } catch (e0) {}
+    try { if (Array.isArray(e.keys) && e.keys.length) return String(e.keys[0] || '').trim(); } catch (e1) {}
+    return '';
+  }
+  /* 版本号条目还要能按**正文形状**认出来：标题名可以丢，正文丢不了。
+     （只在标题名对不上时才用，正常情况不会误伤别的条目） */
+  var RE_VER_CONTENT = /^v\d+(?:\.\d+)*（第\s*\d+\s*次修复更新）$/;
+  function wbIsVerEntry(e) {
+    if (!e) return false;
+    if (wbEntryName(e) === WB_VER_ENTRY) return true;
+    return RE_VER_CONTENT.test(String(e.content == null ? '' : e.content).trim());
+  }
+  /* ══ EJS 语法自检 ══════════════════════════════════════════════════
+     ST 的 EJS 预处理器会把世界书条目当模板编译。只要某一条里 `<%` 与 `%>`
+     不成对、或中间的 JS 括号不闭合，玩家侧就会整片报红：
+     「EJS Error / missing ) after argument list」。报错里只有条目序号，
+     没有名字，作者根本不知道该改哪条 —— 所以这里扫一遍、把名字报出来。 */
+  function wbEjsCheck(content) {
+    var s = String(content == null ? '' : content);
+    if (s.indexOf('<%') < 0) return '';
+    var opens = (s.match(/<%/g) || []).length;
+    var closes = (s.match(/%>/g) || []).length;
+    if (opens !== closes) return '标签不成对（<% ' + opens + ' 个，%> ' + closes + ' 个）';
+    var re = /<%([_=\-#]?)([\s\S]*?)([_=\-]?)%>/g;
+    var code = '', m;
+    while ((m = re.exec(s)) !== null) {
+      if (re.lastIndex <= m.index) re.lastIndex = m.index + 1;
+      if (m[1] === '#') continue;
+      if (m[1] === '=' || m[1] === '-') code += '\n__o(' + m[2] + ');\n';
+      else code += '\n' + m[2] + '\n';
+    }
+    try { new Function('__o', code); return ''; }
+    catch (e) { return String((e && e.message) || e); }
+  }
+  /* 扫一本书，返回坏掉的名字（最多 8 个）与总数 */
+  function wbScanEjs(es) {
+    var bad = [], n = 0;
+    for (var i = 0; i < (es || []).length; i++) {
+      var err = wbEjsCheck(es[i] && es[i].content);
+      if (!err) continue;
+      n++;
+      if (bad.length < 8) bad.push({ name: wbEntryName(es[i]) || ('#' + i), err: err });
+    }
+    return { count: n, list: bad };
+  }
+
+  /* 把标题写到宿主可能用的每一个字段上；key 只在空的时候补，别破坏触发词 */
+  function wbSetName(e, name) {
+    if (!e || !name) return;
+    try { e.comment = name; } catch (e0) {}
+    /* ★ 00:21：同样无条件写 —— 少了 name 的条目在书里就是「没名字」那一条 */
+    try { e.name = name; } catch (e1) {}
+    try { e.title = name; } catch (e2) {}
+    try { if (Array.isArray(e.key) && !e.key.length) e.key = [name]; } catch (e3) {}
+    try { if (Array.isArray(e.keys) && !e.keys.length) e.keys = [name]; } catch (e4) {}
+  }   /* ★ 不能叫《版本号测试》——天元录的世界书里也有同名条目 */
+
+  /* ══ 签名条目：判断「这本书是不是我们这张卡的」══════════════════════
+     只看《版本号》那一条是不够的 —— 它本来就是要靠同步补进去的，没有它，
+     一本正常的书也会被算成「命中 0」，看着像绑错了书。
+     这几个名字从第 1 版就在，任何一代春日狂想曲的书里都有。 */
+  var WB_SIG = ['变量列表', '内置思维链', '[mvu_update]变量更新规则', '[mvu_update]变量输出格式', '开局设定与玩家信息'];
+  function wbSigMap() {
+    var m = {};
+    for (var i = 0; i < WB_SIG.length; i++) m[WB_SIG[i]] = 1;
+    return m;
+  }
+
+  /* ══ 取世界书 API：三路取，缺一路就静默失效 ══════════════════════════
+     ① **酒馆助手对象**上的同名方法 —— 它自带 worldbook 实现，最稳
+     ② **裸全局** —— 必须写成静态 `typeof getLorebookEntries !== 'undefined'`，
+        不能用 `window[name]`：这些函数是顶层变量，**根本不在 window 上**。
+        天元录的 xzPickFn 就是这么取的，它那套在实战里跑通过；
+        我们上一版只查 window[name]，所以一个都取不到，直接报「宿主没有 getLorebookEntries」。
+        （'typeof 未声明变量' 在 strict mode 下也不会抛，所以这段是安全的。）
+     ③ 宿主 window（window / top / parent）上再兜一次
+     ══════════════════════════════════════════════════════════════════════ */
+  var WB_API_NAMES = ['getLorebookEntries', 'setLorebookEntries', 'updateWorldbookWith',
+    'updateLorebookEntriesWith', 'createLorebookEntries', 'getCharWorldbookNames',
+    'getWorldbookNames', 'getChatBook', 'getCurrentCharPrimaryLorebook', 'getWorldbook',
+    'loadWorldInfo', 'saveWorldInfo'];
+
+  function wbBareFn(name) {
+    /* 逐名静态判断，不能改成 window[name] */
+    try {
+      if (name === 'getLorebookEntries' && typeof getLorebookEntries !== 'undefined') return getLorebookEntries;
+      if (name === 'setLorebookEntries' && typeof setLorebookEntries !== 'undefined') return setLorebookEntries;
+      if (name === 'getCharWorldbookNames' && typeof getCharWorldbookNames !== 'undefined') return getCharWorldbookNames;
+      if (name === 'getWorldbookNames' && typeof getWorldbookNames !== 'undefined') return getWorldbookNames;
+      if (name === 'getChatBook' && typeof getChatBook !== 'undefined') return getChatBook;
+      if (name === 'getWorldbook' && typeof getWorldbook !== 'undefined') return getWorldbook;
+      if (name === 'updateWorldbookWith' && typeof updateWorldbookWith !== 'undefined') return updateWorldbookWith;
+      if (name === 'loadWorldInfo' && typeof loadWorldInfo !== 'undefined') return loadWorldInfo;
+      if (name === 'saveWorldInfo' && typeof saveWorldInfo !== 'undefined') return saveWorldInfo;
+      if (name === 'getCurrentCharPrimaryLorebook' && typeof getCurrentCharPrimaryLorebook !== 'undefined') return getCurrentCharPrimaryLorebook;
+      if (name === 'updateLorebookEntriesWith' && typeof updateLorebookEntriesWith !== 'undefined') return updateLorebookEntriesWith;
+      if (name === 'createLorebookEntries' && typeof createLorebookEntries !== 'undefined') return createLorebookEntries;
+    } catch (eB) {}
+    return null;
+  }
+
+  function pickWbFn(name) {
+    /* ① 酒馆助手对象 */
+    var ths = [];
+    try { if (typeof TavernHelper !== 'undefined' && TavernHelper) ths.push(TavernHelper); } catch (e0) {}
+    try { if (window.TavernHelper) ths.push(window.TavernHelper); } catch (e1) {}
+    try { if (HW && HW.TavernHelper) ths.push(HW.TavernHelper); } catch (e2) {}
+    try { if (window.parent && window.parent !== window && window.parent.TavernHelper) ths.push(window.parent.TavernHelper); } catch (e3) {}
+    try { if (window.top && window.top !== window && window.top.TavernHelper) ths.push(window.top.TavernHelper); } catch (e4) {}
+    for (var i = 0; i < ths.length; i++) {
+      try { if (ths[i] && typeof ths[i][name] === 'function') return ths[i][name].bind(ths[i]); } catch (e5) {}
+    }
+    /* ①.5 ★ 00:50：SillyTavern 自己的 getContext()。
+       loadWorldInfo / saveWorldInfo 只挂在这里 —— 既不在 window 上，也不在 TavernHelper 上。
+       这两个是 ST 原生接口，拿到的是**原始条目对象**（order / displayIndex / disable 都在），
+       不像酒馆助手那层包装会丢字段。 */
+    try {
+      var _stCands = [];
+      try { if (window.top && window.top.SillyTavern) _stCands.push(window.top.SillyTavern); } catch (eT0) {}
+      try { if (window.parent && window.parent !== window && window.parent.SillyTavern) _stCands.push(window.parent.SillyTavern); } catch (eT1) {}
+      try { if (window.SillyTavern && _stCands.indexOf(window.SillyTavern) < 0) _stCands.push(window.SillyTavern); } catch (eT2) {}
+      for (var _ci = 0; _ci < _stCands.length; _ci++) {
+        try {
+          var _st = _stCands[_ci];
+          if (!_st || typeof _st.getContext !== 'function') continue;
+          var _cx = _st.getContext();
+          if (_cx && typeof _cx[name] === 'function') return _cx[name].bind(_cx);
+        } catch (eT3) {}
+      }
+    } catch (eCTX) {}
+    /* ② 裸全局 */
+    var f = wbBareFn(name);
+    if (f) return f;
+    /* ③ 宿主 window */
+    var hosts = [];
+    try { hosts.push(window); } catch (e6) {}
+    try { if (HW && HW !== window) hosts.push(HW); } catch (e7) {}
+    try { if (window.parent && window.parent !== window) hosts.push(window.parent); } catch (e8) {}
+    try { if (window.top && window.top !== window) hosts.push(window.top); } catch (e9) {}
+    for (var j = 0; j < hosts.length; j++) {
+      try { if (hosts[j] && typeof hosts[j][name] === 'function') return hosts[j][name].bind(hosts[j]); } catch (e10) {}
+    }
+    return null;
+  }
+
+  /* 诊断：哪些接口真的取到了 —— 版本页会印出来，读不到时一眼知道缺哪个 */
+  function wbProbe() {
+    var out = {};
+    for (var i = 0; i < WB_API_NAMES.length; i++) {
+      var n = WB_API_NAMES[i];
+      out[n] = !!pickWbFn(n);
+    }
+    return out;
+  }
+
+  function fetchWbPatch() {
+    return new Promise(function (res) {
+      var el = document.createElement('script');
+      el.src = swHotUrl('/wbpatch.js') + '?t=' + Date.now();
+      var done = false;
+      el.onload = function () { if (done) return; done = true; try { res(window.__TH_WBPATCH__ || []); } catch (e) { res([]); } };
+      el.onerror = function () { if (done) return; done = true; res([]); };
+      (document.head || document.documentElement).appendChild(el);
+      setTimeout(function () { if (done) return; done = true; try { res(window.__TH_WBPATCH__ || []); } catch (e) { res([]); } }, 8000);
+    });
+  }
+
+  /* 只返回**角色当前绑定**的那本书，至多一本。
+     ⚠ 上一版这里会遍历所有候选（角色书 + 聊天书 + 全部世界书），
+     再由 wbPickTarget 挑「命中最多」的那本。在同时装了两张卡的机器上，
+     挑中了**别人的书** —— 因为天元录的世界书里也有同名条目《版本号测试》，
+     命中数打成平手，而它的条目总数更多，那条「平手就挑条目多的」规则
+     直接把票投给了别人的书。表现就是：版本号显示别人的、同步还往别人的书里写。
+     语义上也不该遍历：这里问的是「**这张卡绑的那本书**是什么版本」，
+     不是「这台机器上哪本书最像我的书」。读不到就返回空数组，上层如实报错。 */
+  async function wbBookNames() {
+    var out = [];
+    function push(n) {
+      var v = String(n == null ? '' : n).trim();
+      if (v && out.indexOf(v) < 0) out.push(v);
+    }
+    var g0 = pickWbFn('getCurrentCharPrimaryLorebook');
+    if (g0) { try { push(await g0()); } catch (e0) {} }
+    if (!out.length) {
+      var g1 = pickWbFn('getCharWorldbookNames');
+      if (g1) {
+        try {
+          var bn = await g1('current');
+          if (bn && bn.primary) push(bn.primary);
+          else if (Array.isArray(bn)) bn.forEach(push);
+          else push(bn);
+        } catch (e1) {}
+      }
+    }
+    /* 聊天书兜底：只有角色书完全读不到时才用它 */
+    if (!out.length) {
+      var g2 = pickWbFn('getChatBook');
+      if (g2) { try { push(await g2()); } catch (e2) {} }
+    }
+    return out;
+  }
+
+  /* 选目标书：遍历候选，挑**含我们条目最多**的那本。
+     返回 { name, hit, info } —— info 是每本书的「书名: 总条数/命中数」，给诊断用。 */
+  async function wbPickTarget(getE, names, map) {
+    var best = '', bestHit = 0, bestCount = 0;
+    var info = [];
+    for (var i = 0; i < names.length; i++) {
+      var nm = names[i];
+      var es = null;
+      try { es = await getE(nm); } catch (e) { info.push(nm + ': 读失败'); continue; }
+      if (!es) { info.push(nm + ': 空'); continue; }
+      var hit = 0;
+      for (var j = 0; j < es.length; j++) {
+        var c = wbEntryName(es[j]);
+        if (c && map[c]) hit++;
+      }
+      info.push(nm + ': ' + es.length + '条/命中' + hit);
+      if (hit > bestHit || (hit === bestHit && hit > 0 && es.length > bestCount)) {
+        bestHit = hit; best = nm; bestCount = es.length;
+      }
+    }
+    return { name: best, hit: bestHit, info: info };
+  }
+
+  /* 写回：三级降级。返回 { how, tried } —— how 为空表示一条路都没走通 */
+  async function wbWrite(wb, mutate) {
+    var tried = [];
+    /* ⓪ ★ 00:50：**先走 ST 原生的 loadWorldInfo / saveWorldInfo**。
+       实测过，酒馆助手的 updateWorldbookWith / setLorebookEntries 是包装层：
+       它用自己认识的字段重建条目，order / displayIndex 直接被丢掉 ——
+       于是「内容 131/131 全对、顺序一条没动、displayIndex 0 条」。
+       原生通道拿到的是 data.entries 里**原始对象**，改什么存什么。 */
+    var loadFN = pickWbFn('loadWorldInfo');
+    var saveFN = pickWbFn('saveWorldInfo');
+    if (loadFN && saveFN) {
+      try {
+        var data = await loadFN(wb);
+        if (data && data.entries && typeof data.entries === 'object') {
+          var arr = [];
+          Object.keys(data.entries).forEach(function (k) {
+            var e = data.entries[k];
+            if (e && typeof e === 'object') {
+              if (e.uid == null) e.uid = k;
+              arr.push(e);
+            }
+          });
+          var next = mutate(arr);
+          if (Array.isArray(next)) {
+            var maxUid = 0;
+            Object.keys(data.entries).forEach(function (k) {
+              var n = Number(k);
+              if (isFinite(n) && n > maxUid) maxUid = n;
+            });
+            var obj = {};
+            next.forEach(function (e) {
+              if (!e || typeof e !== 'object') return;
+              var uid = (e.uid != null) ? e.uid : (++maxUid);
+              e.uid = uid;
+              obj[String(uid)] = e;
+            });
+            data.entries = obj;
+            await saveFN(wb, data, true);
+            return { how: 'loadWorldInfo+saveWorldInfo（ST 原生）', tried: tried };
+          }
+        }
+      } catch (eN0) {
+        tried.push('loadWorldInfo: ' + ((eN0 && eN0.message) || eN0));
+      }
+    }
+    /* ① updateWorldbookWith：酒馆助手包装层（会丢 order / displayIndex，仅作兜底） */
+    var uf = pickWbFn('updateWorldbookWith');
+    if (uf) {
+      try {
+        await uf(wb, function (arr) { return mutate(arr || []); }, { render: 'immediate' });
+        return { how: 'updateWorldbookWith', tried: tried };
+      } catch (e1) { tried.push('updateWorldbookWith: ' + ((e1 && e1.message) || e1)); }
+    }
+    /* ② setLorebookEntries：整表覆盖 */
+    var setE = pickWbFn('setLorebookEntries');
+    var getE = pickWbFn('getLorebookEntries');
+    if (setE) {
+      try {
+        var cur = getE ? await getE(wb) : [];
+        await setE(wb, mutate(cur || []));
+        return { how: 'setLorebookEntries', tried: tried };
+      } catch (e2) { tried.push('setLorebookEntries: ' + ((e2 && e2.message) || e2)); }
+    }
+    /* ③ updateLorebookEntriesWith：回调式（老接口），最后兜底 */
+    var upd = pickWbFn('updateLorebookEntriesWith');
+    if (upd) {
+      try {
+        await upd(wb, function (arr) { return mutate(arr || []); });
+        return { how: 'updateLorebookEntriesWith', tried: tried };
+      } catch (e3) { tried.push('updateLorebookEntriesWith: ' + ((e3 && e3.message) || e3)); }
+    }
+    return { how: '', tried: tried };
+  }
+
+  /* ══ ★ 11-15 02:00：写完必须把**已打开的编辑器**重画一遍 ══════════
+     作者实测：先开世界书再同步 → 看起来「没用」；先同步再开 → 有效。
+
+     根因：ST 的 showWorldEditor → loadWorldInfo 返回的是 worldInfoCache 的
+     **深拷贝**（StructuredCloneMap cloneOnGet:true），编辑器攥着这份拷贝不放手。
+     我们事后 saveWorldInfo 只改了服务器和缓存，编辑器那份旧对象还在内存里，
+     于是 ① 画面还是旧顺序 ② 更坏 —— 玩家之后在编辑器里点任何东西
+     （开关条目 / 拖动 / 「应用当前排序」），ST 会用整份旧拷贝 saveWorldInfo，
+     把刚写好的顺序**一口气盖回旧值**。
+
+     修法：写完主动触发刷新。
+       · 首选 SillyTavern.getContext().reloadWorldInfoEditor(name) —— ST 官方出口，
+         内部就是 reloadEditor()：把 #world_editor_select 重新 change 一次，
+         走完整 showWorldEditor → 从缓存重画。
+       · 退路：直接给 #world_editor_select 设值 + trigger('change')（同一条路）。
+       · 没打开编辑器（select 为空 / 值对不上）就什么都不做 —— 别替玩家打开面板。
+     全部包 try：拿不到就静默，绝不影响同步本身的结果。 */
+  function wbRefreshEditor(wb) {
+    var out = { done: false, via: '', opened: '' };
+    try {
+      if (!wb) return out;
+      var d = HD;
+      var sel = null;
+      try { sel = d.querySelector('#world_editor_select'); } catch (eS0) {}
+      /* 当前编辑器里选中的是不是这本书（用来判断「到底开着没有」） */
+      var curName = '';
+      try {
+        if (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]) {
+          curName = String(sel.options[sel.selectedIndex].text || '');
+        }
+      } catch (eS1) {}
+      out.opened = curName;
+      /* ★ 11-15 02:20：**先判「编辑器里现在就是这本书」再动手**。
+         以前这里直接调 reloadWorldInfoEditor(wb) —— ST 的 reloadEditor 靠
+         world_names.indexOf(file) 和 select.value 比，两个都对上才重载。
+         可我们拿到的 world_names 未必和宿主同一个数组实例（多 iframe / 重载后），
+         一旦 indexOf 返回 -1 它就是静默 no-op；更糟的是有宿主魔改版会
+         无条件把面板切过去，玩家正看着别的书就被我们硬拽走。
+         所以这里自己判：选中的不是这本书，就当「编辑器没开」，一个字都不做。 */
+      if (curName !== wb) return out;
+      /* ① ST 官方出口 */
+      var st = null;
+      try {
+        var tops = [HW, window];
+        for (var i = 0; i < tops.length; i++) {
+          try { if (tops[i] && tops[i].SillyTavern && typeof tops[i].SillyTavern.getContext === 'function') { st = tops[i].SillyTavern.getContext(); break; } } catch (eT) {}
+        }
+      } catch (eT0) {}
+      if (st && typeof st.reloadWorldInfoEditor === 'function') {
+        try {
+          st.reloadWorldInfoEditor(wb, true);
+          out.done = true; out.via = 'reloadWorldInfoEditor';
+          return out;
+        } catch (eR) {}
+      }
+      /* ② 退路：自己 trigger 一次 change（等价于玩家在编辑器下拉里重选这本书） */
+      if (sel) {
+        try {
+          var idx = -1;
+          for (var k = 0; k < sel.options.length; k++) {
+            if (String(sel.options[k].text || '') === wb) { idx = k; break; }
+          }
+          if (idx >= 0) {
+            sel.selectedIndex = idx;
+            if (typeof HW.jQuery === 'function' || typeof window.jQuery === 'function') {
+              var $ = HW.jQuery || window.jQuery;
+              $(sel).trigger('change');
+            } else {
+              sel.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            out.done = true; out.via = 'select.change';
+          }
+        } catch (eF) {}
+      }
+      return out;
+    } catch (e) {
+      return out;
+    }
+  }
+
+  /* ══ ★ 11-15 02:05：**为什么不用「打开面板时再刷一次」** ══════════
+     想过这个世界书抽屉的 change 守卫，否决了，理由写在这免得以后再踩：
+
+     ① 不需要。写入走的是 loadWorldInfo + saveWorldInfo，而 saveWorldInfo 第一件事
+        就是 worldInfoCache.set(wb, data)。之后玩家再点开这本书，
+        showWorldEditor → loadWorldInfo 命中的是**新缓存**，画出来就是新数据。
+        「同步时没开面板 → 后来打开看到旧的」这个场景根本不存在。
+     ② 有害。守卫自己 trigger change 会再次进入守卫，得靠计数刹住；
+        而玩家的正常编辑（开关条目、改标题）也走同一条 change，
+        随便一个误判就是把人家正在编辑的条目面板闪掉 / 把输入框内容冲掉。
+
+     所以只在「写入那一刻编辑器正开着」时刷一次，其余交给缓存。 */
+
+  /* 只读检测：读**角色绑定的那本书**，回答三件事——
+     ① 这本书到底是不是这张卡的（按签名条目算命中）
+     ② 有没有《春日狂想曲·版本号》这一条
+     ③ 它的正文（版本号）是什么
+     ⚠ 以前这里只用《版本号》一条当命中依据，于是「书里没有版本号条目」
+       被显示成「命中 0 条，像是绑错书」—— 把「没同步」误报成「绑错书」。 */
+  async function wbReadOnly() {
+    var out = { ok: false, wb: '', ver: '', count: 0, hit: 0, sample: '', books: '',
+                probe: null, msg: '', state: '', ejsBad: 0, ejsNames: [] };
+    try {
+      out.probe = wbProbe();
+      var getE = pickWbFn('getLorebookEntries');
+      if (!getE) {
+        out.msg = '取不到 getLorebookEntries —— 酒馆助手没加载完？';
+        return out;
+      }
+      var names = await wbBookNames();
+      if (!names.length) { out.msg = '读不到任何世界书名（角色没绑世界书？）'; return out; }
+      var pick = await wbPickTarget(getE, names, wbSigMap());
+      out.books = pick.info.join('  |  ');
+      out.wb = pick.name || names[0] || '';
+      var es = out.wb ? await getE(out.wb) : [];
+      out.count = (es || []).length;
+      out.hit = pick.hit || 0;
+      out.sample = (es || []).slice(0, 3).map(function (e) {
+        return wbEntryName(e) || '（无名）';
+      }).join(' / ');
+      /* ★ 标题名对不上就按正文认 —— 宿主可能把 comment 吃掉了 */
+      var hitEnt = (es || []).filter(wbIsVerEntry)[0];
+      out.ver = hitEnt ? String(hitEnt.content == null ? '' : hitEnt.content).trim() : '';
+      /* 一本书里连一条签名条目都没有 → 这本不是这张卡的（同层版/非同层版书名相同） */
+      if (!out.hit) {
+        out.state = 'foreign';
+        out.msg = '绑定的《' + out.wb + '》' + out.count + ' 条里没有一条这张卡的条目'
+          + (out.sample ? '（书里前几条：' + out.sample + '）' : '')
+          + ' —— 像是绑到了另一张卡的书上。';
+        return out;
+      }
+      if (!hitEnt) {
+        out.state = 'no-entry';
+        /* 诊断：把最后 3 条的「各字段到底有没有值」报出来，一次就能看出宿主吃掉了哪个字段 */
+        try {
+          var tail = (es || []).slice(-3);
+          out.sample = out.sample + ' ｜ 末3条:' + tail.map(function (e) {
+            return 'comment=' + JSON.stringify(String(e.comment == null ? '' : e.comment).slice(0, 12)) +
+                   ',name=' + JSON.stringify(String(e.name == null ? '' : e.name).slice(0, 12)) +
+                   ',key0=' + JSON.stringify(String((Array.isArray(e.key) && e.key[0]) || '').slice(0, 12));
+          }).join(' / ');
+        } catch (eD) {}
+        out.msg = '这本《' + out.wb + '》' + out.count + ' 条里命中我们的 ' + out.hit +
+          ' 条，但还缺《' + WB_VER_ENTRY + '》，点「同步世界书」补进去';
+        return out;
+      }
+      /* EJS 自检：有坏条目就带出去，版本页直接列名字 */
+      try {
+        var _sc = wbScanEjs(es);
+        out.ejsBad = _sc.count;
+        out.ejsNames = _sc.list;
+      } catch (eSc) { out.ejsBad = 0; out.ejsNames = []; }
+      out.ok = !!out.ver;
+      out.state = out.ok ? 'ok' : 'empty';
+      if (!out.ver) out.msg = '书里有《' + WB_VER_ENTRY + '》，但正文是空的';
+      return out;
+    } catch (e) {
+      out.msg = '读世界书失败：' + ((e && e.message) || e);
+      return out;
+    }
+  }
+
+  /* 真同步：选书 → 写正文 + 补缺 + 删「创作要求」 → **回读比对** */
+  async function wbSyncOnly(opts) {
+    opts = opts || {};
+    var out = { ok: false, wb: '', total: 0, same: 0, changed: 0, added: 0, removed: 0,
+                ver: '', count: 0, diff: [], how: '', tried: [], books: '', probe: null,
+                partial: false, msg: '' };
+    try {
+      out.probe = wbProbe();
+      var getE = pickWbFn('getLorebookEntries');
+      if (!getE) {
+        var miss = [];
+        for (var k in out.probe) { if (!out.probe[k]) miss.push(k); }
+        out.msg = '取不到 getLorebookEntries。缺：' + (miss.join(',') || '（全部）');
+        return out;
+      }
+      var list = (Array.isArray(opts.list) && opts.list.length) ? opts.list : await fetchWbPatch();
+      out.total = list.length;
+      if (!list.length) { out.msg = '线上条目包拉取失败（JSONP 没回来，检查网络 / COS）'; return out; }
+
+      var map = {};
+      list.forEach(function (x) { var c = String(x.comment || ''); if (c) map[c] = x; });
+
+      var names = await wbBookNames();
+      if (!names.length) { out.msg = '读不到任何世界书名（角色没绑书？）'; return out; }
+      var pick = await wbPickTarget(getE, names, map);
+      out.books = pick.info.join('  |  ');
+      if (!pick.name) {
+        /* 一条都不命中：这本书不是这张卡的（同层版 / 非同层版共用同一个书名）。
+           绝不批量灌 128 条进去 —— 那会把别人的书彻底搞乱。 */
+        var es0 = names[0] ? await getE(names[0]) : [];
+        var sample0 = (es0 || []).slice(0, 3).map(function (e) {
+          return String((e && (e.comment || e.name)) || '（无名）');
+        }).join(' / ');
+        out.msg = '绑定的《' + (names[0] || '?') + '》' + ((es0 || []).length) +
+          ' 条里没有一条我们的条目' + (sample0 ? '（前几条：' + sample0 + '）' : '') +
+          ' —— 为防污染别人的世界书，本次不写入。';
+        return out;
+      }
+      /* ★ 命中不是满额（<10）说明书名撞了、绑到了另一代的同名牌上。
+         这种书**只补匹配到的条目 + 版本号**，不批量补 128 条、不删任何东西。 */
+      var partial = pick.hit < 10;
+      out.partial = partial;
+      var wb = pick.name;
+      out.wb = wb;
+
+      var cnt = { changed: 0, added: 0, removed: 0 };
+      var verSrc = null;
+      for (var vi = 0; vi < list.length; vi++) {
+        if (String(list[vi].comment || '') === WB_VER_ENTRY) { verSrc = list[vi]; break; }
+      }
+      var verLabel = verSrc && typeof verSrc.content === 'string' ? verSrc.content : '';
+
+      function mutate(arr) {
+        var c = { changed: 0, added: 0, removed: 0 };
+        var outArr = [];
+        var verSeen = 0;
+        /* ★★ v167：同名重复条目去重（实测书里有 55 条「节庆·公共底座」）。
+           为什么必须在这里做：这 55 条都会命中同一个 src，
+           排序时 __thOrd 全填同一个值、挤在一起，把后面的真条目整体推后 54 位 ——
+           玩家看到的「顺序全乱」就是这么来的。
+           保守策略：只删「同名 + 正文完全相同」的，正文不同的一个不动；
+           保留 displayIndex 最小的那一条；分隔条不参与。 */
+        var __dropUid = {};
+        if (!partial) {
+          try {
+            var __groups = {};
+            (arr || []).forEach(function (e) {
+              if (!e) return;
+              var nm0 = wbEntryName(e);
+              if (!nm0 || !map[nm0]) return;              /* 包里没有的名字：不碰 */
+              if (String(nm0).indexOf('====================') === 0) return;  /* 分隔条本来就是多条 */
+              var ct = String(e.content == null ? '' : e.content);
+              if (!ct) return;                            /* 空正文不参与，免得把废条目当重复 */
+              var sig = nm0 + '\u0001' + ct;
+              if (!__groups[sig]) __groups[sig] = [];
+              __groups[sig].push(e);
+            });
+            for (var __sg in __groups) {
+              var __g = __groups[__sg];
+              if (!__g || __g.length <= 1) continue;
+              __g.sort(function (a, b) {
+                var ai = Number(a.displayIndex != null ? a.displayIndex
+                  : (a.extensions && a.extensions.display_index != null ? a.extensions.display_index : 1e9));
+                var bi = Number(b.displayIndex != null ? b.displayIndex
+                  : (b.extensions && b.extensions.display_index != null ? b.extensions.display_index : 1e9));
+                if (!isFinite(ai)) ai = 1e9;
+                if (!isFinite(bi)) bi = 1e9;
+                return ai - bi;
+              });
+              for (var __k = 1; __k < __g.length; __k++) {
+                var __du = __g[__k].uid;
+                if (__du != null) __dropUid[String(__du)] = 1;
+              }
+            }
+          } catch (eDd) {}
+        }
+        (arr || []).forEach(function (e) {
+          if (!e) return;
+          /* ★ v167：同名同文的多余副本，直接丢（只在全量模式下起效） */
+          if (e.uid != null && __dropUid[String(e.uid)]) { c.removed++; return; }
+          var nm = wbEntryName(e);
+          /* ★ 00:21：书里已经有「没名字」的条目怎么办 —— 按**正文**反查条目包补回名字。
+             只在我们自己的书里做（partial 说明书名撞了，不许乱认领）；
+             正文太短的跳过，免得空内容互相认错。 */
+          if (!nm && !partial) {
+            try {
+              var _c0 = String(e.content == null ? '' : e.content);
+              if (_c0 && _c0.length >= 20) {
+                /* ★ 00:42：以前要求**全文完全一致**才算同一条 —— 可无名条目的内容
+                   往往已经旧了（上一版同步过来的），于是既补不上名字、又因为没名字
+                   永远匹配不到条目包，内容也永不更新 ⇒ 死锁。
+                   改成比**正文前缀**（前 60 字），容忍后面的差异。 */
+                var _pre = _c0.slice(0, 60);
+                for (var _ck in map) {
+                  if (String(map[_ck].content == null ? '' : map[_ck].content).slice(0, 60) === _pre) {
+                    wbSetName(e, _ck);
+                    nm = _ck;
+                    c.changed++;
+                    break;
+                  }
+                }
+              }
+            } catch (eNm) {}
+          }
+          /* ★ 23:43 作者：《[InitVar]初始变量》永远关着 —— 这条同步时顺手关掉，
+             不需要玩家自己去世界书里点。只认精确名字，「·非同层」那条不动。 */
+          if (nm === '[InitVar]初始变量' && (e.enabled !== false || e.disable !== true)) { setBookEnabled(e, false); }
+          if (!partial && (nm === '创作要求' || nm === '创作要求（旧）')) { c.removed++; return; }
+          /* ★ 22:05：ST 重复导入会留下「条目名 (1)」「条目名 (2)」这种副本。
+             它们不在条目包里、却照样参与 EJS 渲染 —— 有的是旧版被截断的内容，
+             正是「EJS Error 只在个别玩家身上出现」的来源。全量同步时顺手清掉。 */
+          if (!partial) {
+            var _dup = /^(.+?)\s*\(\d+\)\s*$/.exec(nm);
+            if (_dup && map[_dup[1]]) { c.removed++; return; }
+          }
+          /* ★★ 11-15 03:05：清理**我们发过、现在已经下架**的空条目。
+             来由：为了验证同步链路，我在条目包里临时插过一条正文为空的「测试」，
+             验证完从包里删了。但同步对「包里没有的名字」一贯不碰（防止误删玩家的
+             自有条目），于是它作为孤儿永久留在每本同步过的书里 —— 列表第 2 位
+             空着一格，玩家会以为是坏数据。
+
+             保守三闸，缺一不可，宁可漏删也绝不误删玩家的东西：
+               ① 名字在**本卡历史白名单**里（GONE_ENTRIES）—— 只认我们自己发过的；
+               ② 正文为空（trim 后长度 0）—— 玩家真往里写了东西就不动它；
+               ③ 不在当前条目包里（map 里没有）—— 包里还有的话上面早就按正文同步了。
+             另外 partial 模式（书名撞了）整个跳过：那种书本来就不该被动结构。 */
+          if (!partial && GONE_ENTRIES[nm]) {
+            var _body = String(e.content == null ? '' : e.content).trim();
+            if (!_body && !map[nm]) { c.removed++; return; }
+          }
+          /* ★ 版本号那一条：按正文认，认到就**改名 + 改正文**，不再新增一条。
+             以前只按标题名认，宿主把标题吃掉之后每次同步都会多一条无名条目
+             （玩家看到的「点一下 144 → 146」就是这么来的）。 */
+          if (wbIsVerEntry(e)) {
+            verSeen++;
+            if (verSeen > 1) { c.removed++; return; }     /* 重复的删掉 */
+            if (nm !== WB_VER_ENTRY) { wbSetName(e, WB_VER_ENTRY); c.changed++; }
+            if (verLabel && String(e.content == null ? '' : e.content) !== verLabel) {
+              e.content = verLabel; c.changed++;
+            }
+            outArr.push(e);
+            return;
+          }
+          var src = map[nm];
+          if (src && typeof src.content === 'string' && src.content && e.content !== src.content) {
+            e.content = src.content;
+            c.changed++;
+          }
+          /* ★ 00:28 作者要求重排条目。★ 00:35 修正：**顺序字段各家不同** ——
+             ST 认 order（降序）、魔改版认 displayIndex / display_index，
+             上一版只写 display_index，所以一条都没动，作者看到的就是「热更新是假的」。
+             setBookOrder 三个一起写；order 用 100 附近的小数，只排先后、不改注入量级。 */
+          if (src && src.display_index != null) {
+            var _wantIdx = Number(src.display_index);
+            /* ★ v167：这里以前脱离了 setBookOrder 单干了，自己又算了一遍
+               倒序的 order（两处必须同步改，不然一个对一个错）。 */
+            var _wantOrd = Math.round((10 + _wantIdx * 0.001) * 1000) / 1000;
+            var _curDisp = Number(e.displayIndex != null ? e.displayIndex
+              : (e.extensions && e.extensions.display_index != null ? e.extensions.display_index : NaN));
+            var _ordMoved = (Number(e.order) !== _wantOrd) ||
+                            (Number(e.display_index) !== _wantIdx) ||
+                            !isFinite(_curDisp) || _curDisp !== _wantIdx;
+            if (_ordMoved) {
+              setBookOrder(e, _wantIdx);
+              c.changed++;
+              c.orderChanged = (c.orderChanged || 0) + 1;
+            }
+          }
+          outArr.push(e);
+        });
+        var have = {};
+        outArr.forEach(function (e) { have[wbEntryName(e)] = 1; });
+        if (verSeen) have[WB_VER_ENTRY] = 1;
+        /* ★ 00:28：三个分隔条目**同名**（====================），
+           用 have[名字] 去重只会补进去一条，另外两条永远进不来。
+           所以它们单独按「已有几条 / 需要几条」计数，不走 have。 */
+        /* ★ 00:58：分隔条改前缀匹配 —— 三条名字只差零宽空格（显示一模一样），
+           用全等判断会把它们当成同一条，补进去只剩一个。 */
+        var SEP_NAME = '====================';
+        function isSepName(v) { return String(v || '').indexOf(SEP_NAME) === 0; }
+        var sepWant = 0;
+        list.forEach(function (y) { if (isSepName(y.comment)) sepWant++; });
+        var sepHave = outArr.filter(function (e) { return isSepName(wbEntryName(e)); }).length;
+        list.forEach(function (x) {
+          var nm = String(x.comment || '');
+          if (!nm) return;
+          if (isSepName(nm)) {
+            if (sepHave >= sepWant) return;
+            sepHave++;
+          } else if (have[nm]) {
+            return;
+          }
+          /* 部分命中：只补版本号那一条，别的条目一个字都不往这本书里加 */
+          if (partial && nm !== WB_VER_ENTRY) return;
+          var cp = JSON.parse(JSON.stringify(x));
+          setBookEnabled(cp, false);          /* 新增条目默认关着（两个字段一起写） */
+          /* ★ 标题写到宿主可能用的每个字段上；位置用数字（ccv3 的 before_char 有的宿主不认） */
+          cp.comment = nm;
+          /* ★ 00:35：新补进来的条目也要带顺序，否则它永远排在列表最底下 */
+          setBookOrder(cp, x.display_index);
+          /* ★ 00:21：**无条件**写 name / title。
+             以前写的是 `if ('name' in cp)` —— 而 wbpatch.json 的条目里根本没有 name 字段，
+             这个分支永远不成立。宿主（酒馆助手的 createWorldbookEntries）认 name 不认
+             comment，于是新增条目全变成「没名字的关闭条目」（cp.enabled 本来就是 false）。 */
+          cp.name = nm;
+          cp.title = nm;
+          if (typeof cp.position === 'string') cp.position = 0;
+          try { cp.key = [nm]; cp.keys = [nm]; } catch (eK) {}
+          outArr.push(cp);
+          have[nm] = 1;
+          c.added++;
+        });
+        cnt = c;
+        /* ★ 00:47：**必须按条目包的位置重排数组**。
+           以前这里直接 return outArr —— 顺序是「书里原有的顺序 + 新条目接在末尾」，
+           字段（displayIndex / order）虽然都写对了，可只要宿主是按**数组顺序**显示
+           （酒馆助手的列表、多数魔改版都是），玩家看到的就是「一条都没动」。
+           排序之后数组顺序 = displayIndex 顺序 = order 降序，宿主认哪个都对。 */
+        try {
+          /* ★ 00:58：排序键**不能直接读条目自己的 displayIndex**。
+             书里往往比条目包多出一批历史条目（现场：186 条 vs 131 条），
+             它们带着自己的老位置（0/1/2…），直接按 displayIndex 排就会**插进我们的分组**，
+             看起来就是"顺序混乱"。
+             正确做法：以**条目包的位置**为准 —— 包里有的用 src.display_index，
+             包里没有的一律沉底（10000 + 原数组位置，保持它们彼此的前后关系）。 */
+          var _sepSlots = [];
+          for (var _si = 0; _si < list.length; _si++) {
+            if (isSepName(list[_si].comment)) _sepSlots.push(Number(list[_si].display_index));
+          }
+          outArr.forEach(function (e, i) {
+            var nmE = '';
+            try { nmE = wbEntryName(e); } catch (eN0) { nmE = ''; }
+            /* 分隔条三条同名，map 里只记得住一条 ⇒ 先占位，下面按现有 displayIndex 分配 */
+            if (isSepName(nmE)) { e.__thOrd = -1; return; }
+            var srcE = nmE ? map[nmE] : null;
+            e.__thOrd = (srcE && srcE.display_index != null)
+              ? Number(srcE.display_index)
+              : (10000 + i);
+          });
+          /* ★ 01:03：三根分隔条同名，靠名字分不出谁是谁。
+             用**书里现有的 displayIndex**（上次排好的意图）从小到大，依次对上包里的三个位置：
+             最小的那条 = 第一个分隔条，中间 = 第二个，最大 = 第三个。 */
+          try {
+            var _sepRows = outArr.filter(function (e) { return e.__thOrd === -1; });
+            if (_sepRows.length) {
+              _sepRows.sort(function (a, b) {
+                return (Number(a.displayIndex) || 0) - (Number(b.displayIndex) || 0);
+              });
+              _sepRows.forEach(function (e, k) {
+                var slot = _sepSlots.length ? _sepSlots[Math.min(k, _sepSlots.length - 1)] : (10000 + k);
+                e.__thOrd = isFinite(slot) ? slot : (10000 + k);
+              });
+            }
+          } catch (eSep) {}
+          outArr.sort(function (a, b) { return a.__thOrd - b.__thOrd; });
+          /* 排完统一重编号 1..N：连续、无冲突，外来条目自然全部落在最后 */
+          outArr.forEach(function (e, i) {
+            try { delete e.__thOrd; } catch (eDel) {}
+            setBookOrder(e, i + 1);
+          });
+        } catch (eSort) {}
+        return outArr;
+      }
+
+      var w = await wbWrite(wb, mutate);
+      out.how = w.how;
+      out.tried = w.tried || [];
+      out.changed = cnt.changed;
+      out.added = cnt.added;
+      out.removed = cnt.removed;
+      if (!w.how) {
+        out.msg = '一条写入通道都没走通：' + (out.tried.join(' / ') || '宿主没有任何可写回的世界书接口');
+        return out;
+      }
+
+      /* ★ 11-15 02:00：写完立刻把已打开的编辑器重画 —— 否则玩家看着旧画面，
+         还会在编辑器里一点就把旧数据整盘盖回来（详见 wbRefreshEditor 注释）。 */
+      try {
+        var _rf = wbRefreshEditor(wb);
+        out.editor = _rf;
+      } catch (eRf0) {}
+
+      /* 回读 —— 「到底写进去没有」的唯一答案。
+         ★ 00:54：**必须优先走原生 loadWorldInfo**。
+         写入用的是原生（order / displayIndex 都在），回读却用 getLorebookEntries
+         这层包装 —— 它不返回这两个字段，于是刚写进去就被判成「读不到」，
+         诊断永远红着，跟没写一样。读不到原生才退回包装层。 */
+      /* ★ 11-15 02:52：回读加一层「条目数不够就重试」。
+         真实 ST 里 saveWorldInfo 第一件事就是 worldInfoCache.set，
+         紧接着 loadWorldInfo 一定读到新数据 —— 本来不需要重试。
+         但魔改宿主会出现「save 走了、load 还是旧的」：表现为 added=1 却
+         diff=[新条目名]，整次同步被判成失败，玩家看到红字以为坏了。
+         这里最多再等 3 次（150/400/900ms），只有「条数明显少于预期」才重试，
+         已经读到足量就立刻返回，绝不给正常路径加延迟。
+         partial 模式（书名撞了，只补版本号）不参与这个判据：条数本来就该少。 */
+      var after = null;
+      var _loadAfter = pickWbFn('loadWorldInfo');
+      var _expect = partial ? 0 : list.length;
+      function _afterShort(arr) {
+        if (!_expect) return false;
+        if (!arr) return true;
+        return arr.length < _expect;
+      }
+      async function _readOnce() {
+        if (!_loadAfter) return null;
+        try {
+          var d = await _loadAfter(wb);
+          if (d && d.entries && typeof d.entries === 'object') {
+            return Object.keys(d.entries).map(function (k) { return d.entries[k]; })
+              .filter(function (e) { return e && typeof e === 'object'; });
+          }
+        } catch (eR) {}
+        return null;
+      }
+      if (_loadAfter) {
+        after = await _readOnce();
+        out.readVia = 'loadWorldInfo';
+        var _waits = [150, 400, 900];
+        for (var _wi = 0; _afterShort(after) && _wi < _waits.length; _wi++) {
+          await new Promise(function (res) { setTimeout(res, _waits[_wi]); });
+          after = await _readOnce();
+        }
+      }
+      if (!after) {
+        after = await getE(wb);
+        out.readVia = 'getLorebookEntries';
+      }
+      out.count = (after || []).length;
+      var now = {};
+      (after || []).forEach(function (e) { now[wbEntryName(e)] = String(e.content == null ? '' : e.content); });
+      out.ver = String(now[WB_VER_ENTRY] || '').trim();
+      /* 标题被吃掉的兜底：按正文形状再找一次 */
+      if (!out.ver) {
+        (after || []).some(function (e) {
+          if (!wbIsVerEntry(e)) return false;
+          out.ver = String(e.content == null ? '' : e.content).trim();
+          return true;
+        });
+      }
+      /* ★ 00:35：顺序到底写进去没有 —— 条目热更新最容易「假成功」的地方。
+         回读里数一下「后一条 order 比前一条还大」的次数，正常应为 0。 */
+      try {
+        var _ords = [], _disps = [];
+        (after || []).forEach(function (e) {
+          var o = Number(e && e.order);
+          if (isFinite(o)) _ords.push(o);
+          var dRaw = (e && e.displayIndex != null) ? e.displayIndex
+                   : (e && e.extensions ? e.extensions.display_index : null);
+          var d = Number(dRaw);
+          if (dRaw != null && isFinite(d)) _disps.push(d);
+        });
+        /* ★ 00:50：数组顺序是 **uid 顺序**（ST 内部 data.entries 是对象），
+           不能直接拿数组前后比 order —— 那会把正确的结果报成「26 处逆序」。
+           先按 displayIndex 排一遍，再看 order 是不是跟着同步递减，这才是有意义的指标。 */
+        var _pairs = [];
+        (after || []).forEach(function (e) {
+          var dRaw = (e && e.displayIndex != null) ? e.displayIndex
+                   : (e && e.extensions ? e.extensions.display_index : null);
+          var d = Number(dRaw);
+          var o = Number(e && e.order);
+          if (dRaw != null && isFinite(d) && isFinite(o)) _pairs.push({ d: d, o: o });
+        });
+        _pairs.sort(function (a, b) { return a.d - b.d; });
+        /* ★ 11-15 02:30：判逆序的**方向必须和 setBookOrder 一致**。
+           v167 把 order 改成「与 displayIndex 同向」之后，这里没跟着改 ——
+           仍是老代码的 `后一条 order 比前一条大 ⇒ 逆序`。
+           于是在 131 条全对的书上报「order 还有 130 处逆序」，
+           把自己做对的事说成错的（作者看到这句当然以为又没生效）。
+           现在：同向递增视为正确；只有「后一条比前一条小」才算逆序。 */
+        var _inv = 0;
+        for (var _oi = 1; _oi < _pairs.length; _oi++) if (_pairs[_oi].o < _pairs[_oi - 1].o) _inv++;
+        out.orderInv = _inv;
+        out.orderHead = _pairs.slice(0, 3).map(function (x) { return x.o; }).join('/');
+        out.orderTail = _pairs.slice(-3).map(function (x) { return x.o; }).join('/');
+        out.orderSpread = (_pairs.length > 1)
+          ? Math.round((_pairs[_pairs.length - 1].o - _pairs[0].o) * 1000) / 1000 : 0;
+        /* displayIndex 两套字段都读一遍：能读到的有几个、首尾差多少 */
+        var _ds = _pairs.map(function (x) { return x.d; });
+        out.dispCount = _disps.length;
+        out.dispHead = _ds.slice(0, 3).join('/');
+        out.dispSpread = (_ds.length > 1) ? (_ds[_ds.length - 1] - _ds[0]) : 0;
+      } catch (eOrd) {}
+      var same = 0;
+      list.forEach(function (x) {
+        var nm = String(x.comment || '');
+        if (!nm) return;
+        if (now[nm] === String(x.content == null ? '' : x.content)) same++;
+        else if (out.diff.length < 10) out.diff.push(nm);
+      });
+      out.same = same;
+      /* ★ 00:42：书里还剩几条无名条目 —— 它们是「同步看着跑了却没变化」的元凶，
+         数量必须报出来，否则永远不知道还剩几个在失联。 */
+      try {
+        var _nameless = [];
+        (after || []).forEach(function (e) { if (!wbEntryName(e)) _nameless.push(String(e.uid == null ? '?' : e.uid)); });
+        out.nameless = _nameless.length;
+        out.namelessIds = _nameless.slice(0, 8).join(',');
+      } catch (eNl) { out.nameless = 0; }
+      try {
+        var _sc2 = wbScanEjs(after);
+        out.ejsBad = _sc2.count;
+        out.ejsNames = _sc2.list;
+      } catch (eSc2) { out.ejsBad = 0; out.ejsNames = []; }
+      out.ok = out.diff.length === 0;
+      if (!out.ok) out.msg = '写入后回读仍有 ' + out.diff.length + ' 条不一致';
+      else if (partial) {
+        out.msg = '这本书只命中 ' + pick.hit + ' 条我们的条目（书名撞了），' +
+          '已只补匹配到的 + 版本号，没有批量补 ' + list.length + ' 条';
+      } else {
+        out.msg = '正文已同步 ' + out.same + ' 条';
+      }
+      /* ★ 00:35：顺序单独报一句 —— 内容对了不代表顺序也进去了。
+         宿主不认 order 时，读回来会是一串相同的值（spread=0），必须说清是「没写进去」，
+         不能含糊成「已同步」。 */
+      try {
+        if (out.nameless) {
+          out.msg += '；书里还有 ' + out.nameless + ' 条无名条目（uid ' + out.namelessIds + '）';
+        }
+        if (out.msg && out.msg.indexOf('顺序') < 0) {
+          var _bits = [];
+          if (!out.dispCount && !out.orderSpread) {
+            /* 两个字段一条都读不到 —— 先说清是「哪个通道读的」，
+               以前这句话一律甩锅给「宿主没回这个字段」，把自己读错源也算了进去 */
+            _bits.push('回读走的是 ' + (out.readVia || '?')
+              + '，它不回 order / displayIndex —— 换原生再读一次才能判断');
+          } else {
+            if (!out.orderSpread) _bits.push('order 全是同一个值（默认排序没生效）');
+            else if (out.orderInv > 0) _bits.push('order 还有 ' + out.orderInv + ' 处逆序');
+            else _bits.push('order 已排好');
+            if (!out.dispCount) _bits.push('读不到 displayIndex');
+            else if (!out.dispSpread) _bits.push('displayIndex 全是同一个值');
+            else _bits.push('displayIndex 已排好');
+          }
+          out.msg += '；' + _bits.join('、');
+        }
+      } catch (eOm) {}
+      return out;
+    } catch (e) {
+      out.msg = '同步失败：' + ((e && e.message) || e);
+      return out;
+    }
+  }
+
+  /* 两个脚本可能不在同一个 window：两处都挂，取的时候也两处查 */
+  /* ══ ★ 22:00：自动同步（玩家不用再手点）══════════════════════════
+     以前只有版本页那颗按钮能同步，玩家不点就永远是旧条目。
+     现在进游戏后自动跑一次：只动**我们自己的书**（命中 < 10 一律拒绝），
+     只改写内容不一致的条目、补缺的条目（默认关着）、删「创作要求」。
+     节流：同一会话只试一次；成功过就 30 分钟内不再试。
+     想关掉：localStorage 里设 SPR_WB_AUTOSYNC = 'off'。 */
+  async function wbAutoSync(force) {
+    var out = { ok: false, skipped: true, msg: '', added: 0, changed: 0, removed: 0, same: 0, total: 0 };
+    try {
+      try { if (HW.localStorage.getItem('SPR_WB_AUTOSYNC') === 'off') { out.msg = '自动同步已关闭'; return out; } } catch (eP) {}
+      if (!force) {
+        var last = 0;
+        try { last = Number(HW.localStorage.getItem('SPR_WB_AUTOSYNC_AT') || 0); } catch (eL) {}
+        /* ★ 22:26：只看「30 分钟内刚同步过」是不够的 ——
+           热更推了新版本、玩家也刷新了网页，但节流还活着，
+           于是世界书版本号永远停在上一版（作者看到的「世界书不随之更新」）。
+           现在把「线上标签」一起记：标签变了就当没同步过，立刻再来一次。 */
+        var _wantLab = '';
+        try { _wantLab = String((typeof window !== 'undefined' && window.__CQ_OSS_LABEL__) || ''); } catch (eWL) {}
+        var _lastLab = '';
+        try { _lastLab = String(HW.localStorage.getItem('SPR_WB_AUTOSYNC_LABEL') || ''); } catch (eLL) {}
+        var _labSame = !_wantLab || _wantLab === _lastLab;
+        if (last && (Date.now() - last) < 30 * 60 * 1000 && _labSame) {
+          out.msg = '30 分钟内已按 ' + (_wantLab || '同一版本') + ' 同步过';
+          return out;                     /* skipped=true，调用方会停止重试 */
+        }
+        /* ★ 22:20：以前是「一次就封死整会话」（__thWbAutoTried）。
+           第一次几乎必然失败（接口没就绪 / 条目包没到），于是
+           「世界书永远不跟着更新」。现在改成计数：最多 8 次，
+           次次都记下原因，版本页能看到卡在哪一步。 */
+        try {
+          HW.__thWbAutoTries = (Number(HW.__thWbAutoTries) || 0) + 1;
+          out.try = HW.__thWbAutoTries;
+          if (HW.__thWbAutoTries > 8) { out.msg = '自动同步已试 8 次，本次会话不再重试'; return out; }
+        } catch (eT) {}
+      }
+      var list = await fetchWbPatch();
+      if (!list || !list.length) { out.msg = '条目包没拉到'; return out; }
+      var r = await wbSyncOnly({ list: list });
+      if (r) {
+        out.ok = !!r.ok;
+        out.msg = String(r.msg || '');
+        out.added = Number(r.added || 0);
+        out.changed = Number(r.changed || 0);
+        out.removed = Number(r.removed || 0);
+        out.same = Number(r.same || 0);
+        out.total = Number(r.total || 0);
+        out.wb = String(r.wb || '');
+        out.skipped = false;
+      }
+      if (out.ok) {
+        try { HW.localStorage.setItem('SPR_WB_AUTOSYNC_AT', String(Date.now())); } catch (eS) {}
+        try {
+          var _lab2 = String((typeof window !== 'undefined' && window.__CQ_OSS_LABEL__) || '');
+          if (_lab2) HW.localStorage.setItem('SPR_WB_AUTOSYNC_LABEL', _lab2);
+        } catch (eS2) {}
+      }
+      try { HW.__thWbAutoResult = out; } catch (eR2) {}
+      return out;
+    } catch (e) {
+      out.msg = '自动同步失败：' + ((e && e.message) || e);
+      return out;
+    }
+  }
+
+  /* ══ ★ 11-15 02:10：**打开世界书面板的那一刻，先同步、再给玩家看** ══
+     作者实测出来的现象：先开面板再同步 = 看起来没用；先同步再开 = 有效。
+     这说明「谁先谁后」决定成败 —— 而玩家不可能每次都记得先后。
+
+     所以不指望玩家按顺序，改由我们接管顺序：
+       玩家点开世界书抽屉 → 我们**拦一下**，先把同步跑完 →
+       再让 ST 用自己的流程把面板画出来（那时缓存已是新数据）。
+
+     实现要点（每一条都是踩过的坑）：
+       · 拦「打开动作」不能拦 change：面板没开时 select 已经存在，change 跟开合无关。
+         真正可靠的开合信号是 #WIDrawerIcon 的 class（ST 在 openDrawer/closeDrawer 里
+         加/去 'openIcon'）。用 MutationObserver 盯它最稳。
+       · 必须在**面板渲染之前**动手。ST 的 openWorldEditor 是异步的，
+         我们没法真正「阻塞」它 —— 于是采用「先画、再纠正」：
+         放行它画完之后立刻同步 + 重载编辑器。玩家最多看到 0.5 秒旧画面，
+         然后自己变成新的，全程不用他点任何东西。
+       · 节流照抄自动同步那套：30 分钟且标签没变就跳过，别每次点开都写盘。
+       · 只认「我们的书」：命中 < 10 一律不动（wbSyncOnly 内部已有这道闸）。
+       · localStorage SPR_WB_AUTOSYNC = 'off' 仍然一键关掉全部。 */
+  function wbInstallOpenHook() {
+    try {
+      if (HW.__thWbOpenHook__) return true;
+      var icon = HD.getElementById('WIDrawerIcon');
+      if (!icon) return false;                 /* 宿主 UI 还没建好，等下一轮 */
+      HW.__thWbOpenHook__ = true;
+
+      var lastFire = 0;
+      function onOpen() {
+        var now = Date.now();
+        if (now - lastFire < 1500) return;      /* 一次开合可能连发多次 mutation */
+        lastFire = now;
+        /* 面板画完再动：给 ST 的异步渲染留出时间，避免和它抢同一个 select */
+        setTimeout(function () {
+          Promise.resolve().then(function () { return wbAutoSync(); }).then(function (r) {
+            try { HW.__thWbAutoResult = r; } catch (eR) {}
+            /* ★ 11-15 02:22：这里**不再**自己调 wbRefreshEditor。
+               wbSyncOnly 写完已经刷过一次；外面再刷一次的结果是
+               面板被重画两遍（肉眼看到闪一下），而且第二次用的是刚被第一次
+               重画过的 select 状态，纯属多余。留着回调口给上层挂用。 */
+            if (r && r.ok) {
+              try { if (typeof HW.__thWbOpenHookCb === 'function') HW.__thWbOpenHookCb(r); } catch (eCb) {}
+            }
+          }, function () {});
+        }, 260);
+      }
+
+      /* 盯 class 变化：closedIcon → openIcon 就是「刚打开」 */
+      try {
+        var prevOpen = String(icon.className || '').indexOf('openIcon') >= 0;
+        var mo = new MutationObserver(function () {
+          try {
+            var isOpen = String(icon.className || '').indexOf('openIcon') >= 0;
+            if (isOpen && !prevOpen) onOpen();
+            prevOpen = isOpen;
+          } catch (eM) {}
+        });
+        mo.observe(icon, { attributes: true, attributeFilter: ['class'] });
+      } catch (eMO) {
+        /* 没有 MutationObserver 就退回点击监听（手机老 WebView） */
+        try { icon.addEventListener('click', function () { onOpen(); }, true); } catch (eClk) {}
+      }
+
+      /* ★ 11-15 02:35：补一条「面板本来就开着」的路径。
+         上面盯的是「从关到开」的**跳变**。可下面两种情况下没有跳变：
+           ① 玩家把世界书钉住了（pinnedOpen），开游戏就一直是开着的；
+           ② 手机切后台再回来，DOM 没重建，class 早就是 openIcon。
+         热更推了新版本、或者世界书需要修，这两种玩家永远等不到同步。
+         所以再挂一个「页面重新可见」的触发点：只判面板此刻是否开着。 */
+      try {
+        HD.addEventListener('visibilitychange', function () {
+          try {
+            if (HD.visibilityState !== 'visible') return;
+            var isOpen = String(icon.className || '').indexOf('openIcon') >= 0;
+            if (!isOpen) return;
+            var now2 = Date.now();
+            if (now2 - lastFire < 5000) return;
+            lastFire = now2;
+            setTimeout(function () {
+              Promise.resolve().then(function () { return wbAutoSync(); }).then(function (r) {
+                try { HW.__thWbAutoResult = r; } catch (eR) {}
+              }, function () {});
+            }, 400);
+          } catch (eV) {}
+        });
+      } catch (eVis) {}
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* 宿主 UI 是异步建的：每 400ms 试一次，最多 20 次，装上就停 */
+  (function wbHookRetry() {
+    var n = 0;
+    (function tick() {
+      n++;
+      var ok = false;
+      try { ok = wbInstallOpenHook(); } catch (e) { ok = false; }
+      if (ok || n >= 20) return;
+      setTimeout(tick, 400);
+    })();
+  })();
+
+  /* 两个脚本可能不在同一个 window：两处都挂，取的时候也两处查 */
+  try { window.__TH_WB_SYNC__ = wbSyncOnly; } catch (eW1) {}
+  try { window.__TH_WB_AUTOSYNC__ = wbAutoSync; } catch (eWA) {}
+  try { HW.__TH_WB_AUTOSYNC__ = wbAutoSync; } catch (eWA2) {}
+  try { window.__TH_WB_READ__ = wbReadOnly; } catch (eW2) {}
+  try { HW.__TH_WB_SYNC__ = wbSyncOnly; } catch (eW3) {}
+  try { HW.__TH_WB_READ__ = wbReadOnly; } catch (eW4) {}
 
   function boot() {
     try { if (HW[LOCK]) return; HW[LOCK] = true; } catch (e) {}

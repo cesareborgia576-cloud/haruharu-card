@@ -44,8 +44,16 @@
   var HOST_ID = 'th-start-host';
   var CHIP_ID = 'th-start-chip';
   var STYLE_ID = 'th-start-style';
+  /* 样式版本：ensureStyle() 靠 `#STYLE_ID` 是否已存在来判断「要不要注入」，
+     所以**改了样式就必须换 id 尾号**，否则老页面 DOM 里那坨旧 CSS 会一直赢
+     （新规则根本没被插进去，看起来就成了「改了没生效」）。
+     ★ v1.28：重做「想玩 Galgame 版点我」那条（两行排版 + 蓝灰配色）→ 换号。 */
+  var STYLE_VER = 'v2';
   var DONE_KEY = 'thStartDone';
-  var REV = 'thso-v1';
+  /* ★ v1.28：REV 是面板 DOM 的版本戳（renderPanel 里拿它判「已经在，别动」）。
+     改结构就要换，否则老页面里那份旧 DOM 会被认成「已渲染」而不再重建
+     —— 新加的那颗「切过去 ›」胶囊就永远长不出来。 */
+  var REV = 'thso-v2';
   /* ★ v9.16 关键词触发（参考天元录 07）★
      开场白第 0 楼里放一个【开局 · xxx】标签；脚本扫到它才认定"这是开局楼"，
      把面板挂上去，再把标签文本抹掉（玩家看不到，AI 也不会把它当正文读）。
@@ -526,6 +534,37 @@
     if (state.open) { refreshPanel(); }
     toast('已重置为默认设置');
   }
+
+  /* ★★ v1.27：文字版 → 游戏版。
+     作者要求开局能选「玩游戏还是文字版」，但文字版玩家看不到游戏版那张标题屏，
+     所以入口放在开局面板最顶上，两边是同一件事的两个入口。
+     走 00-switcher 暴露的 __SPR_SWITCH_MODE__('game')：它会写卡数据 + 自动刷新网页。
+     切换器挂不上的话绝不假装成功 —— 明说让人用悬浮球或刷新。 */
+  function toGameMode() {
+    var f = null;
+    try { if (window.__SPR_SWITCH_MODE__) f = window.__SPR_SWITCH_MODE__; } catch (e1) {}
+    if (!f) { try { if (window.top && window.top.__SPR_SWITCH_MODE__) f = window.top.__SPR_SWITCH_MODE__; } catch (e2) {} }
+    if (!f) { try { if (window.parent && window.parent.__SPR_SWITCH_MODE__) f = window.parent.__SPR_SWITCH_MODE__; } catch (e3) {} }
+    if (!f) {
+      toast('⚠ 切换器没准备好，请点右下角悬浮球切换，或刷新网页再试');
+      return;
+    }
+    var doc = getDoc();
+    var btn = doc.querySelector('#' + HOST_ID + ' [data-thso-act="toGame"]');
+    if (btn) { btn.disabled = true; btn.classList.add('is-busy'); }
+    toast('正在切换到游戏版…（会写卡数据并自动刷新）');
+    Promise.resolve(f('game')).then(function (r) {
+      if (r && (r.fatal || r.skipped)) {
+        if (btn) { btn.disabled = false; btn.classList.remove('is-busy'); }
+        if (r.fatal) toast('✗ 切换没成功，还停在文字版。' + ((r.errs && r.errs[0]) ? ('原因：' + r.errs[0]) : ''));
+        else toast('已经是游戏版了，刷新一下网页就好');
+      }
+      /* 成功时切换器 900ms 后自己 reload，这里不做事 */
+    }, function (err) {
+      if (btn) { btn.disabled = false; btn.classList.remove('is-busy'); }
+      toast('✗ 切换出错：' + String(err && err.message ? err.message : err));
+    });
+  }
   function paintBusy(busy) {
     var doc = getDoc();
     var btn = doc.querySelector('#' + HOST_ID + ' [data-thso-act="confirm"]');
@@ -564,7 +603,20 @@
      全套覆盖 input / button 的酒馆默认样式 —— 主文档里酒馆的 CSS 会渗进来。 */
   function ensureStyle() {
     var doc = getDoc();
-    if (doc.getElementById(STYLE_ID)) return;
+    /* ★ v1.28：判据从「有没有这个 id」改成「有没有这个**版本**的 id」。
+       原来只要存在 #th-start-style 就直接 return —— 热更之后老页面里
+       那坨旧 CSS 还在，于是「改了样式玩家看不到」。
+       现在 id 带版本号：版本一变，旧的那个元素找不到，就会重新注入。 */
+    if (doc.getElementById(STYLE_ID + '-' + STYLE_VER)) return;
+    /* 顺手把旧版本的清掉，免得两份 CSS 同时存在互相打架 */
+    try {
+      var olds = doc.querySelectorAll('style[id^="' + STYLE_ID + '-"]');
+      for (var oi = 0; oi < olds.length; oi++) {
+        if (olds[oi].id !== STYLE_ID + '-' + STYLE_VER) {
+          try { olds[oi].parentNode.removeChild(olds[oi]); } catch (eRm) {}
+        }
+      }
+    } catch (eOld) {}
     var css = [
       '#' + STYLE_ID + ' { display: none; }',
       '#' + HOST_ID + ' { margin: 12px auto 6px; max-width: min(760px, 96vw); }',
@@ -574,6 +626,45 @@
       '.thso-sakura { flex: 0 0 auto !important; display: block !important; }',
       '.thso-title { font-size: 15px !important; font-weight: 800 !important; color: #23272c !important; letter-spacing: 1px !important; line-height: 1.2 !important; }',
       '.thso-sub { font-size: 10.5px !important; color: #7b838c !important; letter-spacing: .4px; margin-left: auto !important; }',
+      /* ★ v1.27：文字版面板顶上的「想玩 Galgame 版点我」。
+         文字版没有壳、没有标题屏，这条是文字版玩家唯一能看到的「换模式」入口，
+         所以做成整行醒目按钮，不做成角落里的小链接。
+         ──────────────────────────────────────────────────────────────────
+         ★ v1.28 重做。作者反馈原话：「文字版的这个页太tm丑了，甚至没有美化，排版也丑。」
+         抓到的两个真问题：
+         ① 排版：`.thso-playbtn-txt` 上写了 white-space:nowrap，
+            副标题又 margin-left:auto 顶到最右 —— 三块挤在一条线上，
+            窄容器里就变成「想玩 Galgame 版点我全屏画面·立绘与对话框·点哪走哪」一坨。
+            现在改成**两行**（主标题 / 副标题各占一行），nowrap 全部删掉。
+         ② 配色：原来是金色 #c8a96b + 米黄底 #fffdf7。可这块面板从 v1.2 起
+            就是「日光配色」——白底 #ffffff、深墨字 #23272c、主色蓝灰 #3d6f9e
+            （见 ensureStyle 顶上那段注释）。金色在这套里是外来的，看着就脏。
+            现在全套改用面板自己的蓝灰系：淡蓝底 + 白图标盒 + 白胶囊箭头。
+         ⚠ 三块结构（图标 / 两行文字 / 右侧胶囊）必须都能收缩：
+           主标题要能换行，所以 body 那块给 min-width:0，否则 flex 子项
+           不会缩，长文案照样顶出去。 */
+      '.thso-playtip { margin: 0 0 12px !important; }',
+      '.thso-playbtn { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; box-sizing: border-box !important; padding: 9px 12px !important; border-radius: 10px !important; border: 1px solid #c6d8e6 !important; background: linear-gradient(135deg, #f4f9fd, #e9f2f9) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; transition: border-color .15s, background .15s, box-shadow .15s, transform .15s !important; }',
+      '.thso-playbtn:hover { border-color: #3d6f9e !important; background: #e4eff8 !important; box-shadow: 0 4px 14px rgba(61,111,158,.16) !important; }',
+      '.thso-playbtn:active { transform: scale(.99) !important; }',
+      '.thso-playbtn.is-busy { opacity: .55 !important; pointer-events: none !important; }',
+      /* 图标装进白色小盒子里 —— 光一个 emoji 漂在彩色底上会显得脏 */
+      '.thso-playbtn-ico { flex: 0 0 auto !important; width: 32px !important; height: 32px !important; border-radius: 9px !important; display: flex !important; align-items: center !important; justify-content: center !important; background: #ffffff !important; border: 1px solid #d8e4ee !important; font-size: 16px !important; line-height: 1 !important; box-shadow: 0 1px 3px rgba(61,111,158,.08) !important; }',
+      /* 两行文字块：min-width:0 是关键，否则 flex 子项不肯缩、长文案顶出去 */
+      '.thso-playbtn-body { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; gap: 2px !important; }',
+      '.thso-playbtn-txt { font-size: 12.5px !important; font-weight: 800 !important; color: #2f5c86 !important; letter-spacing: .3px !important; line-height: 1.35 !important; }',
+      '.thso-playbtn-sub { font-size: 10.5px !important; color: #7b838c !important; line-height: 1.4 !important; }',
+      /* 右侧胶囊：给「这是可点的」一个明确的视觉出口，不靠 hover 才看得出来 */
+      '.thso-playbtn-go { flex: 0 0 auto !important; font-size: 10.5px !important; font-weight: 800 !important; color: #3d6f9e !important; padding: 5px 10px !important; border-radius: 999px !important; background: #ffffff !important; border: 1px solid #c6d8e6 !important; white-space: nowrap !important; line-height: 1 !important; box-shadow: 0 1px 3px rgba(61,111,158,.08) !important; }',
+      '.thso-playbtn:hover .thso-playbtn-go { border-color: #3d6f9e !important; background: #3d6f9e !important; color: #ffffff !important; }',
+      /* 手机上：胶囊藏掉（窄屏挤不下），字号各收一档，副标题保留 ——
+         它是「换过去能得到什么」的唯一说明，藏了玩家就只能猜。
+         ★ v1.28 修：断点从 480px 收到 560px。480 那一档在 340~480 之间
+           胶囊还留着，把文字块挤到 126px 宽，于是标题断成「想玩 Galgame 版点 / 我」——
+           一个「我」字独占一行，比藏掉胶囊难看多了。宁早藏。 */
+      '@media (max-width: 560px) { .thso-playbtn-go { display: none !important; } .thso-playbtn-txt { font-size: 12px !important; } .thso-playbtn-sub { font-size: 10px !important; } .thso-playbtn { padding: 8px 10px !important; gap: 8px !important; } .thso-playbtn-ico { width: 28px !important; height: 28px !important; font-size: 14px !important; } }',
+      /* 极窄屏（< 330px）再收一档，保证副标题也只占一行 */
+      '@media (max-width: 330px) { .thso-playbtn-sub { font-size: 9.5px !important; letter-spacing: -.1px !important; } }',
       '.thso-sect { margin: 12px 0 2px !important; }',
       '.thso-sect-t { font-size: 11px !important; font-weight: 700 !important; color: #3d6f9e !important; margin-bottom: 6px !important; letter-spacing: .8px !important; line-height: 1.3 !important; }',
       '.thso-cards { display: flex !important; flex-wrap: wrap !important; gap: 10px !important; }',
@@ -613,7 +704,7 @@
       '#th-start-toast.th-start-toast-show { opacity: 1 !important; transform: translate(-50%, 0) !important; }'
     ].join('\n');
     var st = doc.createElement('style');
-    st.id = STYLE_ID;
+    st.id = STYLE_ID + '-' + STYLE_VER;
     st.textContent = css;
     (doc.head || doc.documentElement).appendChild(st);
   }
@@ -641,6 +732,26 @@
     h += '<div class="thso-card" data-thso-rev="' + REV + '">';
     h += '<div class="thso-head">' + sakuraSvg(22) +
       '<span class="thso-title">春日狂想曲 · 开局设置</span><span class="thso-sub">确认后写入本局存档</span></div>';
+
+    /* ★★ v1.27：文字版也要有「换去游戏版」的入口。
+       作者要求「开始游戏的第一页就弄出来，选择玩游戏还是文字版」——
+       但文字版玩家根本看不到游戏版那张标题屏（非同层版没有壳、没有标题屏）。
+       所以这里在开局面板最顶上放一条，和游戏版标题屏那一屏是**同一件事的两个入口**：
+       一个在游戏版里（问你要不要留在游戏版），一个在文字版里（问你要不要换过去）。
+       点它就走 00-switcher 暴露的 __SPR_SWITCH_MODE__('game')，写卡数据 + 自动刷新。
+       ★ v1.28：结构改成「图标 / 两行文字 / 右侧胶囊」三段式。
+         原来三块平铺在一行里，副标题 margin-left:auto 顶右，
+         窄一点就糊成一坨（作者截图里就是这个样子）。 */
+    h += '<div class="thso-playtip" data-thso-playtip="1">' +
+      '<button type="button" class="thso-playbtn" data-thso-act="toGame">' +
+        '<span class="thso-playbtn-ico">🎮</span>' +
+        '<span class="thso-playbtn-body">' +
+          '<span class="thso-playbtn-txt">想玩 Galgame 版点我</span>' +
+          '<span class="thso-playbtn-sub">全屏画面 · 立绘与对话框 · 点哪走哪</span>' +
+        '</span>' +
+        '<span class="thso-playbtn-go">切过去 ›</span>' +
+      '</button>' +
+      '</div>';
 
     /* ① 起始篇章 */
     h += '<div class="thso-sect"><div class="thso-sect-t">① 起始篇章</div><div class="thso-cards">';
@@ -834,6 +945,7 @@
         var a = act.getAttribute('data-thso-act');
         if (a === 'confirm') confirmStart();
         else if (a === 'reset') resetForm();
+        else if (a === 'toGame') toGameMode();
       }
     });
     host.addEventListener('input', function (ev) {
