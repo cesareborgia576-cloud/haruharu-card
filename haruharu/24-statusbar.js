@@ -21,14 +21,6 @@
     return null;
   }
   /* ── 更新记录（同天元录：版本页一个入口，点开是可滚动弹层） ───────────── */
-  var CHG_URLS = [
-    /* ★ 11-14：COS 排第一。其余三条都是 @main / raw —— 实测 @main 是 12 小时缓存，
-       推完十分钟看到的还是旧记录。 */
-    'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri/changelog.json',
-    'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/main/haruharu/changelog.json',
-    'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
-    'https://gcore.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json'
-  ];
   var CHG_CACHE = null;
 
   function chgEsc(s) {
@@ -39,26 +31,71 @@
 
   function chgFetch(cb) {
     if (CHG_CACHE) { cb(CHG_CACHE); return; }
-    var i = 0;
-    function next() {
-      if (i >= CHG_URLS.length) { cb(null); return; }
-      var url = CHG_URLS[i++] + (CHG_URLS[i - 1].indexOf('raw.') >= 0 ? '' : '') + (CHG_URLS[i - 1].indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
-      var done = false;
-      var to = setTimeout(function () { if (!done) { done = true; next(); } }, 8000);
-      try {
-        fetch(url).then(function (r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.json();
-        }).then(function (j) {
-          if (done) return;
-          done = true; clearTimeout(to); CHG_CACHE = j; cb(j);
-        }, function () {
-          if (done) return;
-          done = true; clearTimeout(to); next();
-        });
-      } catch (e) { if (!done) { done = true; clearTimeout(to); next(); } }
+    /* ★ 优先复用内存已有数据，零网络请求 */
+    var _mem = null;
+    try { _mem = window.__CQ_CHANGELOG__ || (TOP && TOP.__CQ_CHANGELOG__) || null; } catch (eM) {}
+    if (_mem && _mem.entries && _mem.entries.length) {
+      CHG_CACHE = _mem;
+      cb(_mem);
+      return;
     }
-    next();
+    /* 尝试从当前通道加载 chg.js (JSONP) 绕过 CORS */
+    var b = '';
+    try { b = String(window.__SPR_HOT_BASE__ || (TOP && TOP.__SPR_HOT_BASE__) || ''); } catch (e0) {}
+    if (!b) b = 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri';
+    var seq = '';
+    try { seq = String(window.__CQ_OSS_SEQ__ || (TOP && TOP.__CQ_OSS_SEQ__) || ''); } catch (eS) {}
+    var q = seq ? ('?s=' + seq) : '';
+
+    var d = hostDoc();
+    if (d) {
+      try {
+        var s = d.createElement('script');
+        var done = false;
+        s.async = true;
+        s.src = b.replace(/\/+$/, '') + '/chg.js' + q;
+        s.onload = function () {
+          if (done) return;
+          done = true;
+          var j = window.__CQ_CHANGELOG__ || (TOP && TOP.__CQ_CHANGELOG__) || null;
+          if (j && j.entries) { CHG_CACHE = j; cb(j); return; }
+          fallback();
+        };
+        s.onerror = function () { if (!done) { done = true; fallback(); } };
+        (d.head || d.documentElement).appendChild(s);
+        setTimeout(function () { if (!done) { done = true; fallback(); } }, 5000);
+        return;
+      } catch (eJs) {}
+    }
+    fallback();
+
+    function fallback() {
+      var urls = [
+        'https://raw.githubusercontent.com/cesareborgia576-cloud/haruharu-card/main/haruharu/changelog.json',
+        'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json',
+        'https://gcore.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/changelog.json'
+      ];
+      var i = 0;
+      function next() {
+        if (i >= urls.length) { cb(null); return; }
+        var url = urls[i++] + q;
+        var settled = false;
+        var to = setTimeout(function () { if (!settled) { settled = true; next(); } }, 8000);
+        try {
+          fetch(url).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          }).then(function (j) {
+            if (settled) return;
+            settled = true; clearTimeout(to); CHG_CACHE = j; cb(j);
+          }, function () {
+            if (settled) return;
+            settled = true; clearTimeout(to); next();
+          });
+        } catch (e) { if (!settled) { settled = true; clearTimeout(to); next(); } }
+      }
+      next();
+    }
   }
 
   /* 导出给齿轮面板：v150 把状态栏整个 display:none 了，原来挂在状态栏
@@ -164,6 +201,18 @@
       '<div class="ver-row"><span class="ver-k">外置插图</span>',
       '<span class="ver-v" id="sb-fn-ext-v">—</span>',
       '<button type="button" class="ver-btn" id="sb-fn-ext">切换</button></div>',
+      /* ★ v1.24：悬浮球收起后必须能在这里叫回来，否则玩家收了就再也找不到。
+         文字版这一页是「功能」，跟游戏版 HUD 面板里那两个按钮是同一个用途。 */
+      '<div class="ver-row"><span class="ver-k">悬浮球</span>',
+      '<span class="ver-v" id="sb-fn-ball-v">—</span>',
+      '<button type="button" class="ver-btn" id="sb-fn-ball">叫回来</button></div>',
+      '<div class="ver-row"><span class="ver-k">游玩模式</span>',
+      '<span class="ver-v">📖 文字版</span>',
+      '<button type="button" class="ver-btn" id="sb-fn-togame">切换游戏版</button></div>',
+      /* ★ 2026-11-16：同样的关系网界面，功能页入口不定位（跟角色菜单那一颗分开）。 */
+      '<div class="ver-row"><span class="ver-k">人物关系网</span>',
+      '<span class="ver-v">三篇章 + user</span>',
+      '<button type="button" class="ver-btn" id="sb-fn-relnet">查看</button></div>',
       '<div style="margin-top:10px;font-size:11px;color:#8a8175;line-height:1.75;">',
       '内置插图：卡里自带的图组（&lt;插图&gt; 标签）。<br>',
       '外置插图：st-chatu8 这类生图插件出的图，铺在游戏背景上，压在内置插图之上。</div>'
@@ -182,6 +231,20 @@
         d.getElementById('sb-fn-ext-v').textContent = i2 ? '开' : '关';
         d.getElementById('sb-fn-ext').textContent = i2 ? '关闭' : '打开';
       } catch (e) {}
+      paintBall();
+    }
+    /* 悬浮球状态：只报告「现在在不在」，不去猜它该不该在 ——
+       收起状态是 00-switcher 的闭包变量（刷新即复位），这里读它的对外函数。 */
+    function paintBall() {
+      try {
+        var q = null;
+        try { if (TOP && TOP.__SPR_BALL_HIDDEN__) q = TOP.__SPR_BALL_HIDDEN__; } catch (e1) {}
+        if (!q) { try { if (window.__SPR_BALL_HIDDEN__) q = window.__SPR_BALL_HIDDEN__; } catch (e2) {} }
+        var hidden = false;
+        try { hidden = (typeof q === 'function') ? !!q() : false; } catch (e3) {}
+        d.getElementById('sb-fn-ball-v').textContent = hidden ? '已收起' : '在右下角';
+        d.getElementById('sb-fn-ball').textContent = hidden ? '叫回来' : '收起';
+      } catch (e4) {}
     }
     try {
       d.getElementById('sb-fn-illust').onclick = function () {
@@ -201,6 +264,75 @@
         paint();
       };
     } catch (eB) {}
+
+    /* ★ v1.24：功能页里的「叫回悬浮球 / 切换游戏版」。
+       状态栏是 iframe 里的文档，球挂在宿主 window 上 ⇒ 层层找。 */
+    function pickFn(name) {
+      var f = null;
+      try { if (TOP && TOP[name]) f = TOP[name]; } catch (e1) {}
+      if (!f) { try { if (window[name]) f = window[name]; } catch (e2) {} }
+      if (!f) { try { if (window.parent && window.parent[name]) f = window.parent[name]; } catch (e3) {} }
+      if (!f) { try { if (window.top && window.top[name]) f = window.top[name]; } catch (e3b) {} }
+      return f || null;
+    }
+
+    /* ★ 2026-11-16：文字版功能页「人物关系网 / 查看」。
+       弹层由 10-core.js 挂在宿主 document（iframe 太小），这里只负责叫它出来；
+       不传 focus —— 从功能页点开的是总图，不定位到任何人。 */
+    var relBtn = d.getElementById('sb-fn-relnet');
+    if (relBtn) {
+      relBtn.onclick = function () {
+        var api = pickFn('__TH_RELNET__');
+        try {
+          if (!api || typeof api.open !== 'function') throw new Error('关系网模块还没加载好，稍后再点');
+          api.open();
+        } catch (eRN) {
+          try { if (typeof showToast === 'function') showToast('关系网打不开：' + ((eRN && eRN.message) || '未知'), 3200); } catch (eT) {}
+        }
+      };
+    }
+
+    var ballBtn = d.getElementById('sb-fn-ball');
+    if (ballBtn) {
+      ballBtn.onclick = function () {
+        /* 读当前状态决定是收起还是叫回 —— 按钮文字跟着走，不猜 */
+        var hidden = false;
+        try {
+          var q = null;
+          try { if (TOP && TOP.__SPR_BALL_HIDDEN__) q = TOP.__SPR_BALL_HIDDEN__; } catch (e1) {}
+          if (!q) { try { if (window.__SPR_BALL_HIDDEN__) q = window.__SPR_BALL_HIDDEN__; } catch (e2) {} }
+          if (typeof q === 'function') hidden = !!q();
+        } catch (e3) {}
+        var fn = pickFn(hidden ? '__SPR_BALL_SHOW__' : '__SPR_BALL_HIDE__');
+        if (fn) {
+          try { fn(); } catch (eS) {}
+          setTimeout(paintBall, 120);
+        } else {
+          try { d.getElementById('sb-fn-ball-v').textContent = '切换器没起来'; } catch (eV2) {}
+        }
+      };
+    }
+    var toGameBtn = d.getElementById('sb-fn-togame');
+    if (toGameBtn) {
+      toGameBtn.onclick = function () {
+        var fn = pickFn('__SPR_SWITCH_MODE__');
+        if (!fn) {
+          try { d.getElementById('sb-fn-togame').textContent = '切换器没起来'; } catch (eV) {}
+          return;
+        }
+        try { d.getElementById('sb-fn-togame').textContent = '切换中…'; } catch (eV2) {}
+        Promise.resolve(fn('game')).then(function (r) {
+          /* 成功的话切换器 900ms 后自己 reload；失败要说清，绝不假装成功 */
+          if (r && r.fatal) {
+            try { d.getElementById('sb-fn-togame').textContent = '切换失败'; } catch (eV3) {}
+          } else if (r && r.skipped) {
+            try { d.getElementById('sb-fn-togame').textContent = '已是游戏版'; } catch (eV4) {}
+          }
+        }, function () {
+          try { d.getElementById('sb-fn-togame').textContent = '切换出错'; } catch (eV5) {}
+        });
+      };
+    }
     paint();
   }
 
