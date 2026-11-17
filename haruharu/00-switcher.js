@@ -1258,7 +1258,23 @@
      版本号这一条就是给玩家和自己一眼看穿用的。
      ══════════════════════════════════════════════════════════════════════ */
   /* ★ 21:35：同样不能再写死 chunri/ —— 开发者卡的世界书同步必须拉 chunri-dev 的条目包，
-     否则版本号那一条会被写成玩家通道的旧值（表现为「同步了但还是旧版本号」）。 */
+     否则版本号那一条会被写成玩家通道的旧值（表现为「同步了但还是旧版本号」）。
+
+     ★ 2026-11-17：转回 GitHub 后，「反推基址」这套判据必须更换。
+     以前只认路径结尾 /chunri(-dev)，而 GitHub 地址结尾永远是 /haruharu，
+     于是反推**永远失败**、一律落到写死的 COS 地址，而 COS 已停 ⇒ 404。
+     ⚠ 这里必须与 10-core 的 thHotDirOf() 保持同一套判据（同一个量两套算法 = bug）。
+       之所以没抽成公共函数：这两个文件在酒馆里可能是单独切片执行，
+       跨文件引用会 ReferenceError（本项目踩过）。所以要改就两处一起改。 */
+  function swHotDirOf(u) {
+    var m = /^(https?:\/\/[^\s?#]+?)\/[^\/?#]+\.js(?:[?#]|$)/.exec(String(u || ''));
+    if (!m) return '';
+    var dir = m[1];
+    if (/\/chunri(?:-dev)?$/i.test(dir)) return dir;
+    if (/jsdelivr\.net\/gh\/[^/]+\/[^/]+@[^/]+\/haruharu$/i.test(dir)) return dir;
+    if (/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/haruharu$/i.test(dir)) return dir;
+    return '';
+  }
   function swHotBase() {
     var b = '';
     try { b = String((HW && HW.__SPR_HOT_BASE__) || window.__SPR_HOT_BASE__ || ''); } catch (e0) {}
@@ -1270,13 +1286,12 @@
       try {
         var list = docs[d].querySelectorAll('script[src]');
         for (var i = 0; i < list.length; i++) {
-          var u = String(list[i].src || '');
-          var m = /^(https?:\/\/[^\s?#]+?)\/[^\/?#]+\.js(?:[?#]|$)/.exec(u);
-          if (m && /\/chunri(?:-dev)?$/i.test(m[1])) return m[1];
+          var dir = swHotDirOf(list[i].src);
+          if (dir) return dir;
         }
       } catch (e3) {}
     }
-    return 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri';
+    return 'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu';
   }
   function swHotUrl(path) {
     var p = String(path || '');

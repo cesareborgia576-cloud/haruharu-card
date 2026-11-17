@@ -30173,14 +30173,39 @@ function __thViewportBox() {
      · 每 20 秒的版本巡查问的是玩家通道 ⇒ 开发者卡永远判「已是最新」，红条不弹
      · 版本页读的是玩家通道的 chg.js ⇒ 明明更新了，更新记录还是旧的
    现在统一走 thHotBase()：先看 loader 广播的 __SPR_HOT_BASE__，没有再从我自己的
-   <script src> 反推（…/chunri-dev/10-core.js?s=88 → …/chunri-dev）。 */
-var TH_HOT_BASE_DEFAULT = 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri';
+   <script src> 反推。
+
+   ★ 2026-11-17 转回 GitHub 后的第二个「旧判据变恒假」：
+   反推那步以前只认路径结尾是不是 /chunri(-dev)，因为 COS 只有这两种目录。
+   GitHub 的地址是
+     https://fastly.jsdelivr.net/gh/<user>/<repo>@<ref>/haruharu/10-core.js?s=900024
+   路径结尾永远是 /haruharu ⇒ 反推**永远失败** ⇒ 一律回落到下面那个写死的
+   COS 地址 ⇒ COS 已停 ⇒ ver.js / chg.js 全 404 ⇒ 红条不亮、更新记录读不到。
+   所以现在反推要认「热更脚本的三种真实形状」：
+     COS      …/chunri(-dev)/10-core.js
+     jsDelivr …/gh/<u>/<r>@<ref>/haruharu/10-core.js
+     raw      …/<u>/<r>/<ref>/haruharu/10-core.js
+   ⚠ 兜底地址也要跟着换：COS 已经不是唯一的源了，写着 COS 只会把故障藏起来。 */
+var TH_HOT_BASE_DEFAULT = 'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu';
 function thDocList() {
   var out = [];
   try { out.push(getDoc()); } catch (e0) {}
   try { if (document && out.indexOf(document) < 0) out.push(document); } catch (e1) {}
   try { if (window.top && window.top.document && out.indexOf(window.top.document) < 0) out.push(window.top.document); } catch (e2) {}
   return out;
+}
+/* 从一个 <script src> 里反推「热更目录」基址；认不出返回 ''。
+   抽成函数是为了让 thHotBase 与测试共用同一套判据 —— 两处各写一份必然走偏。 */
+function thHotDirOf(u) {
+  var m = /^(https?:\/\/[^\s?#]+?)\/[^\/?#]+\.js(?:[?#]|$)/.exec(String(u || ''));
+  if (!m) return '';
+  var dir = m[1];
+  /* COS：…/chunri 或 …/chunri-dev */
+  if (/\/chunri(?:-dev)?$/i.test(dir)) return dir;
+  /* jsDelivr / raw：必须是 …/<...>/haruharu 这一层（BASE_DIR） */
+  if (/jsdelivr\.net\/gh\/[^/]+\/[^/]+@[^/]+\/haruharu$/i.test(dir)) return dir;
+  if (/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/haruharu$/i.test(dir)) return dir;
+  return '';
 }
 function thHotBase() {
   var b = '';
@@ -30191,9 +30216,8 @@ function thHotBase() {
     try {
       var list = docs[d].querySelectorAll('script[src]');
       for (var i = 0; i < list.length; i++) {
-        var u = String(list[i].src || '');
-        var m = /^(https?:\/\/[^\s?#]+?)\/[^\/?#]+\.js(?:[?#]|$)/.exec(u);
-        if (m && /\/chunri(?:-dev)?$/i.test(m[1])) return m[1];
+        var dir = thHotDirOf(list[i].src);
+        if (dir) return dir;
       }
     } catch (e4) {}
   }
@@ -30207,12 +30231,25 @@ function thHotUrl(path) {
 function __thSeqFromScript() {
   var q = 0;
   var docs = thDocList();
+  /* ★ 2026-11-17：判据不能再看路径里有没有 'chunri'。
+     COS 时代靠 chunri/ 与 chunri-dev/ 区分通道，所以前面写过
+     `if (u.indexOf('chunri') < 0) continue;` —— 但转回 GitHub 之后，
+     脚本地址是 .../haruharu-card@<sha>/haruharu/10-core.js?s=900024，
+     **路径里没有 chunri 这个词** ⇒ 每个 script 都被 continue 掉 ⇒ 恒返回 0
+     ⇒ 「↑ 有新更新」红条永远不亮、版本页永远「已是最新」。
+     这个 bug 只在换托管之后才出现，走 COS 时永远是绿的 —— 典型的"换了地基、
+     旧判据变成恒假"。现在改成认「热更目录」这个真正的特征。 */
+  function isHotScript(u) {
+    return /\/haruharu(?:-dev)?\//.test(u) || u.indexOf('chunri') >= 0
+      || /jsdelivr\.net\/gh\/[^/]+\/[^/]+@/.test(u)
+      || /raw\.githubusercontent\.com\/[^/]+\/[^/]+\//.test(u);
+  }
   for (var d = 0; d < docs.length && !q; d++) {
     try {
       var list = docs[d].querySelectorAll('script[src]');
       for (var i = 0; i < list.length; i++) {
         var u = String(list[i].src || '');
-        if (u.indexOf('chunri') < 0) continue;   /* 同时匹配 chunri 与 chunri-dev */
+        if (!isHotScript(u)) continue;
         var m = /[?&]s=(\d+)/.exec(u);
         if (m) { q = Number(m[1]) || 0; if (q) { break; } }
       }
