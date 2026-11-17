@@ -1416,12 +1416,29 @@
          老玩家书里那条文字版的实体必须删掉，否则书里永远显示「怎么还有两个初始化变量」。
          ⚠ 名字不在包里是删除前提，这里正好成立。 */
       '[InitVar]初始变量·文字版',
-      /* ── 2026-11-17：整套「连携移动 / 剧情连携移动」功能已下架（确认条也删了）。──
-         这两条整条正文都在教模型写那两个标签，功能没了就是纯烧 token；
-         更糟的是《内置思维链》里还留着「细节见《剧情连携移动判定》」——
-         指向一条已经不存在的条目。作者原话：「你他妈内置思维链不去掉连携移动吗」。 */
+      /* ── 2026-11-17：`<连携移动>` 那套（整条消息级、弹确认条）已下架。──
+         ⛔ 2026-11-18 00:40：作者原话「连携移动不等于剧情连携移动」
+         「限你1分钟恢复剧情连携移动」。⇒ 《连携判定》不要，留在白名单；
+         《剧情连携移动判定》要，已回包里，**绝不许留在这里**（会被精确删掉）。 */
       '连携判定',
-      '剧情连携移动判定'
+      /* ── 2026-11-17 22:0x：本轮去重删掉的 6 条 ──
+         ⛔ 前提照旧：这里列出的名字，**不许**再出现在 wbpatch.json 里。
+         作者原话：
+           「为什么有一个插图库和插图系统」
+           「为什么有两个树精和白狐的条目」
+           「重要记忆你他妈重复了5次」
+         · 插图库        ⇒ 与《插图系统》逐条重复（写法/手势前戏/别做的事），已合并成一条。
+         · 重要记忆写法  ⇒ 与《格式》里那段**逐字几乎相同**（模板串一模一样），已并入《格式》。
+         · 精灵 御神木 / 人物 御神木之灵 ⇒ 合成一条《御神木之灵》
+         · 妖怪 白蔵主 / 人物 白蔵主     ⇒ 合成一条《白蔵主》
+           这两组原来**共用同一套 26 个 keys**，一条命中四条一起注入、共 9941 字、相似度 70%。
+           老玩家书里这四条旧实体必须删掉，否则和新的一条同时参与渲染。 */
+      '插图库',
+      '重要记忆写法',
+      '精灵 御神木',
+      '妖怪 白蔵主',
+      '人物 御神木之灵',
+      '人物 白蔵主'
     ];
     for (var i = 0; i < names.length; i++) m[names[i]] = 1;
     return m;
@@ -1920,7 +1937,10 @@
   async function wbReadOnly() {
     var out = { ok: false, wb: '', ver: '', count: 0, hit: 0, sample: '', books: '',
                 verSrcUid: '', verSrcName: '', verSrcIdx: 0, verBy: '',
-                probe: null, msg: '', state: '', ejsBad: 0, ejsNames: [] };
+                probe: null, msg: '', state: '', ejsBad: 0, ejsNames: [],
+                /* ★ 2026-11-18：世界书新鲜度按「版本号」判（作者要求）。
+                   want = 本卡期望版本号；stale = 书里版本号 ≠ want。 */
+                want: '', fresh: false, stale: false, staleWhy: '', staleHit: [] };
     try {
       out.probe = wbProbe();
       var getE = pickWbFn('getLorebookEntries');
@@ -1939,9 +1959,35 @@
       out.sample = (es || []).slice(0, 3).map(function (e) {
         return wbEntryName(e) || '（无名）';
       }).join(' / ');
-      /* ★ 标题名对不上就按正文认 —— 宿主可能把 comment 吃掉了 */
+      /* ★★ 2026-11-18：作者原话「直接以版本号为显示」「每次改世界书就版本号改一下」。
+         删掉原来那一大套「特征指纹」判据 —— 每改一样世界书就要补一条、永远补不完，
+         而且旧书只差一条就假显示「最新」。判据唯一：书里版本号条目正文 == 本卡期望版本号。
+         期望值来源：卡内嵌 __TH_WB_EXPECT_VER__（本地卡）/ 权威源版本号条目 / 联网 label。 */
       var hitEnt = (es || []).filter(wbIsVerEntry)[0];
       out.ver = hitEnt ? String(hitEnt.content == null ? '' : hitEnt.content).trim() : '';
+      try {
+        var _want = '';
+        try { _want = String(window.__TH_WB_EXPECT_VER__ || (HW && HW.__TH_WB_EXPECT_VER__) || ''); } catch (eW0) {}
+        if (!_want) {
+          var _loc = window.__TH_WBPATCH_LOCAL__ || (HW && HW.__TH_WBPATCH_LOCAL__) || [];
+          for (var _li = 0; _li < (_loc || []).length; _li++) {
+            if (String((_loc[_li] && (_loc[_li].comment || _loc[_li].name)) || '') === WB_VER_ENTRY) {
+              _want = String((_loc[_li] && _loc[_li].content) || '').trim(); break;
+            }
+          }
+        }
+        if (!_want) { try { _want = String((window.__CQ_OSS_LABEL__ || (HW && HW.__CQ_OSS_LABEL__) || '')); } catch (eW1) {} }
+        out.want = _want;
+        if (_want && out.ver) {
+          out.stale = (out.ver !== _want);
+          out.fresh = !out.stale;
+          out.staleWhy = out.stale ? ('书里是 ' + out.ver + '，本卡是 ' + _want) : '';
+          out.staleHit = out.stale ? [WB_VER_ENTRY] : [];
+        } else {
+          /* 任一侧读不到：不判 stale、也不假 fresh（core 会按「未读到」显示检测中） */
+          out.stale = false; out.fresh = false; out.staleWhy = ''; out.staleHit = [];
+        }
+      } catch (eFp) { out.fresh = false; out.stale = false; out.staleWhy = ''; }
       /* ★★★ 2026-11-17 02:45 证据链（作者原话：「这个版本号是假显示，条目里连一个
          版本号的条目都没有，完全纯假显示」）。
          ────────────────────────────────────────────────────────────────
@@ -2074,21 +2120,52 @@
       var pick = await wbPickTarget(getE, names, map);
       out.books = pick.info.join('  |  ');
       if (!pick.name) {
-        /* 一条都不命中：这本书不是这张卡的（游戏版 / 文字版共用同一个书名）。
-           绝不批量灌 128 条进去 —— 那会把别人的书彻底搞乱。 */
-        var es0 = names[0] ? await getE(names[0]) : [];
-        var sample0 = (es0 || []).slice(0, 3).map(function (e) {
-          return String((e && (e.comment || e.name)) || '（无名）');
-        }).join(' / ');
-        out.msg = '绑定的《' + (names[0] || '?') + '》' + ((es0 || []).length) +
-          ' 条里没有一条我们的条目' + (sample0 ? '（前几条：' + sample0 + '）' : '') +
-          ' —— 为防污染别人的世界书，本次不写入。';
-        return out;
+        /* ⛔⛔ 2026-11-18 00:25 —— 作者原话：「你的问题，还是没改」。
+           ────────────────────────────────────────────────────────────────
+           这里是**死锁**，一直没被发现：
+             wbPickTarget 只在「命中 > 0」时才认一本书。
+             而作者把旧的同名书写删了 ⇒ 角色绑定的那本是**空的** ⇒
+             命中恒为 0 ⇒ pick.name 恒为空 ⇒ 走进下面这个「为防污染不写入」
+             ⇒ 永远写不进去 ⇒ 作者刷新再多遍也还是空的。
+            ────────────────────────────────────────────────────────────────
+           正确判据：**空书 ≠ 别人的书**。一本书 0 条，它里面没有任何
+           「别人的内容」可以被污染，往空书里写正是我们要做的事。
+           所以：只要候选里有一本是**空的**，就直接选它、照常写入。
+           只有「非空、且一条都不命中」才维持拒写（那才是真·别人的书）。 */
+        var _emptyName = '';
+        for (var _bi = 0; _bi < names.length; _bi++) {
+          var _bes = null;
+          try { _bes = await getE(names[_bi]); } catch (eBE) { continue; }
+          if (_bes && _bes.length === 0) { _emptyName = names[_bi]; break; }
+        }
+        if (_emptyName) {
+          pick = { name: _emptyName, hit: 0, info: (pick.info || []).concat([_emptyName + ': 空书→直接建']) };
+          out.books = pick.info.join('  | ');
+        } else {
+          var es0 = names[0] ? await getE(names[0]) : [];
+          var sample0 = (es0 || []).slice(0, 3).map(function (e) {
+            return String((e && (e.comment || e.name)) || '（无名）');
+          }).join(' / ');
+          out.msg = '绑定的《' + (names[0] || '?') + '》' + ((es0 || []).length) +
+            ' 条里没有一条我们的条目' + (sample0 ? '（前几条：' + sample0 + '）' : '') +
+            ' —— 为防污染别人的世界书，本次不写入。';
+          return out;
+        }
       }
       /* ★ 命中不是满额（<10）说明书名撞了、绑到了另一代的同名牌上。
-         这种书**只补匹配到的条目 + 版本号**，不批量补 128 条、不删任何东西。 */
-      var partial = pick.hit < 10;
+         这种书**只补匹配到的条目 + 版本号**，不批量补 128 条、不删任何东西。
+         ⛔⛔ 2026-11-18 00:26：**空书绝不算 partial**。
+         partial 的语义是「这本书里有别人的东西，别动」——
+         而 0 条的书里根本没有别人的东西。作者把旧书删了以后，
+         角色绑的就是空书；如果它被当成 partial，下面第 2488 行会
+         `if (partial && nm !== WB_VER_ENTRY) return;` ⇒ 90 条全跳过、
+         只补一条版本号 ⇒ 作者看到的还是「没改」。
+         所以：空书 = 全新书 = 走**全量**（该补的补、该开的开）。
+         这是第三个死锁，前两个分别是 wbPickTarget 不认空书、以及拒写分支。 */
+      var _isEmptyBook = (pick.hit === 0);
+      var partial = !_isEmptyBook && pick.hit < 10;
       out.partial = partial;
+      out.emptyBook = _isEmptyBook;
       var wb = pick.name;
       out.wb = wb;
 
