@@ -30228,6 +30228,41 @@ function thHotUrl(path) {
   if (p.charAt(0) !== '/') p = '/' + p;
   return thHotBase() + p;
 }
+
+/* ══ ★ 2026-11-17 19:40：「我这版」与「线上最新」必须用两个不同的地址 ═════════
+   thHotBase() 是从**自己脚本的 src** 反推出来的，在 sha 路由下它带着
+   `@<本次加载的 sha>` ⇒ thHotUrl('/ver.js') 读到的是**我自己这份代码**的
+   ver.js，seq 与我完全相同。拿它当「线上最新」去比，结论永远是「已是最新」，
+   红条一次都不会亮 —— 这和原来「红条常驻」是同一个错误的另一面：
+   **两边取值同源，比较就没有意义**。
+
+   ⇒ 想拿线上最新，必须走**分支**（main / dev），分支头会往前走。
+   ⚠ 分支地址正是 jsDelivr 长缓存（s-maxage=43200）的重灾区，所以 60 秒
+     冷却 + 每次不同的 ?t= 必须有；而且这个值**只用于提示**，
+     绝不参与「该不该加载什么」的决策。 */
+function thHotBranchRef() {
+  /* loader 现在直接广播分支，优先用它（准确值 > 猜） */
+  var br = '';
+  try { br = String(window.__SPR_HOT_BRANCH__ || (HOST && HOST.__SPR_HOT_BRANCH__) || ''); } catch (eBr) {}
+  if (br === 'dev' || br === 'main') return br;
+  var c = '';
+  try { c = String(window.__SPR_HOT_CHAN__ || (HOST && HOST.__SPR_HOT_CHAN__) || ''); } catch (e0) {}
+  if (!c) {
+    /* loader 没广播通道（旧卡）：从自己脚本地址里认 —— dev 脚本的路径带 -dev
+       或 @dev，玩家脚本是 @main。认不出就当玩家通道，最保守。 */
+    try {
+      var u = String(thHotBase() || '');
+      if (/@dev\//.test(u) || /\/haruharu-dev\//.test(u) || /-dev$/.test(u)) c = 'dev';
+    } catch (e1) {}
+  }
+  return (c === 'dev') ? 'dev' : 'main';
+}
+function thHotLiveUrl(path) {
+  var p = String(path || '');
+  if (p.charAt(0) !== '/') p = '/' + p;
+  return 'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@'
+    + thHotBranchRef() + '/haruharu' + p;
+}
 function __thSeqFromScript() {
   var q = 0;
   var docs = thDocList();
@@ -30260,23 +30295,58 @@ function __thSeqFromScript() {
 
 function __thLiveVerState() {
   var w = window, h = HOST;
-  var card = '', runVer = '', runSeq = 0, ossVer = '', ossSeq = 0, ossLabel = '';
+  var card = '', cardSeq = 0, runVer = '', runSeq = 0, runSeqSrc = '';
+  var ossVer = '', ossSeq = 0, ossLabel = '';
   try { card = String(w.__SPR_CARD_VER || (h && h.__SPR_CARD_VER) || w.__SPR_CARD_VER__ || (h && h.__SPR_CARD_VER__) || ''); } catch (e1) {}
+  try { cardSeq = Number(w.__SPR_CARD_SEQ__ || (h && h.__SPR_CARD_SEQ__) || 0) || 0; } catch (e1b) {}
   try { runVer = String(w.__SPR_HOT_VER__ || (h && h.__SPR_HOT_VER__) || ''); } catch (e2) {}
-  try { runSeq = Number(w.__SPR_SEQ__ || (h && h.__SPR_SEQ__) || 0); } catch (e3) {}
+  try { runSeq = Number(w.__SPR_SEQ__ || (h && h.__SPR_SEQ__) || 0) || 0; } catch (e3) {}
+  try { runSeqSrc = String(w.__SPR_RUN_SEQ_SRC__ || (h && h.__SPR_RUN_SEQ_SRC__) || ''); } catch (e3b) {}
   try { ossVer = String(w.__CQ_OSS_VER__ || (h && h.__CQ_OSS_VER__) || ''); } catch (e4) {}
-  try { ossSeq = Number(w.__CQ_OSS_SEQ__ || (h && h.__CQ_OSS_SEQ__) || 0); } catch (e5) {}
+  try { ossSeq = Number(w.__CQ_OSS_SEQ__ || (h && h.__CQ_OSS_SEQ__) || 0) || 0; } catch (e5) {}
   try { ossLabel = String(w.__CQ_OSS_LABEL__ || (h && h.__CQ_OSS_LABEL__) || ''); } catch (e6) {}
-  /* loader 是旧版、没广播 seq 时，从自己脚本的 ?s= 挖 —— 这个值永远是"我正在跑的那份" */
-  if (!runSeq) { runSeq = __thSeqFromScript(); }
-  var newer = false;
-  if (ossSeq && runSeq) newer = ossSeq > runSeq;                       /* seq 只增不减，最可靠 */
-  else if (ossVer && runVer) newer = __thLiveVerCmp(ossVer, runVer) > 0; /* 都拿不到才退回字符串 */
+
+  /* ⛔ ★ 2026-11-17 19:45：这一段是本轮「一直提醒有新版本、刷新也不消」的**根治**。
+     ══════════════════════════════════════════════════════════════════════
+     【曾经的两条错路，都试过，都是错的】
+
+     ① 回落到卡的 CARD_SEQ
+        `if (!runSeq) runSeq = CARD_SEQ` —— 「卡是哪一版打出来的」被当成
+        「我正在跑的是哪一版」。sha 路由下脚本永远是最新的（seq 900026），
+        卡却停在被构建那一刻（900024） ⇒ ossSeq > runSeq **恒成立** ⇒
+        红条常驻，点刷新也没用（刷新重开的还是那张卡，CARD_SEQ 不变）。
+        → 这就是作者截图里那个 bug。
+
+     ② 回落到 __thSeqFromScript()
+        它挖的是自己 <script src> 里的 `?s=`。但 loader 拼这个 query 用的就是
+        CARD_SEQ（见 00-loader.js 的 qsFor）⇒ **挖出来的还是卡的号**，
+        等于换了个写法重犯 ①。同一份错误的量，改个来源照样错。
+
+     【现在的判据：宁可不说，也不许瞎说】
+     runSeq 只认 loader 读完 `@<ref>` 的 ver.js 后广播的 __SPR_SEQ__。
+     拿不到 ⇒ 不猜，直接走「版本号字符串比对」；同一份代码的 ver.js 与
+     脚本来自同一个 commit，版本号一定相同 ⇒ 判「已是最新」。
+     宁可漏报一次，也不要每次开机都撒谎说有新版。 */
+  /* ⚠ 初值必须是空串，不能写 'none'。
+     上一版写成 `basis = 'none'` 又在下面用 `if (!basis)` 判「还没判定过」——
+     'none' 是真值 ⇒ 那个分支永远进不去 ⇒ unknown-run 永远标不出来。
+     同一个变量同时承担「判定结果」和「是否已判定」两个含义，必错。 */
+  var newer = false, basis = '';
+  if (ossSeq && runSeq) {
+    newer = ossSeq > runSeq;
+    basis = 'seq';
+  } else if (ossVer && runVer) {
+    newer = __thLiveVerCmp(ossVer, runVer) > 0;
+    basis = 'ver';
+  }
+  /* 诊断：判成「没新版」时到底是没拿到数据，还是真的一样新 */
+  if (!basis) basis = (ossVer || ossSeq) ? 'unknown-run' : 'none';
+
   return {
-    card: card,
-    runVer: runVer, runSeq: runSeq,
+    card: card, cardSeq: cardSeq,
+    runVer: runVer, runSeq: runSeq, runSeqSrc: runSeqSrc,
     ossVer: ossVer, ossSeq: ossSeq, ossLabel: ossLabel,
-    newer: newer
+    newer: newer, basis: basis
   };
 }
 
@@ -31066,13 +31136,20 @@ function __thLiveVerTick(force) {
        三个都叫 v1.22 就永远判「没新版」，红条一次都不弹。
        新写法：运行 seq 拿不到时从自己脚本的 ?s= 挖（这个值永远是真的）。 */
     var _st = __thLiveVerState();
-    if (!_st.ossVer) { _st.ossVer = v; }        /* ver.js 刚读到的值优先 */
+    /* ★ 19:45：删掉 `if (!_st.ossVer) { _st.ossVer = v; }`。
+       那一句在 `v`（本次刚嗅到的线上版本号）非空时会覆盖 ossVer，在 `v` 为空时
+       什么也不做 —— 但它让「拿不到线上版本」和「线上版本等于刚读到的这个值」
+       两种情况在后续代码里长得一模一样，判定就永远走不到正确的分支。
+       现在 fetch 结果直接写进全局（__CQ_OSS_*），由 __thLiveVerState() 统一读，
+       **只保留一个来源**；这里不再给状态对象打补丁。 */
     var newer = _st.newer;
     /* 诊断出口：卡住时看这一段就知道是没拉到、还是判定成"不比卡内新" */
     try {
       window.__SPR_LIVE_DBG__ = {
-        at: Date.now(), ossVer: _st.ossVer, ossSeq: _st.ossSeq,
-        runVer: _st.runVer, runSeq: _st.runSeq, newer: !!newer
+        at: Date.now(), basis: _st.basis, fetched: v,
+        ossVer: _st.ossVer, ossSeq: _st.ossSeq,
+        runVer: _st.runVer, runSeq: _st.runSeq, runSeqSrc: _st.runSeqSrc,
+        cardSeq: _st.cardSeq, newer: !!newer
       };
     } catch (eDbg) {}
     if (newer) {
@@ -31112,7 +31189,10 @@ function __thLiveVerTick(force) {
 
   try {
     var el = document.createElement('script');
-    el.src = thHotUrl('/ver.js') + '?t=' + Date.now();
+    /* ★ 19:45：这里原来用 thHotUrl('/ver.js') —— 那是**自己这份代码**的基址
+       （sha 路由下带 @<本次sha>），读到的 seq 和我完全一样 ⇒ 永远判「已是最新」。
+       问「线上最新」必须走分支头，分支会往前走。 */
+    el.src = thHotLiveUrl('/ver.js') + '?t=' + Date.now();
     el.async = false;
     el.onload = function () {
       var v = '';
