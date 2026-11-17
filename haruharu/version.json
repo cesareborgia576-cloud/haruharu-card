@@ -1,9 +1,9 @@
 {
   "version": "v1.26",
-  "seq": 900021,
+  "seq": 900022,
   "fixNo": 73,
   "label": "v1.26（第 74 次修复更新 · 开发者通道）",
-  "stableRef": "598863c21ed0c1d6b353872a3efd52f0c983cd66",
+  "stableRef": "",
   "updated": "2026-11-16T19:38:28.236Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
