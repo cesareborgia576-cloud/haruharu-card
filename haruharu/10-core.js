@@ -31188,19 +31188,74 @@ function __thLiveVerTick(force) {
   __thLiveVerTick._lastNet = now;
 
   try {
-    var el = document.createElement('script');
-    /* ★ 19:45：这里原来用 thHotUrl('/ver.js') —— 那是**自己这份代码**的基址
-       （sha 路由下带 @<本次sha>），读到的 seq 和我完全一样 ⇒ 永远判「已是最新」。
-       问「线上最新」必须走分支头，分支会往前走。 */
-    el.src = thHotLiveUrl('/ver.js') + '?t=' + Date.now();
-    el.async = false;
-    el.onload = function () {
-      var v = '';
+    /* ★ 20:26：**问多个镜像，取最大的 seq**。
+       ------------------------------------------------------------------
+       病象（实测 20:14）：同一刻问四个 jsDelivr 节点要 @dev/ver.js，回来的是
+         fastly      seq 900026   ← 落后 6 个版本
+         gcore       seq 900031
+         cdn         seq 900031
+         testingcf   seq 900032   ← 正确
+       只问 fastly 一个的话，刚推的新版会被读成"没有新版"（或者读成很旧的号），
+       而这恰好是「推了他刷新看不到」最像的一种故障。
+       ------------------------------------------------------------------
+       为什么原来只问一个：COS 时代只有一个源。换了 GitHub 之后镜像有五个，
+       同一时刻各个节点的缓存进度不一样，**问一个就等于随机抽样**。
+       ⇒ 现在四个 jsDelivr 并发问，谁先回来先记着，等 900ms 收网，
+         把这一轮里 seq 最大的当成"线上最新"。
+         seq 只增不减 ⇒ 取 max 一定不会把旧版当新版；
+         某个节点还没跟上，只会让它这一票偏小，不影响正确结果。
+       ⚠ 只用于提示，绝不参与「该不该加载什么」。 */
+    var LIVE_NODES = ['testingcf', 'cdn', 'gcore', 'fastly'];
+    var _best = { ver: '', seq: 0, label: '', fix: 0 };
+    var _pending = LIVE_NODES.length;
+    var _closed = false;
+    function _collect() {
+      var v = '', q = 0, lb = '', fx = 0;
       try { v = String(window.__CQ_OSS_VER__ || ''); } catch (e3) {}
-      fin(v);
-    };
-    el.onerror = function () { fin(''); };
-    (document.head || document.documentElement).appendChild(el);
+      try { q = Number(window.__CQ_OSS_SEQ__ || 0) || 0; } catch (e3b) {}
+      try { lb = String(window.__CQ_OSS_LABEL__ || ''); } catch (e3c) {}
+      try { fx = Number(window.__CQ_OSS_FIXNO__ || 0) || 0; } catch (e3d) {}
+      /* seq 更大就采用；seq 缺失时只要版本号比现有的高也采用（兜底，不至于全空） */
+      var take = false;
+      if (q && q > _best.seq) take = true;
+      else if (!q && v && !_best.seq && __thLiveVerCmp(v, _best.ver || '0') > 0) take = true;
+      if (take) _best = { ver: v, seq: q, label: lb, fix: fx };
+    }
+    function _close() {
+      if (_closed) return;
+      _closed = true;
+      /* 收网：把这一轮最好的结果写回全局，让 __thLiveVerState() 统一读 —— 
+         **只保留一个来源**，不给状态对象打补丁。 */
+      if (_best.seq) {
+        try {
+          window.__CQ_OSS_VER__ = _best.ver || window.__CQ_OSS_VER__ || '';
+          window.__CQ_OSS_SEQ__ = _best.seq;
+          if (_best.label) window.__CQ_OSS_LABEL__ = _best.label;
+          if (_best.fix) window.__CQ_OSS_FIXNO__ = _best.fix;
+        } catch (eW) {}
+      }
+      fin(_best.ver);
+    }
+    var _t = Date.now();
+    LIVE_NODES.forEach(function (h) {
+      var el = null;
+      function one() {
+        _pending--;
+        _collect();
+        if (_pending <= 0) _close();
+      }
+      try {
+        el = document.createElement('script');
+        el.src = 'https://' + h + '.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@'
+          + thHotBranchRef() + '/haruharu/ver.js?t=' + _t;
+        el.async = true;
+        el.onload = one;
+        el.onerror = one;
+        (document.head || document.documentElement).appendChild(el);
+      } catch (eN) { one(); }
+    });
+    /* 收网兜底：某个节点挂住也不能让「刷新」按钮等到超时 */
+    setTimeout(_close, 1200);
     setTimeout(function () { fin(''); }, 5000);
   } catch (e4) { fin(''); }
 }
