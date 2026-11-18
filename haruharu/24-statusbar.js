@@ -206,6 +206,12 @@
       '<div class="ver-row"><span class="ver-k">悬浮球</span>',
       '<span class="ver-v" id="sb-fn-ball-v">—</span>',
       '<button type="button" class="ver-btn" id="sb-fn-ball">叫回来</button></div>',
+      /* ★ 2026-11-18 作者要求：「牛头模式新增显示在功能页和左上角玩家面板 ui」。
+         游戏版那边是功能面板顶部一颗胶囊 + 左上角状态卡；文字版没有状态卡，
+         所以就在这里加一行。数据源统一走 HOST.__thGameModeNow（10-core 导出的），
+         **不在这里另判一次模型** —— 同一个量两套判据必然显示不一致。 */
+      '<div class="ver-row"><span class="ver-k">本局模式</span>',
+      '<span class="ver-v" id="sb-fn-gamemode-v">—</span></div>',
       '<div class="ver-row"><span class="ver-k">游玩模式</span>',
       '<span class="ver-v">📖 文字版</span>',
       '<button type="button" class="ver-btn" id="sb-fn-togame">切换游戏版</button></div>',
@@ -231,7 +237,26 @@
         d.getElementById('sb-fn-ext-v').textContent = i2 ? '开' : '关';
         d.getElementById('sb-fn-ext').textContent = i2 ? '关闭' : '打开';
       } catch (e) {}
+      paintGameMode();
       paintBall();
+    }
+    /* ★ 2026-11-18：本局模式（纯爱 / 牛头）。读不到就给「—」，绝不默认成纯爱蒙人 ——
+       「显示错了」比「显示未知」更坏：玩家会以为自己的存档被改了模式。 */
+    function paintGameMode() {
+      try {
+        var el = d.getElementById('sb-fn-gamemode-v');
+        if (!el) return;
+        var fn = pickFn('__thGameModeNow');
+        if (typeof fn !== 'function') { el.textContent = '—'; el.title = '游戏版核心还没就绪，进游戏后再看'; return; }
+        var gm = '纯爱';
+        try { gm = fn(); } catch (eGM) { el.textContent = '—'; return; }
+        var bull = (gm === '牛头');
+        el.textContent = bull ? '🐂 牛头模式' : '🌸 纯爱模式';
+        el.style.color = bull ? '#ffd9a8' : '#ffc9d8';
+        el.title = bull
+          ? '本局：牛头模式（苦主生效，按四阶段推进）'
+          : '本局：纯爱模式（苦主列表恒为空）';
+      } catch (e) {}
     }
     /* 悬浮球状态：只报告「现在在不在」，不去猜它该不该在 ——
        收起状态是 00-switcher 的闭包变量（刷新即复位），这里读它的对外函数。 */

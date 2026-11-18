@@ -253,12 +253,24 @@ var MvuSelfHealing = (function() {
     return "<UpdateVariable>\n" + analysisBlock + "<JSONPatch>\n" + jsonPatchBody + "\n</JSONPatch>\n</UpdateVariable>\n\n<StatusPlaceHolderImpl/>";
   }
 
+  /* ══ ★★ 2026-11-18：作者报「变量提醒似乎连玩家楼层都检测，这是 bug，
+        只能检测最近的 ai 回复楼层」══
+     这里原来是 `if (m && !m.is_user && !m.is_system) return i;` ——
+     少判 `role` / `isUser` 两种写法。现场的聊天对象里，玩家楼层常常是
+     `{role:'user'}` 或 `{isUser:true}` 而不是 `is_user` ⇒ 这条过滤形同虚设，
+     于是**玩家刚发出去那一楼被当成「最新 AI 楼层」去查变量块**，
+     必然判「完全没有变量块」⇒ 一路误报 + 顶部红条常驻。
+     ⚠ 10-core 那边的同名函数已经写了 role 判断，这边必须**逐条一致**（同一判据两份实现，
+       改一处漏一处就会变成「游戏版不报、文字版报」这种更难查的现象）。 */
   function getLatestAIMessageIndex() {
     var ctx = getStContext();
     if (!ctx || !Array.isArray(ctx.chat) || !ctx.chat.length) return -1;
     for (var i = ctx.chat.length - 1; i >= 0; i--) {
       var m = ctx.chat[i];
-      if (m && !m.is_user && !m.is_system) return i;
+      if (!m) continue;
+      if (m.is_user === true || m.isUser === true || m.role === 'user') continue;
+      if (m.is_system === true || m.isSystem === true || m.role === 'system') continue;
+      return i;
     }
     return -1;
   }
@@ -2013,7 +2025,12 @@ var MvuSelfHealing = (function() {
      以前只有一条 toast，扫一眼就没了，玩家根本抓不到。
      现在做成跟「有新版本」红条同款：水平居中、贴顶、红色渐变、点击进变量自愈面板。
      ⚠ 两条红条都是 top:0 居中，会叠成一坨 —— 版本红条在的时候这条自动往下让 36px。
-     ⚠ 它只负责"提醒"，不写任何变量：点开面板后该怎么修还是那两颗按钮的事。 */
+     ⚠ 它只负责"提醒"，不写任何变量：点开面板后该怎么修还是那两颗按钮的事。
+
+     ★★ 2026-11-18 同步 10-core 的两条修改（两份实现必须逐条一致）：
+        ① 条子改短：max-width:72vw / 上限 340px、文案压成「变量块异常 · N 项」、
+           右侧长胶囊缩成「查看」。手机竖屏绝不再横着顶出屏幕、挡住面板的 ✕。
+        ② 层级降到 2147483640（低于推进条 2147483641），并且生成中由 pollSniff 主动收掉。 */
   function showVarBanner(problems) {
     var doc = getDoc();
     if (!doc || !doc.body) return;
@@ -2021,6 +2038,7 @@ var MvuSelfHealing = (function() {
     try { shell = doc.querySelector("#th-gal-shell-root"); } catch (eV1) { shell = null; }
     var el = null;
     try { el = doc.getElementById("th-varbad-banner"); } catch (eV2) { el = null; }
+    try { hideEmptyBanner(); } catch (eVH0) {}
 
     if (!el) {
       el = doc.createElement("div");
@@ -2028,13 +2046,13 @@ var MvuSelfHealing = (function() {
       el.setAttribute("style",
         (shell ? "position:absolute;" : "position:fixed;") +
         "top:0;left:50%;transform:translateX(-50%);" +
-        "z-index:2147483645;padding:8px 16px;border-radius:0 0 12px 12px;" +
-        "font-size:12.5px;line-height:1.4;letter-spacing:.02em;cursor:pointer;" +
+        "z-index:2147483640;padding:5px 11px;border-radius:0 0 10px 10px;" +
+        "font-size:11.5px;line-height:1.35;cursor:pointer;" +
         "background:linear-gradient(160deg,#b91c1c,#7f1d1d);" +
         "border:1px solid rgba(255,150,150,.6);border-top:0;color:#fff;" +
-        "box-shadow:0 10px 26px rgba(120,0,0,.55);font-family:inherit;" +
-        "display:flex;align-items:center;gap:7px;white-space:nowrap;" +
-        "max-width:96%;box-sizing:border-box;");
+        "box-shadow:0 6px 18px rgba(120,0,0,.5);font-family:inherit;" +
+        "display:flex;align-items:center;gap:6px;white-space:nowrap;" +
+        "max-width:72vw;box-sizing:border-box;overflow:hidden;");
       el.onclick = function (e) {
         try { e.stopPropagation(); } catch (eV3) {}
         try {
@@ -2062,12 +2080,86 @@ var MvuSelfHealing = (function() {
     /* 版本红条在的时候往下让 —— 两条都是 top:0 居中，不让就叠成一坨 */
     var verBar = null;
     try { verBar = doc.getElementById("th-newver-banner"); } catch (eVB) { verBar = null; }
-    el.style.top = verBar ? "36px" : "0";
+    el.style.top = verBar ? "30px" : "0";
 
     var n = (problems && problems.length) ? problems.length : 1;
-    el.innerHTML = '<span style="font-size:15px;">⚠️</span>'
-      + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">本楼变量块格式异常（' + n + ' 项）</span>'
-      + '<span style="padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);font-size:12px;">点击查看 / 补算</span>';
+    el.innerHTML = '<span style="flex:0 0 auto;">⚠</span>'
+      + '<span style="min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">变量块异常 · ' + n + ' 项</span>'
+      + '<span style="flex:0 0 auto;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);font-size:11px;">查看</span>';
+  }
+
+  /* ══ ★★ 2026-11-18：回空提示（与 10-core 同一套语义）══
+     作者：「新增回空提示，回空提醒和变量提醒同理，显示回空了无法破甲请重roll」。
+     回空 ≠ 变量块坏：前者只能重 roll，后者可以补格式。混成一条玩家会点错地方。
+     ⚠ 文字版没有 __thDoReroll（那是游戏版的），所以点它去点酒馆原生的重生成按钮。 */
+  function showEmptyBanner() {
+    var doc = getDoc();
+    if (!doc || !doc.body) return;
+    var shell = null;
+    try { shell = doc.querySelector("#th-gal-shell-root"); } catch (eV1) { shell = null; }
+    var el = null;
+    try { el = doc.getElementById("th-empty-banner"); } catch (eV2) { el = null; }
+    try { hideVarBanner(); } catch (eVH1) {}
+
+    if (!el) {
+      el = doc.createElement("div");
+      el.id = "th-empty-banner";
+      el.setAttribute("style",
+        (shell ? "position:absolute;" : "position:fixed;") +
+        "top:0;left:50%;transform:translateX(-50%);" +
+        "z-index:2147483640;padding:5px 11px;border-radius:0 0 10px 10px;" +
+        "font-size:11.5px;line-height:1.35;cursor:pointer;" +
+        "background:linear-gradient(160deg,#9a5b12,#6b3c07);" +
+        "border:1px solid rgba(255,205,120,.62);border-top:0;color:#fff6e2;" +
+        "box-shadow:0 6px 18px rgba(90,50,0,.5);font-family:inherit;" +
+        "display:flex;align-items:center;gap:6px;white-space:nowrap;" +
+        "max-width:72vw;box-sizing:border-box;overflow:hidden;");
+      el.onclick = function (e) {
+        try { e.stopPropagation(); } catch (eV3) {}
+        try {
+          var td = (window.top && window.top.document) || doc;
+          var b = td.getElementById('regenerate_button') || td.querySelector('.mes_regenerate');
+          if (b) { b.click(); return; }
+        } catch (eR0) {}
+        try { showToast('找不到重 roll 按钮，请用酒馆原生的「重新生成」', 3000); } catch (eR1) {}
+      };
+      if (shell) {
+        try {
+          var sp = window.getComputedStyle(shell).position;
+          if (!sp || sp === "static") shell.style.setProperty("position", "relative", "important");
+        } catch (eV5) {}
+        try { shell.appendChild(el); } catch (eV6) { try { doc.body.appendChild(el); } catch (eV7) {} }
+      } else {
+        try { doc.body.appendChild(el); } catch (eV8) { return; }
+      }
+    } else if (shell && el.parentNode !== shell) {
+      try { shell.appendChild(el); } catch (eV9) {}
+    }
+
+    var verBar = null;
+    try { verBar = doc.getElementById("th-newver-banner"); } catch (eVB) { verBar = null; }
+    el.style.top = verBar ? "30px" : "0";
+
+    el.innerHTML = '<span style="flex:0 0 auto;">🈳</span>'
+      + '<span style="min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">回空了 · 无法破甲，请重roll</span>'
+      + '<span style="flex:0 0 auto;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.2);border:1px solid rgba(255,235,190,.45);font-size:11px;">重roll</span>';
+  }
+
+  function hideEmptyBanner() {
+    try {
+      var el = getDoc().getElementById("th-empty-banner");
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    } catch (eVEH) {}
+  }
+  /* 「这一楼有没有正文」的唯一判据（与 10-core 的 lcsProseEmpty 逐条一致） */
+  function lcsProseEmpty(raw) {
+    var s = String(raw == null ? '' : raw);
+    if (!s) return true;
+    try { s = stripThinkForVar(s); } catch (e0) {}
+    try { s = stripAllVariableBlocks(s); } catch (e1) {}
+    s = s.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ')
+         .replace(/[\s\u3000\u00a0\u200b\ufeff]/g, '');
+    return s.length === 0;
   }
 
   function hideVarBanner() {
@@ -2076,7 +2168,6 @@ var MvuSelfHealing = (function() {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     } catch (eVH) {}
   }
-
   function notifyIssue(problems) {
     try {
       var n = (problems && problems.length) ? problems.length : 1;
@@ -2093,7 +2184,15 @@ var MvuSelfHealing = (function() {
     var now = Date.now();
     if (now - _pollAt < POLL_SNIFF_MS) return;   /* 2 秒节流 */
     _pollAt = now;
-    if (hostBusy) return;                        /* 生成中一律不查：正文还在流、MVU 还没落库 */
+    /* ★ 2026-11-18：生成中**主动收掉两条横幅**，不是只 return。
+       以前只 return，屏幕上那条旧红条会一直挂着，把「⏳ 正在推进中」盖住
+       —— 这就是作者说的「正在推进中偶尔会被变量提醒一直盖着」。
+       层级也已经降到推进条下面，两个方向一起堵。 */
+    if (hostBusy) {
+      try { hideVarBanner(); } catch (eHB1) {}
+      try { hideEmptyBanner(); } catch (eHB2) {}
+      return;
+    }
     /* ★ v141：面板开着时不再整个停摆 —— 只刷新「实测探针」，不弹提示。
        以前这里直接 return，玩家手动把 JSON 删掉、回面板看还是旧结论（"格式正常"），
        看起来就像检测压根没在轮询。 */
@@ -2104,7 +2203,21 @@ var MvuSelfHealing = (function() {
     if (idx < 0) return;
     var key = "p" + _chatSig + "#" + idx;    /* ★ 22:52：存档 + 楼层，两个存档不撞 */
     var rawText = getMsgRawText(idx);
-    if (!rawText) return;
+    /* ★★ 2026-11-18：空正文不再算「变量块有问题」，改弹回空提示。
+       以前 `if (!rawText) return;` —— 空楼层既不提示也不清旧横幅，
+       于是「空楼层会一直出现变量提示」（旧的那条一直躺着）。
+       现在先判有没有正文；没有就走回空，并把这个状态记进 _sniffedKey，
+       同一楼不重复刷屏（换楼 / 正文恢复都会重新走一遍）。 */
+    if (lcsProseEmpty(rawText)) {
+      if (_sniffedKey !== key + "#empty") {
+        _sniffedKey = key + "#empty";
+        _pendingKey = ""; _pendingAt = 0;
+        if (_hasIssue) { _hasIssue = false; try { updateTopbarBtnState(); } catch (eZ1) {} }
+      }
+      try { showEmptyBanner(); } catch (eEB) {}
+      return;
+    }
+    try { hideEmptyBanner(); } catch (eEB2) {}
     var problems = checkVarFormat(rawText);
     /* ★ v141：去重只该省「同一份内容反复骚扰」，不该把这一楼永久判死。
        以前一旦提示过就把 key 记死 —— 玩家之后把这楼改坏了（或改好又重新改坏）
@@ -2260,7 +2373,7 @@ var MvuSelfHealing = (function() {
     /* ★ v141：面板「🔄 重新检测」与外部脚本共用的入口（清去重 + 立刻按当前原文重判） */
     recheck: function() { refreshStatusNow(); },
     /* 切聊天：清掉去重键、待确认状态与红标，免得换聊天后同楼层号漏查 */
-    resetChat: function() { _sniffedKey = ""; _pendingKey = ""; _pendingAt = 0; _hasIssue = false; _lcsArmed = false; _pollAt = 0; hideVarBanner(); updateTopbarBtnState(); },
+    resetChat: function() { _sniffedKey = ""; _pendingKey = ""; _pendingAt = 0; _hasIssue = false; _lcsArmed = false; _pollAt = 0; hideVarBanner(); try { hideEmptyBanner(); } catch (eRE) {} updateTopbarBtnState(); },
     api: MvuApi,
     openManualPanel: function(shell) {
       var targetIdx = getLatestAIMessageIndex();
@@ -2276,6 +2389,7 @@ var MvuSelfHealing = (function() {
       paintProbe();
       /* 玩家已经点进来了 → 红条先收掉，别挡着面板。还坏着的话关面板后它会自己回来。 */
       hideVarBanner();
+      try { hideEmptyBanner(); } catch (eEBP) {}
       try { if (shell && shell.classList && shell.classList.add) shell.classList.add("th-gal-mvu-suspended"); } catch (eSc) {}
 
       var closeBtn = getDoc().getElementById("th-mvu-btn-close-main");

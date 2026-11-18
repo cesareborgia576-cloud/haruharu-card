@@ -2375,7 +2375,25 @@
         for (var i = chat.length - 1; i >= 0; i--) {
           var m = chat[i];
           if (!m) continue;
-          if (m.is_user === true || m.isUser === true) continue;
+          /* ⛔ ★★ 2026-11-18：**玩家楼层必须是 user 的三种写法全跳过**
+             ─────────────────────────────────────────────────────────────────
+             作者原话：「当玩家输入后并推进，则此时虽然显示对话框为上一轮正文内容
+                       但是却不会识别如插图。」
+             ── 根因就在这一行 ──
+             这里原来只认 `is_user` / `isUser`。而现场聊天对象里，玩家楼层很常见
+             只有 `role: 'user'`（没有 is_user 字段）⇒ 这一层不跳过 ⇒
+             `txt` 取到的是**玩家刚打的那句话**（「[动作]:走过去」之类），
+             它当然没有 <插图> 标签 ⇒ 落进 untagged 桶 ⇒
+             `pick = tagged.length ? tagged[0] : untagged[0]` 选中玩家那句 ⇒
+             `buildQueue` 队列为空 ⇒ `setQueue('', [])` 把这一轮的图**清掉**。
+             对话框那边（updateContainer → getLatestAIRawText）跳过 user 之后读到的是
+             上一轮 AI 正文，所以正文对、插图没 —— 两边判据不同步的经典现象。
+             ─────────────────────────────────────────────────────────────────
+             ⚠ 三种写法必须都认：is_user / isUser / role==='user'。
+               而且这一判据和 10-core 的 getLatestAIRawText、20-heal 的
+               getLatestAIMessageIndex **必须逐条一致** —— 三处各写一份是这次 bug 的成因。 */
+          if (m.is_user === true || m.isUser === true || m.role === 'user') continue;
+          if (m.is_system === true || m.isSystem === true || m.role === 'system') continue;
           var swId = (m.swipe_id != null) ? m.swipe_id : 0;
           /* ★ v101 头号修复：先读 **当前这张 swipe** 的正文。
              这张卡第 0 楼是 3 个 swipe，玩家编辑的是当前那张；
@@ -2410,19 +2428,33 @@
           var g = got[j];
           var gt = g && (g.message || g.mes);
           if (!gt) continue;
-          if (g.is_user === true || g.isUser === true) continue;
+          /* ★ 2026-11-18：与上面 ① 同一判据（三种写法都认），否则玩家楼层又会被当 AI */
+          if (g.is_user === true || g.isUser === true || g.role === 'user') continue;
+          if (g.is_system === true || g.isSystem === true || g.role === 'system') continue;
           pushTag(String(gt), 'TH#' + j);
           break;
         }
       }
     } catch (e3) {}
 
-    /* ③ DOM：当前可见的最后一条消息 */
+    /* ③ DOM：当前可见的最后一条消息
+       ★ 2026-11-18：这里原来直接取 nodes 的最后一个 —— 玩家刚发完话，
+         最后一个节点就是**玩家楼层**，于是把玩家那句当成本楼正文。
+         现在从后往前找第一条不是 user 的消息。 */
     try {
       var nodes = Array.from(doc.querySelectorAll('.mes_text, .mes, .message, #chat .mes'));
-      if (nodes.length) {
-        var el = nodes[nodes.length - 1];
+      for (var ni = nodes.length - 1; ni >= 0; ni--) {
+        var el = nodes[ni];
+        var isU = false;
+        try {
+          var holder = (el.closest && el.closest('.mes')) || el;
+          isU = !!(el.classList && el.classList.contains('is_user')) ||
+                !!(holder && holder.classList && holder.classList.contains('is_user')) ||
+                (holder && holder.getAttribute && holder.getAttribute('is_user') === 'true');
+        } catch (eUdom) { isU = false; }
+        if (isU) continue;
         pushTag(el.textContent || el.innerText || '', 'dom');
+        break;
       }
     } catch (e4) {}
 

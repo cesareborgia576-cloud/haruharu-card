@@ -166,7 +166,11 @@
           '<p class="th-hf-sub">这次先别进去</p>',
           '<div class="th-hf-rule"></div>',
           '<p class="th-hf-body">卡是新的，但<b>热更源这次没把脚本给全</b>。<br>',
-          '现在只认腾讯 COS 一条通道，它没通就没有第二个地方可以退。</p>',
+          /* ★ 2026-11-18：文案跟着托管改。2026-11-17 已从腾讯 COS 全面转回 GitHub，
+             原文还写着「只认腾讯 COS 一条通道」—— 玩家看到会以为要连 COS，
+             排查时也会朝错误的方向找（COS 那边早就停了，怎么连都是不通）。
+             现在如实说：GitHub 的四个 jsDelivr 镜像 + raw 兜底，全都失败才停在这。 */
+          '脚本走 GitHub 的四个加速镜像，全都不通才会停在这一屏。</p>',
           '<div class="th-hf-act">检查网络后刷新</div>',
           '<p class="th-hf-note">缺的文件：', miss.join('、'), '<br>',
           '少任何一个都会变成「看起来能用、其实半残」，所以这里直接拦住。<br>',
@@ -389,6 +393,9 @@
     }
     return !!oldValue;
   }
+  /* ★ 2026-11-18 15:43：原来的「强制恒关名单」（推演用三条）已随条目一起删除。
+     现在这三条走 RETIRED_ENTRIES 的路径被**物理删掉**，不需要"恒关"了 ——
+     恒关只会让老玩家书里一直留着三条白烧 token 的死条目。 */
   function wantedBook(comment, mode, oldValue) {
     /* 强制命令：初始化变量恒关，优先级最高（理由见下方大段注释） */
     if (String(comment == null ? '' : comment).indexOf('[InitVar]') === 0) return false;
@@ -1258,7 +1265,23 @@
      版本号这一条就是给玩家和自己一眼看穿用的。
      ══════════════════════════════════════════════════════════════════════ */
   /* ★ 21:35：同样不能再写死 chunri/ —— 开发者卡的世界书同步必须拉 chunri-dev 的条目包，
-     否则版本号那一条会被写成玩家通道的旧值（表现为「同步了但还是旧版本号」）。 */
+     否则版本号那一条会被写成玩家通道的旧值（表现为「同步了但还是旧版本号」）。
+
+     ★ 2026-11-17：转回 GitHub 后，「反推基址」这套判据必须更换。
+     以前只认路径结尾 /chunri(-dev)，而 GitHub 地址结尾永远是 /haruharu，
+     于是反推**永远失败**、一律落到写死的 COS 地址，而 COS 已停 ⇒ 404。
+     ⚠ 这里必须与 10-core 的 thHotDirOf() 保持同一套判据（同一个量两套算法 = bug）。
+       之所以没抽成公共函数：这两个文件在酒馆里可能是单独切片执行，
+       跨文件引用会 ReferenceError（本项目踩过）。所以要改就两处一起改。 */
+  function swHotDirOf(u) {
+    var m = /^(https?:\/\/[^\s?#]+?)\/[^\/?#]+\.js(?:[?#]|$)/.exec(String(u || ''));
+    if (!m) return '';
+    var dir = m[1];
+    if (/\/chunri(?:-dev)?$/i.test(dir)) return dir;
+    if (/jsdelivr\.net\/gh\/[^/]+\/[^/]+@[^/]+\/haruharu$/i.test(dir)) return dir;
+    if (/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/haruharu$/i.test(dir)) return dir;
+    return '';
+  }
   function swHotBase() {
     var b = '';
     try { b = String((HW && HW.__SPR_HOT_BASE__) || window.__SPR_HOT_BASE__ || ''); } catch (e0) {}
@@ -1270,13 +1293,12 @@
       try {
         var list = docs[d].querySelectorAll('script[src]');
         for (var i = 0; i < list.length; i++) {
-          var u = String(list[i].src || '');
-          var m = /^(https?:\/\/[^\s?#]+?)\/[^\/?#]+\.js(?:[?#]|$)/.exec(u);
-          if (m && /\/chunri(?:-dev)?$/i.test(m[1])) return m[1];
+          var dir = swHotDirOf(list[i].src);
+          if (dir) return dir;
         }
       } catch (e3) {}
     }
-    return 'https://123-1532053135.cos.ap-guangzhou.myqcloud.com/chunri';
+    return 'https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu';
   }
   function swHotUrl(path) {
     var p = String(path || '');
@@ -1357,6 +1379,28 @@
       '人物速查',
       '推演用 人物速查（公寓篇）',
       '推演用 关系网（公寓篇）',
+      /* ── 2026-11-18 15:43：推演用三条整体下架（作者：「推演的条目全他妈删掉」）──
+         这三条是外置推演 AI 的素材，内容与「地点总表 神社篇」「人物总览」逐条重复，
+         且从最早备份起就是 enabled=true、常驻白烧 token。
+         03-deduce.js 读不到它们时会退回内置 BLURB_FALLBACK_SHRINE / 写死的走动规则，
+         所以删掉不影响内置推演。 */
+      '推演用 规则块（按篇章）',
+      '推演用 规则块（神社篇）',
+      '推演用 人物速查（神社篇）',
+      /* ── 2026-11-18：作者第二次点名「我叫你删推演的条目，你删你妈逼去了？」
+         《推演与走动》4681 字、蓝灯常驻、0 触发词 —— 每轮无条件白烧 token。
+         独有四段（谁爱去哪 / 香本家那一对 / 谁带谁 / 她们是活人会走动）
+         已并进《地点总表 夏越村》第七节（同篇章闸门）；
+         地点/时间/精力值的「脚本记账」禁令已搬进《[mvu_update]变量更新规则》。
+         ⚠ 名字已在包里删掉，这里必须留一行，否则老玩家书里那条永远清不掉。 */
+      '推演与走动',
+      /* ── 2026-11-18：作者点名「我叫你把苦主阶段分割成一个个条目，你分割了你妈?分在哪？」
+         《苦主阶段》5679 字、0 触发词、蓝灯常驻 —— 每一轮无论谁在场都整条塞进上下文，
+         而且 15 位苦主共用同一套模板句，写到谁都是同一段话。
+         现拆成《苦主阶段·总纲》（只留通则，仍常驻）+ 14 条《苦主阶段·人名》
+         （绿灯，keys 挂各自名字，四档按各人设重写）。
+         ⚠ 老名字必须删，否则书里新旧两份同时讲心理阶段、双份进上下文。 */
+      '苦主阶段',
       /* ── seq 133 合并进《节庆·全年》的 32 条旧节庆 ── */
       '节庆 01-01 元日', '节庆 01-07 七草', '节庆 01-10 十日えびす',
       '节庆 01-14 どんど焼き', '节庆 01-15 小正月', '节庆 02-03 节分',
@@ -1401,12 +1445,29 @@
          老玩家书里那条文字版的实体必须删掉，否则书里永远显示「怎么还有两个初始化变量」。
          ⚠ 名字不在包里是删除前提，这里正好成立。 */
       '[InitVar]初始变量·文字版',
-      /* ── 2026-11-17：整套「连携移动 / 剧情连携移动」功能已下架（确认条也删了）。──
-         这两条整条正文都在教模型写那两个标签，功能没了就是纯烧 token；
-         更糟的是《内置思维链》里还留着「细节见《剧情连携移动判定》」——
-         指向一条已经不存在的条目。作者原话：「你他妈内置思维链不去掉连携移动吗」。 */
+      /* ── 2026-11-17：`<连携移动>` 那套（整条消息级、弹确认条）已下架。──
+         ⛔ 2026-11-18 00:40：作者原话「连携移动不等于剧情连携移动」
+         「限你1分钟恢复剧情连携移动」。⇒ 《连携判定》不要，留在白名单；
+         《剧情连携移动判定》要，已回包里，**绝不许留在这里**（会被精确删掉）。 */
       '连携判定',
-      '剧情连携移动判定'
+      /* ── 2026-11-17 22:0x：本轮去重删掉的 6 条 ──
+         ⛔ 前提照旧：这里列出的名字，**不许**再出现在 wbpatch.json 里。
+         作者原话：
+           「为什么有一个插图库和插图系统」
+           「为什么有两个树精和白狐的条目」
+           「重要记忆你他妈重复了5次」
+         · 插图库        ⇒ 与《插图系统》逐条重复（写法/手势前戏/别做的事），已合并成一条。
+         · 重要记忆写法  ⇒ 与《格式》里那段**逐字几乎相同**（模板串一模一样），已并入《格式》。
+         · 精灵 御神木 / 人物 御神木之灵 ⇒ 合成一条《御神木之灵》
+         · 妖怪 白蔵主 / 人物 白蔵主     ⇒ 合成一条《白蔵主》
+           这两组原来**共用同一套 26 个 keys**，一条命中四条一起注入、共 9941 字、相似度 70%。
+           老玩家书里这四条旧实体必须删掉，否则和新的一条同时参与渲染。 */
+      '插图库',
+      '重要记忆写法',
+      '精灵 御神木',
+      '妖怪 白蔵主',
+      '人物 御神木之灵',
+      '人物 白蔵主'
     ];
     for (var i = 0; i < names.length; i++) m[names[i]] = 1;
     return m;
@@ -1436,6 +1497,46 @@
     try { e.disable = !on; } catch (e2) {}
     try { e.disabled = !on; } catch (e3) {}
   }
+  /* ══ ★★★ 2026-11-18 15:05：**EJS 开关从来没打开过 —— 这就是最大的那个 bug**
+     ────────────────────────────────────────────────────────────────────
+     作者原话：「变量更新规则哪个模式都不会触发，相当于压根没有」。
+
+     现场证据（三条，独立互证）：
+       ① 热更/wbpatch.json：55 条正文含 `<%`（含 [mvu_update]变量更新规则）
+       ② 全仓 `ejs:true` 出现 **0 次**（json / js / 卡内世界书全扫）
+       ③ 本文件 mutate 只写 `e.content`，**一个字都没碰过开关**
+
+     SillyTavern 的规矩：条目的 EJS 默认**关**。只有 `extensions.ejs === true`
+     时渲染器才会去解析 `<% %>`，否则整段代码原样当普通文本塞进 prompt。
+     所以我们写了成千上万字的纯爱覆盖声明、牛头闸门、心理阶段分支，
+     模型看到的全是 `var thGameMode = ''; try { ... }` 这种 JavaScript，
+     **一句指令都没有，两种模式一模一样**。不报错、面板全绿、看起来同步成功。
+
+     这就是「同一个量存在两份、改一份必复发」的极端版：
+     正文我们精修过无数轮，开关从头到尾没写过一次。
+
+     判据：**按正文决定，不按条目名白名单**。
+       正文里有 `<%` ⇒ 必须开；没有 ⇒ 不碰（玩家自己开的普通条目不受影响）。
+     这样以后新加任何带 EJS 的条目都自动生效，不用再回来改这里。
+
+     ⚠ 字段名各家不同，三个都写（照 setBookEnabled 的老规矩并排写）：
+       extensions.ejs（ST 原生 / 酒馆助手）
+       以及条目顶层的 ejs（部分魔改版直接读顶层）。
+     ⚠ 必须写成**纯函数**：wbSyncOnly 那段会被单独切出去跑（_t_wbswitch / _t_wbver），
+       函数里不许引用任何外部符号，否则一切片就 ReferenceError。 */
+  function setBookEjs(e) {
+    if (!e) return false;
+    var body = '';
+    try { body = String(e.content == null ? '' : e.content); } catch (eC) { return false; }
+    /* 没有 EJS 标签 ⇒ 一个字段都不碰（绝不把玩家自己的普通条目改动） */
+    if (body.indexOf('<%') < 0) return false;
+    try { if (!e.extensions || typeof e.extensions !== 'object') e.extensions = {}; } catch (eX) {}
+    try { e.extensions.ejs = true; } catch (e1) {}
+    /* 顶层也写一份：酒馆助手重建条目时会读这里 */
+    try { e.ejs = true; } catch (e2) {}
+    return true;
+  }
+
   function setBookOrder(e, idx) {
     if (!e) return;
     var i = Number(idx);
@@ -1902,62 +2003,275 @@
      ③ 它的正文（版本号）是什么
      ⚠ 以前这里只用《版本号》一条当命中依据，于是「书里没有版本号条目」
        被显示成「命中 0 条，像是绑错书」—— 把「没同步」误报成「绑错书」。 */
+  /* ══ ★★ 2026-11-18：**不依赖任何 API 的本地扫描兜底**（抄天元录 xzWBLocalEntries）══
+     作者原话：「功能页的世界书依旧没检测到，你别犯贱，我求你，这个真的不难，
+               我命令你去抄天元录的界面脚本的版本分页里怎么显示的世界书版」
+
+     ── 天元录那套为什么稳 ─────────────────────────────────────────
+     它不只走 getLorebookEntries，还**直接翻页面上的世界书对象**：
+       · 全局 world_info.entries
+       · 角色卡内嵌 character_book.entries（ctx.characters[chid].data.character_book）
+     两条都是宿主自己的数据结构，跟「酒馆助手有没有加载完 / 权限给没给」完全无关。
+     ──────────────────────────────────────────────────────────────
+
+     ── 我们原来为什么会「依旧没检测到」────────────────────────────
+     wbReadOnly 的第一句是 `if (!getE) { msg='取不到 getLorebookEntries'; return out; }`
+     —— 一条 API 拿不到就**整条路直接死**，连书名都不再问。而实际上：
+       · 有些宿主只给 getWorldbook（不给 getLorebookEntries）
+       · 有些宿主两个都不在 iframe 的 window 上，只有 parent/top 有
+       · 而 character_book 一定在 ctx.characters 里，谁都能读
+     所以现在补一条完全独立的兜底，它**不看 probe 结果**。
+
+     ── 关键：本地扫描也必须有「版本号」────────────────────────────
+     作者要的是"世界书版本"，所以这里同样按 WB_VER_ENTRY 找那一条，把正文当版本号。
+     版本号那条读不到就等于没检测到 —— 不能拿条目数糊弄过去（那就是假显示）。
+
+     ⚠ 跨 window：脚本在任何一份 document 里都要能跑。宿主对象常挂在 parent/top 上，
+       所以这里挨个 win 找，谁有 world_info 就用谁（与天元录 xzHostWins 同构）。 */
+  function wbHostWins() {
+    var ws = [];
+    try { ws.push(window); } catch (e1) {}
+    try { if (window.parent && window.parent !== window) ws.push(window.parent); } catch (e2) {}
+    try { if (window.top && window.top !== window) ws.push(window.top); } catch (e3) {}
+    try { if (HW && ws.indexOf(HW) < 0) ws.push(HW); } catch (e4) {}
+    return ws;
+  }
+  /* 从一堆「条目对象的集合」里把版本号那一条挖出来。集合可能是数组也可能是以 uid 为键的对象。 */
+  function wbVerFromBag(bag, bookName) {
+    var rows = [];
+    try {
+      if (!bag) return null;
+      if (Array.isArray(bag)) rows = bag;
+      else if (typeof bag === 'object') {
+        for (var k in bag) {
+          if (!Object.prototype.hasOwnProperty.call(bag, k)) continue;
+          var e = bag[k];
+          if (e && typeof e === 'object') rows.push(e);
+        }
+      }
+    } catch (e) { return null; }
+    if (!rows.length) return null;
+    var hit = null, count = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var e = rows[i];
+      if (!e) continue;
+      count++;
+      var nm = String(e.comment == null ? (e.name == null ? '' : e.name) : e.comment).trim();
+      if (nm === WB_VER_ENTRY) { hit = e; break; }
+      /* 标题被宿主吃掉时按正文认（版本号格式的那条） */
+      if (!hit && RE_VER_CONTENT.test(String(e.content == null ? '' : e.content).trim())) hit = e;
+    }
+    if (!hit) return { found: false, count: count, book: bookName || '' };
+    var c = String(hit.content == null ? '' : hit.content).trim();
+    return {
+      found: true, count: count, book: bookName || '',
+      ver: c, uid: (hit.uid !== undefined ? String(hit.uid) : ''),
+      name: String(hit.comment == null ? (hit.name == null ? '' : hit.name) : hit.comment).trim()
+    };
+  }
+  function wbLocalScan() {
+    /* ① 角色卡内嵌 character_book —— 这条最可靠，一定在 ctx.characters 里 */
+    try {
+      var ctx = pickCtx();
+      if (ctx && ctx.characters) {
+        var chid = null;
+        try { chid = (ctx.characterId != null) ? ctx.characterId : null; } catch (eC) {}
+        var tries = [];
+        if (chid != null && ctx.characters[chid]) tries.push(ctx.characters[chid]);
+        /* characterId 不可用时，把有 character_book 的都试着扫一遍（取第一个有版本号的） */
+        if (!tries.length) {
+          for (var ci = 0; ci < ctx.characters.length; ci++) {
+            var c0 = ctx.characters[ci];
+            if (c0 && c0.data && c0.data.character_book) tries.push(c0);
+          }
+        }
+        for (var ti = 0; ti < tries.length; ti++) {
+          var ch = tries[ti];
+          var bk = ch && ch.data && ch.data.character_book;
+          if (!bk || !bk.entries) continue;
+          var r = wbVerFromBag(bk.entries, String(bk.name || (ch && ch.name) || '（卡内嵌）'));
+          if (r && r.found) { r.src = 'card-embedded'; return r; }
+        }
+      }
+    } catch (eEmb) {}
+    /* ② 宿主运行时世界书对象 world_info.entries（跨 window 挨个找） */
+    try {
+      var wins = wbHostWins();
+      for (var wi = 0; wi < wins.length; wi++) {
+        var w = wins[wi];
+        if (!w) continue;
+        var got = null;
+        try {
+          var wil = w.world_info || (w.SillyTavern && w.SillyTavern.world_info) || null;
+          if (wil && wil.entries) got = wil.entries;
+        } catch (eW1) {}
+        if (!got) continue;
+        /* world_info.entries 常按书名字典包一层：{ '书A': { entries: {...} } } */
+        var direct = wbVerFromBag(got, 'world_info');
+        if (direct && direct.found) { direct.src = 'host-world_info'; return direct; }
+        try {
+          for (var bkn in got) {
+            if (!Object.prototype.hasOwnProperty.call(got, bkn)) continue;
+            var bag2 = got[bkn];
+            var inner = (bag2 && bag2.entries) ? bag2.entries : bag2;
+            var r2 = wbVerFromBag(inner, bkn);
+            if (r2 && r2.found) { r2.src = 'host-world_info'; return r2; }
+          }
+        } catch (eW2) {}
+      }
+    } catch (eWL) {}
+    return null;
+  }
+
   async function wbReadOnly() {
     var out = { ok: false, wb: '', ver: '', count: 0, hit: 0, sample: '', books: '',
                 verSrcUid: '', verSrcName: '', verSrcIdx: 0, verBy: '',
-                probe: null, msg: '', state: '', ejsBad: 0, ejsNames: [] };
+                probe: null, msg: '', state: '', ejsBad: 0, ejsNames: [],
+                /* ★ 2026-11-18：世界书新鲜度按「版本号」判（作者要求）。
+                   want = 本卡期望版本号；stale = 书里版本号 ≠ want。 */
+                want: '', fresh: false, stale: false, staleWhy: '', staleHit: [] };
     try {
       out.probe = wbProbe();
       var getE = pickWbFn('getLorebookEntries');
-      if (!getE) {
-        out.msg = '取不到 getLorebookEntries —— 酒馆助手没加载完？';
-        return out;
+      var es = null;
+      var hitEnt = null;
+
+      /* ══ 路线 ①：宿主 API（最完整：能拿到 uid / displayIndex / enabled） ══ */
+      if (getE) {
+        var names = [];
+        try { names = await wbBookNames(); } catch (eNm) { names = []; }
+        if (names.length) {
+          var pick = await wbPickTarget(getE, names, wbSigMap());
+          out.books = pick.info.join('  |  ');
+          out.wb = pick.name || names[0] || '';
+          try { es = out.wb ? await getE(out.wb) : []; } catch (eEs) { es = []; }
+          es = es || [];
+          out.count = es.length;
+          out.hit = pick.hit || 0;
+          out.sample = es.slice(0, 3).map(function (e) {
+            return wbEntryName(e) || '（无名）';
+          }).join(' / ');
+          hitEnt = es.filter(wbIsVerEntry)[0] || null;
+          out.ver = hitEnt ? String(hitEnt.content == null ? '' : hitEnt.content).trim() : '';
+        } else {
+          out.books = '（拿不到世界书名）';
+        }
+      } else {
+        out.books = '（没有 getLorebookEntries）';
       }
-      var names = await wbBookNames();
-      if (!names.length) { out.msg = '读不到任何世界书名（角色没绑世界书？）'; return out; }
-      var pick = await wbPickTarget(getE, names, wbSigMap());
-      out.books = pick.info.join('  |  ');
-      out.wb = pick.name || names[0] || '';
-      var es = out.wb ? await getE(out.wb) : [];
-      out.count = (es || []).length;
-      out.hit = pick.hit || 0;
-      out.sample = (es || []).slice(0, 3).map(function (e) {
-        return wbEntryName(e) || '（无名）';
-      }).join(' / ');
-      /* ★ 标题名对不上就按正文认 —— 宿主可能把 comment 吃掉了 */
-      var hitEnt = (es || []).filter(wbIsVerEntry)[0];
-      out.ver = hitEnt ? String(hitEnt.content == null ? '' : hitEnt.content).trim() : '';
-      /* ★★★ 2026-11-17 02:45 证据链（作者原话：「这个版本号是假显示，条目里连一个
-         版本号的条目都没有，完全纯假显示」）。
-         ────────────────────────────────────────────────────────────────
+
+      /* ══ 路线 ②：本地扫描兜底（抄天元录 xzWBLocalEntries）═════════════════
+         作者原话：「功能页的世界书依旧没检测到，你别犯贱，我求你，这个真的不难，
+                   我命令你去抄天元录的界面脚本的版本分页里怎么显示的世界书版」
+
+         ── 原来为什么「依旧没检测到」──────────────────────────────
+         旧实现开头两句：
+             if (!getE) { msg='取不到 getLorebookEntries'; return out; }
+             if (!names.length) { msg='读不到任何世界书名'; return out; }
+         一条 API 不通就**整条路直接死**。而版本号其实同时躺在两个
+         跟"酒馆助手加载没加载完"完全无关的地方：
+             · 角色卡内嵌 data.character_book.entries
+             · 宿主运行时 world_info.entries
+         ── 所以这里：API 没拿到版本号，就本地扫；两个都扫不到才如实报错。
+            ⛔ **绝不许**在都失败时伪造一个版本号 —— 那是假显示，作者抓到过一次。 */
+      var _locSrc = '';
+      if (!out.ver) {
+        var loc = null;
+        try { loc = wbLocalScan(); } catch (eLoc) { loc = null; }
+        if (loc && loc.found) {
+          out.ver = loc.ver || '';
+          out.wb = loc.book || '（本地扫描）';
+          out.count = loc.count || 0;
+          out.verSrcUid = loc.uid || '';
+          out.verSrcName = loc.name || '';
+          out.verSrcIdx = 1;
+          out.verBy = 'local';
+          _locSrc = loc.src || 'local';
+          out.books = '本地扫描命中（' + _locSrc + '）｜' + out.wb + '：' + out.count + ' 条';
+          out.sample = '版本号 = ' + out.ver;
+          /* 本地扫描无法给出 uid 级别的 raw 条目，补一条最小可用对象给后面的 hit / EJS 判断 */
+          es = es || [];
+          out.hit = out.hit || 1;
+          hitEnt = { comment: WB_VER_ENTRY, content: out.ver };
+        }
+      }
+
+      /* 两条路线都没拿到条目：如实报错（分清楚是"没 API"还是"没书"） */
+      if (!es || !es.length) {
+        if (!hitEnt) {
+          if (!getE) {
+            out.state = 'no-api';
+            out.msg = '取不到 getLorebookEntries，本地扫描（卡内嵌 character_book + 宿主 world_info）'
+              + '也没找到《' + WB_VER_ENTRY + '》—— 酒馆助手没加载完，或这本世界书里没有版本号条目';
+          } else if (!out.wb || out.wb === '（拿不到世界书名）') {
+            out.state = 'no-book';
+            out.msg = '读不到任何世界书名（角色没绑世界书？），本地扫描也没命中《' + WB_VER_ENTRY + '》';
+          } else {
+            out.state = 'foreign';
+            out.msg = '绑定的《' + out.wb + '》里没有一条这张卡的条目'
+              + (out.sample ? '（书里前几条：' + out.sample + '）' : '')
+              + ' —— 像是绑到了另一张卡的书上。';
+          }
+          return out;
+        }
+      }
+
+      /* ══ 版本号 → 与「本卡期望号」比对（两条路线共用同一段）══════════════
+         作者原话：「直接以版本号为显示」「每次改世界书就版本号改一下」。
+         判据唯一：书里版本号条目正文 == 本卡期望版本号。
+         期望值来源：卡内嵌 __TH_WB_EXPECT_VER__（本地卡）/ 权威源版本号条目 / 联网 label。 */
+      try {
+        var _want = '';
+        try { _want = String(window.__TH_WB_EXPECT_VER__ || (HW && HW.__TH_WB_EXPECT_VER__) || ''); } catch (eW0) {}
+        if (!_want) {
+          var _locList = window.__TH_WBPATCH_LOCAL__ || (HW && HW.__TH_WBPATCH_LOCAL__) || [];
+          for (var _li = 0; _li < (_locList || []).length; _li++) {
+            if (String((_locList[_li] && (_locList[_li].comment || _locList[_li].name)) || '') === WB_VER_ENTRY) {
+              _want = String((_locList[_li] && _locList[_li].content) || '').trim(); break;
+            }
+          }
+        }
+        if (!_want) { try { _want = String((window.__CQ_OSS_LABEL__ || (HW && HW.__CQ_OSS_LABEL__) || '')); } catch (eW1) {} }
+        out.want = _want;
+        if (_want && out.ver) {
+          out.stale = (out.ver !== _want);
+          out.fresh = !out.stale;
+          out.staleWhy = out.stale ? ('书里是 ' + out.ver + '，本卡是 ' + _want) : '';
+          out.staleHit = out.stale ? [WB_VER_ENTRY] : [];
+        } else {
+          /* 任一侧读不到：不判 stale、也不假 fresh（core 会按「未读到」显示检测中） */
+          out.stale = false; out.fresh = false; out.staleWhy = ''; out.staleHit = [];
+        }
+      } catch (eFp) { out.fresh = false; out.stale = false; out.staleWhy = ''; }
+
+      /* ══ 证据链（作者原话：「这个版本号是假显示，条目里连一个版本号的条目都没有」）══
          必须能自证：显示的号到底是从**哪一条**读出来的。
-         以前只回一个 `ver` 字符串，界面上没法区分这三种完全不同的情况：
-           ① 书里真有这条、正文是这个号
-           ② 书里没这条，界面却拿线上 label 填了（= 假显示）
-           ③ 书里有这条但正文是空的
-         现在把「哪条 / 叫什么 / 第几条 / 靠什么认出来的」一起带出去：
            verSrcUid   —— 这条的 uid（宿主认这个；空 = 没找到）
            verSrcName  —— 它的实际条目名（标题被吃掉时会是 '' 或别的）
            verSrcIdx   —— 它在书里第几条（1 起；0 = 没找到）
-           verBy       —— 'name' = 按标题名认；'content' = 标题丢了按正文认
+           verBy       —— 'name' 按标题名认 / 'content' 标题丢了按正文认 / 'local' 本地扫描
          ⚠ 界面必须**只信 out.ver**，ver 为空就显示「书里没有这条」，
            绝不许拿 __CQ_OSS_LABEL__ 顶上 —— 那正是「假显示」的来路。 */
-      try {
-        var _vIdx = -1;
-        for (var _vi2 = 0; _vi2 < (es || []).length; _vi2++) {
-          if (wbIsVerEntry(es[_vi2])) { _vIdx = _vi2; break; }
-        }
-        if (_vIdx >= 0) {
-          var _ve = es[_vIdx];
-          out.verSrcUid = (_ve && _ve.uid != null) ? String(_ve.uid) : '';
-          out.verSrcName = wbEntryName(_ve) || '';
-          out.verSrcIdx = _vIdx + 1;
-          out.verBy = (wbEntryName(_ve) === WB_VER_ENTRY) ? 'name' : 'content';
-        } else {
-          out.verSrcUid = ''; out.verSrcName = ''; out.verSrcIdx = 0; out.verBy = '';
-        }
-      } catch (eVd) { out.verSrcIdx = 0; out.verBy = ''; }
-      /* 一本书里连一条签名条目都没有 → 这本不是这张卡的（游戏版/文字版书名相同） */
+      if (!_locSrc) {
+        try {
+          var _vIdx = -1;
+          for (var _vi2 = 0; _vi2 < (es || []).length; _vi2++) {
+            if (wbIsVerEntry(es[_vi2])) { _vIdx = _vi2; break; }
+          }
+          if (_vIdx >= 0) {
+            var _ve = es[_vIdx];
+            out.verSrcUid = (_ve && _ve.uid != null) ? String(_ve.uid) : '';
+            out.verSrcName = wbEntryName(_ve) || '';
+            out.verSrcIdx = _vIdx + 1;
+            out.verBy = (wbEntryName(_ve) === WB_VER_ENTRY) ? 'name' : 'content';
+          } else {
+            out.verSrcUid = ''; out.verSrcName = ''; out.verSrcIdx = 0; out.verBy = '';
+          }
+        } catch (eVd) { out.verSrcIdx = 0; out.verBy = ''; }
+      }
+
+      /* 书里一条签名条目都没有 → 这本不是这张卡的（游戏版/文字版书名相同）。
+         ⚠ 本地扫描命中时 out.hit 已经补成 1，不会误判。 */
       if (!out.hit) {
         out.state = 'foreign';
         out.msg = '绑定的《' + out.wb + '》' + out.count + ' 条里没有一条这张卡的条目'
@@ -1965,6 +2279,7 @@
           + ' —— 像是绑到了另一张卡的书上。';
         return out;
       }
+
       if (!hitEnt) {
         out.state = 'no-entry';
         /* 诊断：把最后 3 条的「各字段到底有没有值」报出来，一次就能看出宿主吃掉了哪个字段 */
@@ -1980,12 +2295,18 @@
           ' 条，但还缺《' + WB_VER_ENTRY + '》，点「同步世界书」补进去';
         return out;
       }
-      /* EJS 自检：有坏条目就带出去，版本页直接列名字 */
-      try {
-        var _sc = wbScanEjs(es);
-        out.ejsBad = _sc.count;
-        out.ejsNames = _sc.list;
-      } catch (eSc) { out.ejsBad = 0; out.ejsNames = []; }
+
+      /* EJS 自检：有坏条目就带出去，版本页直接列名字（本地扫描没有原始条目，跳过） */
+      if (!_locSrc) {
+        try {
+          var _sc = wbScanEjs(es);
+          out.ejsBad = _sc.count;
+          out.ejsNames = _sc.list;
+        } catch (eSc) { out.ejsBad = 0; out.ejsNames = []; }
+      } else {
+        out.ejsBad = 0; out.ejsNames = [];
+      }
+
       out.ok = !!out.ver;
       out.state = out.ok ? 'ok' : 'empty';
       if (!out.ver) out.msg = '书里有《' + WB_VER_ENTRY + '》，但正文是空的';
@@ -2059,21 +2380,52 @@
       var pick = await wbPickTarget(getE, names, map);
       out.books = pick.info.join('  |  ');
       if (!pick.name) {
-        /* 一条都不命中：这本书不是这张卡的（游戏版 / 文字版共用同一个书名）。
-           绝不批量灌 128 条进去 —— 那会把别人的书彻底搞乱。 */
-        var es0 = names[0] ? await getE(names[0]) : [];
-        var sample0 = (es0 || []).slice(0, 3).map(function (e) {
-          return String((e && (e.comment || e.name)) || '（无名）');
-        }).join(' / ');
-        out.msg = '绑定的《' + (names[0] || '?') + '》' + ((es0 || []).length) +
-          ' 条里没有一条我们的条目' + (sample0 ? '（前几条：' + sample0 + '）' : '') +
-          ' —— 为防污染别人的世界书，本次不写入。';
-        return out;
+        /* ⛔⛔ 2026-11-18 00:25 —— 作者原话：「你的问题，还是没改」。
+           ────────────────────────────────────────────────────────────────
+           这里是**死锁**，一直没被发现：
+             wbPickTarget 只在「命中 > 0」时才认一本书。
+             而作者把旧的同名书写删了 ⇒ 角色绑定的那本是**空的** ⇒
+             命中恒为 0 ⇒ pick.name 恒为空 ⇒ 走进下面这个「为防污染不写入」
+             ⇒ 永远写不进去 ⇒ 作者刷新再多遍也还是空的。
+            ────────────────────────────────────────────────────────────────
+           正确判据：**空书 ≠ 别人的书**。一本书 0 条，它里面没有任何
+           「别人的内容」可以被污染，往空书里写正是我们要做的事。
+           所以：只要候选里有一本是**空的**，就直接选它、照常写入。
+           只有「非空、且一条都不命中」才维持拒写（那才是真·别人的书）。 */
+        var _emptyName = '';
+        for (var _bi = 0; _bi < names.length; _bi++) {
+          var _bes = null;
+          try { _bes = await getE(names[_bi]); } catch (eBE) { continue; }
+          if (_bes && _bes.length === 0) { _emptyName = names[_bi]; break; }
+        }
+        if (_emptyName) {
+          pick = { name: _emptyName, hit: 0, info: (pick.info || []).concat([_emptyName + ': 空书→直接建']) };
+          out.books = pick.info.join('  | ');
+        } else {
+          var es0 = names[0] ? await getE(names[0]) : [];
+          var sample0 = (es0 || []).slice(0, 3).map(function (e) {
+            return String((e && (e.comment || e.name)) || '（无名）');
+          }).join(' / ');
+          out.msg = '绑定的《' + (names[0] || '?') + '》' + ((es0 || []).length) +
+            ' 条里没有一条我们的条目' + (sample0 ? '（前几条：' + sample0 + '）' : '') +
+            ' —— 为防污染别人的世界书，本次不写入。';
+          return out;
+        }
       }
       /* ★ 命中不是满额（<10）说明书名撞了、绑到了另一代的同名牌上。
-         这种书**只补匹配到的条目 + 版本号**，不批量补 128 条、不删任何东西。 */
-      var partial = pick.hit < 10;
+         这种书**只补匹配到的条目 + 版本号**，不批量补 128 条、不删任何东西。
+         ⛔⛔ 2026-11-18 00:26：**空书绝不算 partial**。
+         partial 的语义是「这本书里有别人的东西，别动」——
+         而 0 条的书里根本没有别人的东西。作者把旧书删了以后，
+         角色绑的就是空书；如果它被当成 partial，下面第 2488 行会
+         `if (partial && nm !== WB_VER_ENTRY) return;` ⇒ 90 条全跳过、
+         只补一条版本号 ⇒ 作者看到的还是「没改」。
+         所以：空书 = 全新书 = 走**全量**（该补的补、该开的开）。
+         这是第三个死锁，前两个分别是 wbPickTarget 不认空书、以及拒写分支。 */
+      var _isEmptyBook = (pick.hit === 0);
+      var partial = !_isEmptyBook && pick.hit < 10;
       out.partial = partial;
+      out.emptyBook = _isEmptyBook;
       var wb = pick.name;
       out.wb = wb;
 
@@ -2098,6 +2450,9 @@
       var _offInText = [], _nonOnly = [];
       try { _offInText = (typeof CFG !== 'undefined' && CFG && CFG.bookOffInText) || []; } catch (eC1) {}
       try { _nonOnly = (typeof CFG !== 'undefined' && CFG && CFG.bookNonOnly) || []; } catch (eC2) {}
+      /* ★ 2026-11-18 15:43：原来的「强制恒关名单」（推演用三条）已随条目一起删除 ——
+         那三条现在由 RETIRED_ENTRIES 物理删掉，不需要"恒关"。
+         恒关只会让老玩家书里一直留着三条白烧 token 的死条目。 */
       /* 就地判据：返回 true = 这条该开着。
          ⚠ 第一句必须是**前缀**判断（作者强制命令：初始化变量恒关，两条都不许亮）。
          不能改成调外部的 isInitVarName —— 这一段会被单独切出去跑（_t_wbver.mjs）。 */
