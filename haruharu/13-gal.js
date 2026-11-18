@@ -1722,16 +1722,20 @@
         try { extPaintBtn(); } catch (e3) {}
         did = 'ext';
       } else {
-        /* ② 内置：走 localStorage + paint()，和齿轮面板里那个开关是同一条路
-              （判据单一，不会出现"面板说开着、控制条说关了"） */
-        try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'off'); } catch (e4) {}
-        try { paint(); } catch (e5) {}
-        did = 'cg';
+        /* ★ 2026-11-18：内置插图**不再可关**（作者：插图默认打开，无论如何都是默认打开，
+           这颗开关只用来把关掉的打开，不是给玩家关插图用的）。
+           以前这里写 SPR_ILLUST_ON=off —— 作者就是这么把插图关掉的，
+           然后第二天打开游戏发现"插图完全不识别"，白查半天。
+           现在只提示，不写任何"关"的状态。 */
+        did = 'builtin-keep';
       }
     } catch (e) {}
 
-    try { extToast(did === 'ext' ? '🖼 外置插图已关闭（可在面板重新打开）'
-                                : '🖼 插图已关闭（可在面板重新打开）'); } catch (eT) {}
+    try {
+      extToast(did === 'ext' ? '🖼 外置插图已关闭（可在面板重新打开）'
+        : (did === 'builtin-keep' ? '🖼 插图是常开的（这颗开关只用来把关掉的打开）'
+          : '🖼 外置插图已关闭（可在面板重新打开）'));
+    } catch (eT) {}
     /* 通知 10-core 那边同步面板上「重新打开插图」的可用状态 */
     try { if (HOST.__thSyncExtIllustBtn) HOST.__thSyncExtIllustBtn(); } catch (eS) {}
     return did;
@@ -2536,6 +2540,26 @@
           console.warn('⚠️ 图组未命中：' + w + '｜库里有：' + (mine.join('、') || '无'));
         });
       } catch (eLog) {}
+      /* ★ 2026-11-18：作者问「我在开场白写<插图>标签组居然没识别，还是说其实是坏了」。
+         —— 这里必须让**屏幕**回答他，不能只写控制台：
+            · 标签**被读到了**但「人物｜动作」在图库里没有 ⇒ 弹一句「没匹配」
+              （这时不是"标签没识别"，是动作名对不上，控制台里有该角色可用的动作名）
+            · 标签**根本没读到** ⇒ 这里不会有 miss，界面也不会弹 —— 两种情况一眼可分。
+         同一串未命中只弹一次，免得每秒刷屏。 */
+      try {
+        var _mk = bq.miss.join('|');
+        if (_mk !== HOST.__galMissShown) {
+          HOST.__galMissShown = _mk;
+          var _fn = null;
+          try { if (typeof popToast === 'function') _fn = popToast; } catch (eT0) {}
+          if (!_fn) { try { if (HOST && typeof HOST.popToast === 'function') _fn = HOST.popToast; } catch (eT1) {} }
+          if (_fn) {
+            _fn('插图标签读到了，但库里没这个动作：' + bq.miss.slice(0, 2).join('、'), 4200);
+          }
+        }
+      } catch (eMt) {}
+    } else {
+      try { HOST.__galMissShown = ''; } catch (eMr) {}
     }
     if (!bq.queue.length) { setQueue('', []); return; }
     try { console.log('🎬 插图队列：' + bq.queue.length + ' 张（' + bq.sig + '）'); } catch (eLog2) {}
@@ -2562,9 +2586,17 @@
   var extOn = false;
   var extTimer = null;
 
-  /* 内置插图总开关（状态栏「功能」页控制）。默认开。 */
+  /* 内置插图总开关。★ 2026-11-18 作者命令：「插图改成默认打开，无论如何都是默认打开，
+     这个开启只是给玩家把关掉的打开，而不是玩家想把插图关掉，别分不清主次了」。
+     ⇒ 恒 true，并把 localStorage 里残留的 off 就地改回 on（治好一次就永久好）。
+     真正可关的只有外置那套（SPR_EXT_ILLUST）。 */
   function illustEnabled() {
-    try { return HOST.localStorage.getItem('SPR_ILLUST_ON') !== 'off'; } catch (e) { return true; }
+    try {
+      if (HOST.localStorage.getItem('SPR_ILLUST_ON') === 'off') {
+        HOST.localStorage.setItem('SPR_ILLUST_ON', 'on');
+      }
+    } catch (eFix) {}
+    return true;
   }
 
   function extDoc() { try { return getDoc(); } catch (e) { return null; } }
@@ -2807,10 +2839,11 @@
         get: function () { return extOn; }
       };
       HOST.__sprIllust = {
-        set: function (on) {
-          try { HOST.localStorage.setItem('SPR_ILLUST_ON', on ? 'on' : 'off'); } catch (eS2) {}
+        set: function () {
+          /* ★ 2026-11-18：只开不关（传 false 也当开）。插图常开，别分不清主次。 */
+          try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'on'); } catch (eS2) {}
           try { paint(); } catch (eP2) {}
-          extToast(on ? '🖼 内置插图：开' : '🖼 内置插图：关');
+          extToast('🖼 内置插图：开（常开）');
         },
         get: function () { return illustEnabled(); }
       };
@@ -2821,10 +2854,11 @@
     if (!HOST.__sprIllust) {
       try {
         HOST.__sprIllust = {
-          set: function (on) {
-            try { HOST.localStorage.setItem('SPR_ILLUST_ON', on ? 'on' : 'off'); } catch (eS2) {}
+          set: function () {
+            /* ★ 2026-11-18：只开不关（同上，兜底那一份也必须同口径）。 */
+            try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'on'); } catch (eS2) {}
             try { paint(); } catch (eP2) {}
-            try { extToast(on ? '🖼 内置插图：开' : '🖼 内置插图：关'); } catch (eT2) {}
+            try { extToast('🖼 内置插图：开（常开）'); } catch (eT2) {}
           },
           get: function () { return illustEnabled(); }
         };

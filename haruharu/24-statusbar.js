@@ -229,11 +229,14 @@
       try { var v = localStorage.getItem(k); return v === null ? dflt : v; } catch (e) { return dflt; }
     }
     function paint() {
-      var i1 = ls('SPR_ILLUST_ON', 'on') !== 'off';
+      /* ★ 2026-11-18 作者命令：插图**常开**，这个开关只用来把（万一）关掉的打开。
+         ⇒ 显示恒为「开」；老存档里残留的 off 顺手治回 on。 */
+      var i1 = true;
+      try { if (localStorage.getItem('SPR_ILLUST_ON') === 'off') localStorage.setItem('SPR_ILLUST_ON', 'on'); } catch (eF) {}
       var i2 = ls('SPR_EXT_ILLUST', 'on') === 'on';
       try {
-        d.getElementById('sb-fn-illust-v').textContent = i1 ? '开' : '关';
-        d.getElementById('sb-fn-illust').textContent = i1 ? '关闭' : '打开';
+        d.getElementById('sb-fn-illust-v').textContent = '开';
+        d.getElementById('sb-fn-illust').textContent = '保持开启';
         d.getElementById('sb-fn-ext-v').textContent = i2 ? '开' : '关';
         d.getElementById('sb-fn-ext').textContent = i2 ? '关闭' : '打开';
       } catch (e) {}
@@ -273,10 +276,10 @@
     }
     try {
       d.getElementById('sb-fn-illust').onclick = function () {
-        var next = ls('SPR_ILLUST_ON', 'on') === 'off';
+        /* ★ 2026-11-18：只开不关（作者：插图常开，别分不清主次）。 */
         try {
-          if (TOP.__sprIllust) TOP.__sprIllust.set(next);
-          else localStorage.setItem('SPR_ILLUST_ON', next ? 'on' : 'off');
+          if (TOP.__sprIllust) TOP.__sprIllust.set(true);
+          else localStorage.setItem('SPR_ILLUST_ON', 'on');
         } catch (e) {}
         paint();
       };

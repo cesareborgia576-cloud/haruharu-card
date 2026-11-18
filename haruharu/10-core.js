@@ -18882,6 +18882,24 @@ function fitDialogueStageToContent(shell) {
 function dialogueHeightPx(bodyEl) {
   return Math.max(64, Math.round(galChromeH(bodyEl) + dlgEffLines(bodyEl) * galLineH(bodyEl)));
 }
+/* ★★★ 2026-11-18 19:4x：**框高与正文高必须是同一个来源**。
+   作者第三次报「对话框底下还是有一行」——这次的真凶在 CSS 那条：
+     .th-gal-dialogue-stage { height: var(--th-dlg-h, 40%) !important; }
+   而 --th-dlg-h 以前喂的是 dialogueHeightPx() = 名牌 + **完整 dlgEffLines 行**；
+   正文区却是 computeGalAvailH() = (dlgEffLines + GAL_LINE_ADJUST) 行
+   = (dlgEffLines - 1) 行（GAL_LINE_ADJUST 是当年校准出来的 -1）。
+   ⇒ 只要那条 CSS 生效（inline auto 被心跳/重建冲掉时就会生效），
+     框就比正文高**整整一行**，底下那一行空白又回来了。
+   现在框高 = 名牌 + 正文区（同一个 computeGalAvailH），
+   不管 CSS 赢还是 inline 赢，两个数永远相等，空档从根上不存在。 */
+function dialogueBoxHeightPx(bodyEl) {
+  try {
+    var h = galChromeH(bodyEl) + computeGalAvailH(bodyEl);
+    return Math.max(64, Math.round(h));
+  } catch (e) {
+    return dialogueHeightPx(bodyEl);
+  }
+}
 function dialogueViewportMetrics(bodyEl) {
   var vpEl = (bodyEl && bodyEl.closest) ? bodyEl.closest('.th-gal-shell-viewport') : null;
   var vpH = (vpEl && vpEl.clientHeight) ? vpEl.clientHeight : 0;
@@ -23526,43 +23544,49 @@ function thBuildHudPanel(shell) {
     return a || null;
   }
   function thIllustOnNow() {
+    /* ★★★ 2026-11-18 19:3x 作者命令（原话）：
+       「你把插图改成默认打开，无论如何都是默认打开，这个开启只是给玩家把
+         关掉的打开，而不是玩家想把插图关掉，别分不清主次了」
+       ── 主次 ──────────────────────────────────────────────────────
+       插图是**常开**的。那颗按钮存在的唯一意义是：万一（老存档 / 别人手改）
+       被关过，玩家能把它重新打开。它**不是**一个"关掉插图"的开关。
+       ⇒ 这里恒返回 true，并把 localStorage 里残留的 off 就地改回 on ——
+         治好一次就永久好，不会再出现"怎么不显示图了"。
+       （真正可关的只有外置那套「兼容智绘姬」，它归 13-gal 的 __sprExtIllust 管。） */
     try {
-      var api = thPickIllustApi();
-      if (api && typeof api.get === 'function') return !!api.get();
-    } catch (e0) {}
-    try { return HOST.localStorage.getItem('SPR_ILLUST_ON') !== 'off'; } catch (e1) { return true; }
+      if (HOST.localStorage.getItem('SPR_ILLUST_ON') === 'off') {
+        HOST.localStorage.setItem('SPR_ILLUST_ON', 'on');
+      }
+    } catch (eFix) {}
+    return true;
   }
   function paintIllustBtn() {
     if (!illToggleBtn) return;
-    var on = thIllustOnNow();
-    illToggleBtn.textContent = on ? '🖼 插图：开' : '🖼 插图：关';
+    /* ★ 2026-11-18：插图常开 ⇒ 文案永远是「开」，不再出现「关」这个状态。 */
+    var on = true;
+    illToggleBtn.textContent = '🖼 插图：开';
     illToggleBtn.classList.toggle('is-off', !on);
-    illToggleBtn.title = on
-      ? '内置插图（卡里自带的图组）现在是开着的，点一下关掉'
-      : '内置插图现在是关着的，点一下打开';
+    illToggleBtn.title = '内置插图常开。这颗只用来把（万一）被关掉的插图重新打开';
   }
   if (illToggleBtn) {
     paintIllustBtn();
     illToggleBtn.addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation();
-      var next = !thIllustOnNow();
+      /* ★ 2026-11-18：点这颗**只会打开**，绝不关（作者：别分不清主次）。
+         万一有老存档关过，这里顺手把它治好。 */
       var ok = false;
       try {
         var api = thPickIllustApi();
-        if (api && typeof api.set === 'function') { api.set(next); ok = true; }
+        if (api && typeof api.set === 'function') { api.set(true); ok = true; }
       } catch (eS) { ok = false; }
-      if (!ok) {
-        try { HOST.localStorage.setItem('SPR_ILLUST_ON', next ? 'on' : 'off'); ok = true; } catch (eL) {}
-      }
+      try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'on'); ok = true; } catch (eL) {}
+      try { if (HOST.__sprIllust && HOST.__sprIllust.repaint) HOST.__sprIllust.repaint(); } catch (eR0) {}
       paintIllustBtn();
       try {
         if (typeof showToast === 'function') {
-          showToast(ok ? ('🖼 内置插图已' + (next ? '打开' : '关闭')) : '插图模块还没起来，进游戏后再试', 2400);
+          showToast(ok ? '🖼 插图：开（常开，不会被关掉）' : '插图模块还没起来，进游戏后再试', 2400);
         }
       } catch (eT) {}
-      /* 关掉后要立刻把画面上的图收干净 / 打开后立刻补图；13-gal 的 set() 会自己 paint，
-         localStorage 那条兜底没有事件，这里补一次重绘信号。 */
-      try { if (!ok) { var g = HOST.__sprIllust; if (g && g.repaint) g.repaint(); } } catch (eR) {}
       thHudArmAutoClose(shell);
     });
   }
@@ -24876,16 +24900,14 @@ function setupInteractions(shell) {
   var btnExtIllust = shell.querySelector('.th-gal-btn-extillust');
   function syncExtIllustBtn() {
     if (!btnExtIllust) return;
-    var on = false;
-    try { on = !!(HOST.__sprIllust && HOST.__sprIllust.get && HOST.__sprIllust.get()); } catch (e0) {}
-    if (!(HOST.__sprIllust && HOST.__sprIllust.get)) {
-      try { on = HOST.localStorage.getItem('SPR_ILLUST_ON') !== 'off'; } catch (e0b) { on = true; }
-    }
-    btnExtIllust.textContent = '🖼 插图：' + (on ? '开' : '关');
+    /* ★ 2026-11-18：插图常开 ⇒ 永远显示「开」，并顺手治好老存档里的 off。 */
+    var on = true;
+    try {
+      if (HOST.localStorage.getItem('SPR_ILLUST_ON') === 'off') HOST.localStorage.setItem('SPR_ILLUST_ON', 'on');
+    } catch (eFix) {}
+    btnExtIllust.textContent = '🖼 插图：开';
     btnExtIllust.classList.toggle('is-on', on);
-    btnExtIllust.title = on
-      ? '内置插图（卡里自带的图组）现在是开着的，点一下关掉'
-      : '内置插图现在是关着的，点一下打开';
+    btnExtIllust.title = '内置插图常开。这颗只用来把（万一）被关掉的插图重新打开';
   }
   try { HOST.__thSyncExtIllustBtn = syncExtIllustBtn; } catch (eSI) {}
   if (btnExtIllust) {
@@ -24893,15 +24915,13 @@ function setupInteractions(shell) {
       e.stopPropagation();
       e.preventDefault();
       try { PixelAudio.playSelect(); } catch (eSnd3) {}
+      /* ★ 2026-11-18：只开不关（作者：别分不清主次了）。 */
       var api = null;
       try { api = HOST.__sprIllust || null; } catch (eA) {}
-      var next = false;
-      if (api && typeof api.get === 'function') next = !api.get();
-      else { try { next = HOST.localStorage.getItem('SPR_ILLUST_ON') === 'off'; } catch (eG) { next = true; } }
-      if (api && typeof api.set === 'function') { api.set(next); }
-      else { try { HOST.localStorage.setItem('SPR_ILLUST_ON', next ? 'on' : 'off'); } catch (eL) {} }
+      if (api && typeof api.set === 'function') { try { api.set(true); } catch (eS2) {} }
+      try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'on'); } catch (eL) {}
       syncExtIllustBtn();
-      try { popToast('🖼 内置插图已' + (next ? '打开' : '关闭')); } catch (eP) {}
+      try { popToast('🖼 插图：开（常开，不会被关掉）'); } catch (eP) {}
     };
     syncExtIllustBtn();
   }
@@ -25100,7 +25120,9 @@ function setupInteractions(shell) {
       btnDlgHD.textContent = '对话框高度-1';
       btnDlgHD.title = '降低一行（每点一次正好少一行字）· 当前 ' + dlgLinesPref() + ' 行';
     }
-    try { shell.style.setProperty('--th-dlg-h', dialogueHeightPx(shell.querySelector('.th-gal-dialogue-body')) + 'px'); } catch (eV) {}
+    /* ★ 2026-11-18：喂给 CSS 的框高必须和正文区同源（见 dialogueBoxHeightPx 的注释）。
+       以前喂 dialogueHeightPx()，比正文整整高一行 —— CSS 那条 height 一生效就空一行。 */
+    try { shell.style.setProperty('--th-dlg-h', dialogueBoxHeightPx(shell.querySelector('.th-gal-dialogue-body')) + 'px'); } catch (eV) {}
   }
   syncDlgHBtn();
   try { fitDialogueStage(shell); } catch (eF0) {}
@@ -28661,9 +28683,46 @@ async function updateContainer(shell) {
     setTimeout(go, 60);
   }
 
+  /* ══ ★ 2026-11-18：开场白里的 <插图> 标签不该被开局冲掉 ══
+     作者原话：「开场白为什么不识别标签了，我在开场白写<插图>标签组居然没识别，
+                还是说其实是坏了」
+
+     ── 根因（不是标签解析坏了，标签压根没活到被解析那一步）──
+     开局 / 换篇章时 jumpToGreeting 会把第 0 楼正文**整篇换成脚本内嵌的开场**
+     （VILLAGE / APARTMENT / SHRINE_OPENING_CONTENT），作者写在卡里开场白
+     （或手改第 0 楼）的 <插图> 标签跟着一起没了。
+     而 07（13-gal）的插图队列是**从第 0 楼聊天数据里**读标签的
+     ⇒ 标签没了 = 一张图都不出，看着就像"标签不被识别"。
+
+     ── 做法 ──
+     换正文之前先把旧正文里的插图标签摘出来，接在新正文末尾（**只动数据层**，
+     对话框仍然用内嵌那份，屏幕上不会多出标签字）。
+     只在旧正文**不是我们自己的内嵌开场**时才搬 —— 否则换篇章会把上一篇的图带过来。 */
+  function thIlluTagsOf(text) {
+    var out = [], m;
+    var re = /<\s*插图\s*>([^\n<]*)(?:<\s*\/\s*插图\s*>)?/g;
+    while ((m = re.exec(String(text || ''))) !== null) {
+      var inner = String(m[1] || '').trim();
+      if (!inner) continue;
+      var tag = '<插图>' + inner + '</插图>';
+      if (out.indexOf(tag) < 0) out.push(tag);
+    }
+    return out;
+  }
+  function thIsBuiltinOpening(t) {
+    var s = String(t || '').trim();
+    if (!s) return false;
+    var arr = [VILLAGE_OPENING_CONTENT, APARTMENT_OPENING_CONTENT, SHRINE_OPENING_CONTENT];
+    for (var i = 0; i < arr.length; i++) {
+      var b = String(arr[i]).trim();
+      if (s === b || s.indexOf(b) === 0) return true;
+    }
+    return false;
+  }
+
   /* ══ 开场白跳转：数据层 + 显示层，两层都做 ══ */
-  function jumpToGreeting(idx) {
-    var body = (idx === 3) ? SHRINE_OPENING_CONTENT : (idx === 2) ? APARTMENT_OPENING_CONTENT : (idx === 1 ? VILLAGE_OPENING_CONTENT : GREETING_HOME_TEXT);
+  function jumpToGreeting(idx, bodyOverride) {
+    var body = bodyOverride || ((idx === 3) ? SHRINE_OPENING_CONTENT : (idx === 2) ? APARTMENT_OPENING_CONTENT : (idx === 1 ? VILLAGE_OPENING_CONTENT : GREETING_HOME_TEXT));
     var okData = false, okDom = false;
 
     /* ① 数据层 A：酒馆助手 */
@@ -28773,13 +28832,24 @@ async function updateContainer(shell) {
     } catch (eGm0) {}
     var jumpOk = false;
     if (rewriteGreeting) {
-      try { jumpOk = jumpToGreeting(idx); } catch (eJ) {}
+      /* ★ 2026-11-18：开场正文的**数据层**要带上玩家写在开场白里的插图标签
+         （见 thIlluTagsOf 上面的长注释）。对话框那一层仍用内嵌正文，一个字不变。 */
+      var _openTxt = arcOpeningContent(arc);
+      var _floorBody = _openTxt;
+      try {
+        var _cur0 = readFloorZeroText();
+        if (_cur0 && !thIsBuiltinOpening(_cur0)) {
+          var _tags = thIlluTagsOf(_cur0).filter(function (t) { return _floorBody.indexOf(t) < 0; });
+          if (_tags.length) _floorBody = _floorBody + '\n' + _tags.join('\n');
+        }
+      } catch (eTag) {}
+      try { jumpOk = jumpToGreeting(idx, _floorBody); } catch (eJ) {}
       /* 酒馆 swipe 那条路没成：把正文直接写进第 0 楼的数据（屏幕那一层由 patchGreetingDom 保证） */
       if (!jumpOk) {
-        try { writeFloorZero(arcOpeningContent(arc)); } catch (eW) {}
+        try { writeFloorZero(_floorBody); } catch (eW) {}
       }
       try {
-        DialogueReader.setRawText(arcOpeningContent(arc), false);
+        DialogueReader.setRawText(_openTxt, false);
         DialogueReader.isOpen = true;
         DialogueReader.render();
       } catch (eD) {}
@@ -31397,6 +31467,317 @@ var _thWbVer = { at: 0, ver: '', wb: '', count: 0, err: '', loading: false, book
 /* ★ 必须和 00-switcher.js 里的 WB_VER_ENTRY 一致，否则界面会去找一个不存在的条目名 */
 var TH_WB_VER_ENTRY = '春日狂想曲·版本号';
 
+/* ══════════════════════════════════════════════════════════════════════
+   ★★★ 2026-11-18 19:3x：世界书**自读**（抄天元录那四段的结构）★★★
+
+   作者原话（第二次说，带火气）：
+     「功能页的世界书还是没法读取，我不是叫你抄天元录的界面脚本的世界书版本号
+       显示了吗」
+
+   ── 以前为什么一直「读不到」──────────────────────────────────────────
+   本卡把「读世界书」这件事整个外包给了 00-switcher.js 的 __TH_WB_READ__：
+       核心 → 问切换器 → 切换器问宿主
+   切换器那边只要有一条路没通（接口没挂上 / 书没绑对 / 绑的不是 primary /
+   脚本顺序不对 / 热更时切换器被重建），核心这边就**只能干等**，最后报「状态未知」。
+   而天元录是**反的**：读世界书的代码住在核心脚本里，界面只负责画。
+   ⇒ 界面能不能显示，不取决于另一个脚本活没活。
+
+   ── 所以这里照它抄，一条都不省 ──────────────────────────────────────
+   ① thWbPickFn     取接口：酒馆助手对象 → ST getContext → 裸全局 → 宿主 window
+                    （天元录 xzPickFn 的四级；少一级就会在某种宿主里静默失效）
+   ② thWbBookNames  候选书**全部并进来**：primary + additional + 聊天书 + 所有书名
+                    （天元录 xzWBNames。「拿到一本就停」踩过一次：primary 指向一本
+                      不含目标条目的书时，永远搜不到）
+   ③ thWbCollectAll 每本都读、拍平成一个数组，按**条目名**找，不猜是哪本
+   ④ 本地兜底      卡内嵌 character_book + 宿主 world_info（跨 window），带 content
+   ⑤ 三种「没读到」分开报，绝不伪造版本号
+
+   ⚠ 与切换器那份的关系：**两条腿，不是两份真相**。
+     切换器先跑（它还有 EJS 自检、同步等能力），它说没读到，这里再读一遍；
+     谁读到用谁。两边找的是同一个条目名 TH_WB_VER_ENTRY。
+   ══════════════════════════════════════════════════════════════════════ */
+/* 宿主 window 候选：脚本跑在 iframe 里，API 常常只挂在 parent / top 上。
+   只扫 window 等于永远扫不到 —— 天元录 xzHostWins 同款。 */
+function thWbWins() {
+  var ws = [];
+  function add(w) { try { if (w && ws.indexOf(w) < 0) ws.push(w); } catch (e) {} }
+  try { add(window); } catch (e0) {}
+  try { add(HOST); } catch (e1) {}
+  try { if (window.parent && window.parent !== window) add(window.parent); } catch (e2) {}
+  try { if (window.top && window.top !== window) add(window.top); } catch (e3) {}
+  return ws;
+}
+/* 取一个世界书接口。四级，缺一级都会在某种宿主里静默返回 null。 */
+function thWbPickFn(name) {
+  var i;
+  /* ① 酒馆助手对象（自带 worldbook 实现，不受 ST 版本差异影响） */
+  try {
+    if (typeof TavernHelper !== 'undefined' && TavernHelper
+      && typeof TavernHelper[name] === 'function') return TavernHelper[name].bind(TavernHelper);
+  } catch (e0) {}
+  var ws = thWbWins();
+  for (i = 0; i < ws.length; i++) {
+    try {
+      var th = ws[i] && ws[i].TavernHelper;
+      if (th && typeof th[name] === 'function') return th[name].bind(th);
+    } catch (e1) {}
+  }
+  /* ② SillyTavern.getContext()：loadWorldInfo / saveWorldInfo 只挂在这里 */
+  for (i = 0; i < ws.length; i++) {
+    try {
+      var st = ws[i] && ws[i].SillyTavern;
+      if (st && typeof st.getContext === 'function') {
+        var cx = st.getContext();
+        if (cx && typeof cx[name] === 'function') return cx[name].bind(cx);
+      }
+    } catch (e2) {}
+  }
+  /* ③ 裸全局 —— 必须静态判断，不能写 window[name]：这些是顶层变量，不在 window 上 */
+  var f = null;
+  try {
+    if (name === 'getLorebookEntries' && typeof getLorebookEntries !== 'undefined') f = getLorebookEntries;
+    else if (name === 'getWorldbook' && typeof getWorldbook !== 'undefined') f = getWorldbook;
+    else if (name === 'getCharWorldbookNames' && typeof getCharWorldbookNames !== 'undefined') f = getCharWorldbookNames;
+    else if (name === 'getWorldbookNames' && typeof getWorldbookNames !== 'undefined') f = getWorldbookNames;
+    else if (name === 'getChatBook' && typeof getChatBook !== 'undefined') f = getChatBook;
+  } catch (e3) {}
+  if (f) return f;
+  /* ④ 宿主 window 上的同名方法 */
+  for (i = 0; i < ws.length; i++) {
+    try { if (typeof ws[i][name] === 'function') return ws[i][name].bind(ws[i]); } catch (e4) {}
+  }
+  return null;
+}
+function thWbAwait(v) { return (v && typeof v.then === 'function') ? v : Promise.resolve(v); }
+/* 候选书：全部并进来（天元录 xzWBNames） */
+function thWbBookNames() {
+  var out = [];
+  function push(n) {
+    var v = String(n == null ? '' : n).trim();
+    if (v && out.indexOf(v) < 0) out.push(v);
+  }
+  var jobs = [];
+  var g0 = thWbPickFn('getCharWorldbookNames');
+  if (g0) {
+    jobs.push(thWbAwait(g0('current')).then(function (bn) {
+      if (!bn) return;
+      if (bn.primary) push(bn.primary);
+      if (bn.additional && bn.additional.length) {
+        for (var i = 0; i < bn.additional.length; i++) push(bn.additional[i]);
+      }
+    }, function () {}));
+  }
+  var g1 = thWbPickFn('getChatBook');
+  if (g1) jobs.push(thWbAwait(g1()).then(function (n) { push(n); }, function () {}));
+  var g2 = thWbPickFn('getWorldbookNames');
+  if (g2) {
+    jobs.push(thWbAwait(g2()).then(function (all) {
+      if (Array.isArray(all)) for (var i = 0; i < all.length; i++) push(all[i]);
+    }, function () {}));
+  }
+  return Promise.all(jobs).then(function () { return out; });
+}
+function thWbEntryTitle(e) {
+  if (!e || typeof e !== 'object') return '';
+  var t = (e.comment != null && String(e.comment).trim()) ? e.comment : e.name;
+  return String(t == null ? '' : t).trim();
+}
+/* 每本都读，拍平。flat.err = 有没有「接口抛错」（与「书里没这条」分开） */
+function thWbCollectAll() {
+  var getE = thWbPickFn('getLorebookEntries');
+  var getW = thWbPickFn('getWorldbook');
+  var sawErr = false;
+  return thWbBookNames().then(function (names) {
+    var jobs = names.map(function (nm) {
+      return Promise.resolve().then(function () {
+        var r = null;
+        try { r = getE ? getE(nm) : (getW ? getW(nm) : null); } catch (e) { sawErr = true; r = null; }
+        return thWbAwait(r).then(function (list) {
+          /* getWorldbook 返回的是 { entries: {uid: {...}} }；getLorebookEntries 返回数组 */
+          if (list && !Array.isArray(list) && list.entries && typeof list.entries === 'object') {
+            var arr = [], k;
+            for (k in list.entries) {
+              if (Object.prototype.hasOwnProperty.call(list.entries, k)) arr.push(list.entries[k]);
+            }
+            list = arr;
+          }
+          return (Array.isArray(list) ? list : []).map(function (e) {
+            if (!e || typeof e !== 'object') return null;
+            return {
+              book: nm,
+              uid: (e.uid !== undefined ? e.uid : ''),
+              title: thWbEntryTitle(e),
+              content: String(e.content == null ? '' : e.content)
+            };
+          }).filter(Boolean);
+        }, function () { sawErr = true; return []; });
+      });
+    });
+    return Promise.all(jobs).then(function (arrs) {
+      var flat = [];
+      for (var i = 0; i < arrs.length; i++) flat = flat.concat(arrs[i]);
+      flat.err = sawErr;
+      return flat;
+    });
+  });
+}
+/* 本地兜底：完全不依赖任何 API 的两处（卡内嵌 + 宿主运行时 world_info）。
+   ⚠ 必须带 content —— 版本号那一条的全部价值就是正文。 */
+function thWbLocalBags() {
+  var out = [];
+  function scan(bag, book) {
+    if (!bag) return;
+    try {
+      if (Array.isArray(bag)) {
+        for (var i = 0; i < bag.length; i++) {
+          var e = bag[i];
+          if (e && typeof e === 'object') out.push({
+            book: book, uid: (e.uid !== undefined ? e.uid : ''),
+            title: thWbEntryTitle(e), content: String(e.content == null ? '' : e.content)
+          });
+        }
+      } else if (typeof bag === 'object') {
+        for (var k in bag) {
+          if (!Object.prototype.hasOwnProperty.call(bag, k)) continue;
+          var e2 = bag[k];
+          if (e2 && typeof e2 === 'object') out.push({
+            book: book, uid: (e2.uid !== undefined ? e2.uid : k),
+            title: thWbEntryTitle(e2), content: String(e2.content == null ? '' : e2.content)
+          });
+        }
+      }
+    } catch (eS) {}
+  }
+  var ws = thWbWins();
+  /* ① 角色卡内嵌 character_book（最可靠：导入卡时就在 characters 里） */
+  for (var i = 0; i < ws.length; i++) {
+    try {
+      var st = ws[i] && ws[i].SillyTavern;
+      var ctx = (st && typeof st.getContext === 'function') ? st.getContext() : null;
+      var arr = ctx && ctx.characters;
+      if (!arr) continue;
+      var chid = null;
+      try { chid = (ctx.characterId != null) ? ctx.characterId : null; } catch (eC) {}
+      if (chid != null && arr[chid] && arr[chid].data && arr[chid].data.character_book) {
+        var bk = arr[chid].data.character_book;
+        scan(bk.entries, String(bk.name || arr[chid].name || '（卡内嵌）'));
+      } else {
+        for (var ci = 0; ci < arr.length; ci++) {
+          var c0 = arr[ci];
+          if (c0 && c0.data && c0.data.character_book) {
+            scan(c0.data.character_book.entries,
+              String(c0.data.character_book.name || c0.name || '（卡内嵌）'));
+          }
+        }
+      }
+    } catch (e1) {}
+  }
+  /* ② 宿主运行时世界书对象 world_info.entries（可能按书名字典包一层） */
+  for (var j = 0; j < ws.length; j++) {
+    try {
+      var w = ws[j];
+      var wil = w && (w.world_info || (w.SillyTavern && w.SillyTavern.world_info));
+      if (!wil || !wil.entries) continue;
+      var got = wil.entries;
+      if (Array.isArray(got)) { scan(got, 'world_info'); continue; }
+      /* 是不是「书名字典」：值里带 entries 才当书，否则当条目表 */
+      var isDict = false, kk;
+      for (kk in got) {
+        if (Object.prototype.hasOwnProperty.call(got, kk) && got[kk] && got[kk].entries) { isDict = true; break; }
+      }
+      if (isDict) {
+        for (kk in got) {
+          if (Object.prototype.hasOwnProperty.call(got, kk) && got[kk]) scan(got[kk].entries, kk);
+        }
+      } else {
+        scan(got, 'world_info');
+      }
+    } catch (e2) {}
+  }
+  return out;
+}
+/* 读一次世界书版本号（自读版）。返回的字段与切换器 __TH_WB_READ__ 同形，
+   上层 thWbVerRefresh 的消费逻辑不用改。 */
+function thWbSelfRead() {
+  var out = { ok: false, wb: '', ver: '', count: 0, hit: 0, sample: '', books: '',
+    verSrcUid: '', verSrcName: '', verSrcIdx: 0, verBy: '',
+    probe: null, msg: '', state: '', ejsBad: 0, ejsNames: [],
+    want: '', fresh: false, stale: false, staleWhy: '', staleHit: [] };
+  try {
+    out.probe = {
+      getLorebookEntries: !!thWbPickFn('getLorebookEntries'),
+      getWorldbook: !!thWbPickFn('getWorldbook'),
+      getCharWorldbookNames: !!thWbPickFn('getCharWorldbookNames'),
+      getWorldbookNames: !!thWbPickFn('getWorldbookNames'),
+      getChatBook: !!thWbPickFn('getChatBook')
+    };
+  } catch (eP) { out.probe = {}; }
+  function findVer(list) {
+    for (var i = 0; i < (list || []).length; i++) {
+      if (String(list[i].title || '') === TH_WB_VER_ENTRY) return list[i];
+    }
+    return null;
+  }
+  return thWbCollectAll().then(function (flat) {
+    var apiHit = findVer(flat);
+    var all = flat.slice();
+    var hit = apiHit;
+    if (hit) {
+      out.verBy = 'name';
+    } else {
+      /* API 那条路没拿到版本号 → 本地兜底（两处都不依赖 API） */
+      var lb = [];
+      try { lb = thWbLocalBags(); } catch (eL) { lb = []; }
+      var locHit = findVer(lb);
+      if (locHit) { hit = locHit; out.verBy = 'local'; all = all.concat(lb); }
+    }
+    /* 诊断：每本书几条 —— 读不到时一眼看出是「没书」还是「书里没这条」 */
+    try {
+      var per = {};
+      for (var i = 0; i < all.length; i++) {
+        var b = String(all[i].book || '?');
+        per[b] = (per[b] || 0) + 1;
+      }
+      var segs = [];
+      for (var k in per) if (Object.prototype.hasOwnProperty.call(per, k)) segs.push(k + ': ' + per[k] + '条');
+      out.books = segs.join('  |  ') || '（一本都没读到）';
+    } catch (eD) {}
+    out.count = all.length;
+    if (!hit) {
+      var noApi = !out.probe.getLorebookEntries && !out.probe.getWorldbook;
+      out.state = noApi ? 'no-api' : (out.count ? 'no-entry' : 'no-book');
+      out.msg = noApi
+        ? ('取不到世界书接口（getLorebookEntries / getWorldbook 都没有），'
+          + '本地扫描（卡内嵌 character_book + 宿主 world_info）也没找到《' + TH_WB_VER_ENTRY + '》'
+          + ' —— 酒馆助手没加载完，或这张卡的卡内世界书没导进来')
+        : (out.count
+          ? ('读到的 ' + out.count + ' 条里没有《' + TH_WB_VER_ENTRY + '》（' + out.books + '）')
+          : '一本世界书都没读到（角色没绑书？），本地扫描也没命中《' + TH_WB_VER_ENTRY + '》');
+      return out;
+    }
+    out.ver = String(hit.content == null ? '' : hit.content).trim();
+    out.wb = String(hit.book || '');
+    out.verSrcUid = String(hit.uid == null ? '' : hit.uid);
+    out.verSrcName = String(hit.title || '');
+    out.verSrcIdx = 1;
+    out.sample = out.verSrcName + ' = ' + out.ver;
+    if (!out.ver) {
+      out.state = 'empty';
+      out.ok = false;
+      out.msg = '书里有《' + TH_WB_VER_ENTRY + '》，但正文是空的 —— 这一条被清空了';
+      return out;
+    }
+    out.ok = true;
+    out.hit = 1;
+    out.state = 'ok';
+    return out;
+  }, function (e) {
+    out.state = 'error';
+    out.msg = '读世界书失败：' + ((e && e.message) || e);
+    return out;
+  });
+}
+
 function thWbApi(name) {
   try { if (typeof window[name] === 'function') return window[name]; } catch (e1) {}
   try { if (HOST && typeof HOST[name] === 'function') return HOST[name]; } catch (e2) {}
@@ -31434,45 +31815,34 @@ function thWbVerRefresh(force) {
   var now = Date.now();
   if (!force && _thWbVer.at && (now - _thWbVer.at) < 20000) return;
   var fn = thWbApi('__TH_WB_READ__');
-  /* ★★ 2026-11-18 00:10：以前这里直接 return，「切换器还没就绪」就成了永久
-     「检测中」——因为再没人会来发第二枪。现在：没就绪就让界面说「等待切换器」，
-     并且挂一个短重试，就绪后自动补一枪。 */
-  if (!fn) {
-    _thWbVer.err = '切换器接口还没就绪（__TH_WB_READ__ 未挂载）';
-    _thWbVer.stale = false;
-    _thWbVer.fresh = false;
-    _thWbVer.done = false;
-    _thWbVer.pending = true;
-    try { thWbFreshPaint(); } catch (eP0) {}
-    try { __thVlogRedraw(); } catch (e0) {}
-    if (!_thWbVer.retryTimer) {
-      var tries = 0;
-      _thWbVer.retryTimer = setInterval(function () {
-        tries++;
-        var _f2 = thWbApi('__TH_WB_READ__');
-        /* ★★ 2026-11-18：作者骂「世界书依旧一直在检测中」——真凶就在这里。
-           旧代码：`if (拿到fn || tries>40) { 清定时器; 递归 thWbVerRefresh(true); }`。
-           拿不到 fn 时 tries>40 也会递归，而递归进来 fn 还是没有 ⇒ 又挂一个新定时器、
-           tries 归零 ⇒ 无限循环，done 永远 false ⇒ 界面永远「检测中」。
-           现在：拿到接口才去读；**读不到就给结论**（done=true），绝不递归重挂。 */
-        if (_f2) {
-          try { clearInterval(_thWbVer.retryTimer); } catch (eC) {}
-          _thWbVer.retryTimer = null;
-          try { thWbVerRefresh(true); } catch (eR) {}
-        } else if (tries > 12) {
-          try { clearInterval(_thWbVer.retryTimer); } catch (eC2) {}
-          _thWbVer.retryTimer = null;
-          _thWbVer.pending = false;
-          _thWbVer.done = true;
-          _thWbVer.err = '世界书读数接口一直没就绪（切换器脚本可能没启用，或酒馆助手没加载完）';
-          try { thWbFreshPaint(); } catch (eP2) {}
-          try { __thVlogRedraw(); } catch (e2) {}
-        }
-      }, 500);
-    }
-    return;
+  /* ★★★ 2026-11-18 19:3x：**不再干等切换器**。
+     作者第二次说「功能页的世界书还是没法读取」。根因就是原来这一段：
+     拿不到 __TH_WB_READ__ 就只挂个定时器等，等不到就报「状态未知」——
+     界面的命门被攥在另一个脚本手里。天元录是反的：读世界书的代码住在核心里，
+     界面只负责画。所以这里改成两条腿走路：
+       ① 切换器在 → 先问它（它还带 EJS 自检 / 书内诊断，信息更全）
+       ② 它说没读到 / 它不在 / 它抛错 → **自己读**（thWbSelfRead，抄天元录）
+       ③ 两条都没版本号 → 如实报「读不到」，done=true，绝不假装还在忙
+     ⚠ 以前那个 500ms × 12 的重试定时器整个删了 —— 它只会把「没接口」
+       拖成「检测中」，作者已经骂过一次。现在没接口就直接自己读。 */
+  function thWbGet() {
+    if (!fn) return thWbSelfRead();
+    return Promise.resolve().then(function () { return fn(); }).then(function (r) {
+      if (r && String(r.ver || '').trim()) return r;
+      /* 切换器说没读到 —— 自己再读一遍再决定，不拿它一家之言当结论 */
+      return thWbSelfRead().then(function (r2) {
+        return (r2 && String(r2.ver || '').trim()) ? r2 : r;
+      }, function () { return r; });
+    }, function (e) {
+      /* 切换器抛错：照样自己读一遍；自己也没读到才把它的错报出去 */
+      var msg = '切换器读世界书报错：' + ((e && e.message) || e);
+      return thWbSelfRead().then(function (r2) {
+        if (r2 && String(r2.ver || '').trim()) return r2;
+        return { ok: false, msg: msg };
+      }, function () { return { ok: false, msg: msg }; });
+    });
   }
-  /* ★★ 2026-11-18 硬看门狗：fn() 是宿主的 async 函数，一旦它永不 resolve
+  /* ★★ 2026-11-18 硬看门狗：宿主的世界书接口一旦永不 resolve
      （世界书 API 卡死 / 权限弹窗没确认），.then 永远不跑 ⇒ 界面同样永远「检测中」。
      10 秒后强制收尾给结论：宁可说「读不到」，也绝不装作还在忙。 */
   try { if (_thWbVer.hardTimer) clearTimeout(_thWbVer.hardTimer); } catch (eh0) {}
@@ -31487,7 +31857,9 @@ function thWbVerRefresh(force) {
     try { __thVlogRedraw(); } catch (eG2) {}
   }, 10000);
   _thWbVer.loading = true;
-  Promise.resolve().then(function () { return fn(); }).then(function (r) {
+  _thWbVer.pending = true;
+  _thWbVer.done = false;
+  thWbGet().then(function (r) {
     try { if (_thWbVer.hardTimer) { clearTimeout(_thWbVer.hardTimer); _thWbVer.hardTimer = null; } } catch (eh1) {}
     _thWbVer.loading = false;
     _thWbVer.at = Date.now();
@@ -31524,11 +31896,21 @@ function thWbVerRefresh(force) {
       _thWbVer.staleWhy = _thWbVer.stale
         ? ('书里是 ' + _have + '，本卡是 ' + _want) : '';
     } else if (!_have && _want) {
-      /* 读到了书，但书里**没有**版本号条目 ⇒ 一定是旧包（新包每条都带号）。
-         以前这里落到 else 分支、fresh=false / stale=false ⇒ 界面「检测中」永不消失。 */
-      _thWbVer.stale = true;
+      /* 没读到版本号。这里必须再分一层，否则会「谎报非最新」：
+           · 书**读到了**、里面确实没这条（count > 0 / state === 'no-entry'）
+             ⇒ 一定是旧包（新包每条都带号）⇒ stale
+           · 一本都没读到（没接口 / 没绑书 / 读报错）
+             ⇒ 这是「不知道」，不是「旧」—— 报 stale 就是凭空栽赃，
+               玩家会去导一次书，导完还是同一个样。 */
+      var _readAny = Number(_thWbVer.count || 0) > 0 || _thWbVer.state === 'no-entry';
+      _thWbVer.stale = _readAny;
       _thWbVer.fresh = false;
-      _thWbVer.staleWhy = '书里没有《春日狂想曲·版本号》这条，本卡是 ' + _want;
+      _thWbVer.staleWhy = _readAny
+        ? ('书里没有《' + TH_WB_VER_ENTRY + '》这条，本卡是 ' + _want)
+        : '';
+      if (!_readAny && !_thWbVer.err) {
+        _thWbVer.err = String((r && r.msg) || '读不到世界书（一本都没读到）');
+      }
     } else {
       /* 期望值拿不到（卡没内嵌）——这是出卡的问题，界面必须说出来，不许装忙 */
       _thWbVer.stale = !!(r && r.stale);
@@ -31568,10 +31950,15 @@ function thWbFreshPaint() {
       el.setAttribute('title', String(_thWbVer.staleWhy || '') + ' —— 点开「📜 版本」→ 同步世界书');
       el.setAttribute('data-th-wbfresh', 'stale');
     } else if (_thWbVer.fresh) {
-      el.innerHTML = '✓ 世界书最新';
+      /* ★ 2026-11-18：作者要「直接以版本号为显示」。
+         书里的号可能很长（「v1.26（第 78 次修复更新 · 开发者通道）」），
+         面板上只留号本体（括号/空格前那一段），完整串放 title。 */
+      var _short = String(_thWbVer.ver || '').split(/[（(\s]/)[0] || '';
+      el.innerHTML = '✓ 世界书最新 ' + (_short ? '<b>' + _short + '</b>' : '');
       el.setAttribute('style', 'color:#86efac;font-size:12px;padding:6px 10px;'
         + 'border:1px solid rgba(134,239,172,.4);border-radius:8px;background:rgba(25,90,45,.22);');
-      el.setAttribute('title', '书里的版本号 = 本卡版本号：' + String(_thWbVer.ver || ''));
+      el.setAttribute('title', '书里的版本号 = 本卡版本号：' + String(_thWbVer.ver || '')
+        + (_thWbVer.books ? '\n' + _thWbVer.books : ''));
       el.setAttribute('data-th-wbfresh', 'fresh');
     } else if (_thWbVer.done) {
       /* ★ 读完了但没结论（读不到书 / 拿不到期望号）——必须说出来。
@@ -31656,10 +32043,17 @@ function thWbVerLine() {
     }
   } catch (eAutoL) {}
 
-  /* 接口都取不到：只报真正卡住的那一个，不再把可选接口（getChatBook 等）列成「缺」 */
-  if (!_thWbVer.probe || !_thWbVer.probe.getLorebookEntries) {
+  /* 接口都取不到 **且** 一条都没读到：只报真正卡住的那一个，不把可选接口列成「缺」。
+     ⚠ 2026-11-18：以前这里**只看 probe** —— 本地扫描（卡内嵌 / world_info）明明
+       已经把版本号读出来了，界面还是印一句「（读不到）」，因为「我调用的那个接口
+       不存在」。这两件事必须分开：接口没有 ≠ 书里没有。所以加了 `!have`。 */
+  if (!have && (!_thWbVer.probe
+    || (!_thWbVer.probe.getLorebookEntries && !_thWbVer.probe.getWorldbook))) {
     return line + '<b style="color:#f0a95c;">（读不到）</b>'
-      + ' <span style="color:#8b8175;">取不到 getLorebookEntries —— 酒馆助手没加载完？刷新一次试试</span>';
+      + ' <span style="color:#8b8175;">取不到世界书接口（getLorebookEntries / getWorldbook），'
+      + '本地扫描也没命中《' + TH_WB_VER_ENTRY + '》'
+      + (_thWbVer.err ? '：' + wEsc(_thWbVer.err) : ' —— 酒馆助手没加载完？刷新一次试试')
+      + '</span>';
   }
 
   /* 绑错书：这本书里一条我们的条目都没有 */

@@ -2160,6 +2160,47 @@
         out.books = '（没有 getLorebookEntries）';
       }
 
+      /* ══ 路线 ①.5：主书里没有版本号 → 把**所有**世界书都翻一遍 ═══════════
+         ★ 2026-11-18：抄天元录 xzWBCollect 的关键一点 —— 它**从不「选一本」**，
+           而是每本都读、拍平成一个大数组，再按条目名去找。
+         为什么必须这样：ST 里「角色主书」经常不是玩家真正在用的那一本
+           （聊天书 / 附加书 / 手动绑的另一本 / 换卡后主书还指着旧书），
+           旧逻辑只问主书 ⇒ 主书里没这条就永远找不到，界面只能报「未同步」。
+         ⚠ 只用于**读**。同步（写）仍然只写主书 —— 绝不能因为读到了别人的书
+           就往别人的书里写。读与写两套取书范围，是故意的。 */
+      if (!out.ver && getE) {
+        try {
+          var _allNames = [];
+          var _gAll = pickWbFn('getWorldbookNames');
+          if (_gAll) {
+            var _an = await _gAll();
+            if (Array.isArray(_an)) _allNames = _an;
+          }
+          for (var _ai = 0; _ai < _allNames.length; _ai++) {
+            var _bnm = _allNames[_ai];
+            if (!_bnm || names.indexOf(_bnm) >= 0) continue;
+            var _bes = null;
+            try { _bes = await getE(_bnm); } catch (eA1) { _bes = null; }
+            if (!_bes || !_bes.length) continue;
+            var _bh = _bes.filter(wbIsVerEntry)[0] || null;
+            if (!_bh) continue;
+            out.ver = String(_bh.content == null ? '' : _bh.content).trim();
+            out.wb = _bnm;
+            out.count = _bes.length;
+            es = _bes;
+            hitEnt = _bh;
+            out.verSrcUid = (_bh.uid != null) ? String(_bh.uid) : '';
+            out.verSrcName = wbEntryName(_bh) || '';
+            out.verSrcIdx = 1;
+            out.verBy = 'name';
+            out.books = (out.books ? out.books + '  |  ' : '') + _bnm + '：' + _bes.length + ' 条（版本号在此）';
+            out.sample = out.verSrcName + ' = ' + out.ver;
+            out.hit = out.hit || 1;
+            break;
+          }
+        } catch (eA2) {}
+      }
+
       /* ══ 路线 ②：本地扫描兜底（抄天元录 xzWBLocalEntries）═════════════════
          作者原话：「功能页的世界书依旧没检测到，你别犯贱，我求你，这个真的不难，
                    我命令你去抄天元录的界面脚本的版本分页里怎么显示的世界书版」
