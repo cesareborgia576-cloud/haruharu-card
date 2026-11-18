@@ -445,7 +445,22 @@ var SHRINE_OPENING_CONTENT = '<content>\n' +
   '</content>';
 
 var SCENE_IMGS = {
-  '开场白': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783339756.jpg',
+  /* ══ ★★ 2026-11-18 作者要求：**开场白不再有场景图** ═══════════════════
+     原话：「开场白的场景图删除，不再有开场白场景图这个设定。」
+     这里原来挂着一张 1790783339756.jpg。
+     ──────────────────────────────────────────────────────────────────
+     为什么删掉的是**这一条键**、不是只删 UI 里那个 img：
+       SCENE_IMGS 是「地点名 → 底图」的唯一死表，getSceneBgUrl 的最后
+       一道兜底就是 `if (SCENE_IMGS[name]) return SCENE_IMGS[name];`。
+       只把 img 的 src 去掉，下一次 updateContainer / thRefreshSceneBg
+       换个时机又会从这张表把图捞回来 —— 图会「删了又自己回来」。
+       删键之后「开场白」这一屏彻底没有底图，只剩 CSS 那层暗和纸渐变
+       （.th-gal-shell-viewport 的 radial-gradient，v161 加的），
+       第一眼不是黑屏，也不会再冒出一张「开场白背景照」。
+     ⚠ 删键会连带影响 isKnownPlace（它原来用 `SCENE_IMGS[txt]` 判合法），
+       那里已经补了显式判断，见 isKnownPlace 里的注释 ——
+       不补的话新聊天（主角信息.地点 = '开场白'）会被 restoreSavedPlace
+       判成「认不出的存档位置」直接传送到客厅。 */
   '乡村小路': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022588.jpg',
   '小卖铺前': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022608.jpg',
   '小卖铺里': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790796501811.jpg',
@@ -5319,6 +5334,55 @@ var STYLE = `<style id="th-gal-shell-style">
   /* ★ v161：自愈器判定放弃后彻底隐藏，露出上面那层占位渐变，不留破图图标 */
   .th-gal-shell-viewport img.th-gal-shell-bg-img.th-img-failed { opacity: 0 !important; }
 
+  /* ══ ★★ 2026-11-18 17:1x：场景图加载遮罩（作者强制要求）════════════════════
+     作者原话：「当场景图没加载时，不要显示前面的场景图，而是显示加载中三个大字，
+               任何背景一片黑。这样至少不会误导玩家」
+
+     ── 它要治的是「图还没到、屏幕上却还是上一个地方」───────────────
+     以前切场景：setViewportBg() 只把新 URL 挂上去，旧图**一直留在屏幕上**
+     直到新图 decode 完才被替换。中间这段时间（慢的时候好几秒）玩家看到的是
+     **上一个地点的图**，而左上角地点名已经换成新地方了 ——
+     「我明明在便利店，画面却是公寓走廊」，这就是作者说的误导。
+
+     ── 做法 ────────────────────────────────────────────────────
+     视口里加一层纯黑遮罩（z-index 44，压在 bg-img 之上、UI 之下），
+     中间三个大字「加载中」。由 thSceneLoadingShow/Hide 控制：
+       · 挂新 URL 那一刻 → show（黑屏 + 加载中）
+       · 新图 onload 解码完 → hide（露出新图）
+       · 判定放弃（th-img-failed）→ hide（露出 v161 那层占位渐变，不再假装加载）
+     遮罩是纯黑 #000，不是半透明：作者原话「任何背景一片黑」——
+     半透明仍能看见旧图，等于没解决。
+     ⚠ 只盖 bg-img，不盖左上状态卡 / 小地图 / 对话框（它们 z-index 更高）。 */
+  .th-scene-loading {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 44 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    /* 纯黑，不是 rgba —— 半透明还能看见旧图，就等于没修 */
+    background: #000 !important;
+    pointer-events: none !important;
+  }
+  .th-scene-loading.is-on { display: flex !important; }
+  .th-scene-loading-text {
+    font-family: "PingFang SC", "HarmonyOS Sans SC", "Source Han Sans SC",
+                 "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif !important;
+    font-size: calc(22px * var(--ui-scale, 1)) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.42em !important;
+    /* 缩进补掉最后一字后面的字距，视觉上才是真正居中 */
+    text-indent: 0.42em !important;
+    color: rgba(238, 242, 247, 0.9) !important;
+    text-shadow: 0 0 24px rgba(252, 211, 77, 0.22) !important;
+    animation: thSceneLoadPulse 1.35s ease-in-out infinite !important;
+    user-select: none !important;
+  }
+  @keyframes thSceneLoadPulse {
+    0%, 100% { opacity: 0.42; }
+    50%      { opacity: 0.95; }
+  }
+
   .th-gal-event-cg-layer {
     position: absolute !important;
     inset: 0 !important;
@@ -9089,6 +9153,26 @@ var STYLE = `<style id="th-gal-shell-style">
 
 
   /* ══════════ ★ v143：图片加载层 + 重载按钮 ══════════ */
+  /* ══ ★★ 2026-11-18 17:1x：**「加载素材的弹层跑到屏幕外」的根治** ═══════════
+     作者原话：「加载素材的弹层没有在游戏界面里，而是超出屏幕外，这个问题我没说过，现在修」
+
+     ── 病根：position: fixed 的包含块**不是视口，而是最近一个有 transform/filter 的祖先** ──
+     而且更常见的一种：脚本跑在酒馆助手的隐藏 iframe 里，body 的高度是 iframe 的
+     真实内容高度（几千 px），fixed+inset:0 就铺满**那整张 iframe**，
+     居中点落在 iframe 的一半处 —— 玩家屏幕上那一小块可视区里当然看不见它。
+     宿主还可能给它套一层 zoom / transform: scale()，fixed 照样被那个祖先逮住。
+
+     ── 正解：**不挂 body，挂进游戏壳自己** ────────────────────────────
+     挂到 #th-gal-shell-root 里 + position: absolute; inset: 0，
+     它的包含块就变成壳（壳自己 position: relative），永远跟游戏画面重合：
+       · 普通模式：壳在楼层里，弹层就在那块画面正中
+       · 全屏模式：壳被搬到 portal / fs-stage，弹层跟着一起搬（父子关系，自动跟随）
+     这比"算 fixed 该挂哪个 window"稳得多 —— 不依赖任何坐标计算。
+
+     ── 为什么 z-index 仍是 2147483646 ───────────────────────────────
+     壳的 overflow: hidden 会裁掉超出部分，但弹层是 inset:0 铺满壳，本来就不出界；
+     壳内其它东西最高到 1000（标题屏 125），这个数既压得住又不会盖到宿主 UI 之上。
+     ⚠ 若壳还没建好（开局前就点重载），thImgGate() 会退回 body，CSS 里另给一条 fixed 兜底。 */
   .th-img-gate {
     position: fixed !important; inset: 0 !important; z-index: 2147483646 !important;
     display: flex !important; align-items: center !important; justify-content: center !important;
@@ -9097,8 +9181,17 @@ var STYLE = `<style id="th-gal-shell-style">
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif !important;
     opacity: 0 !important; transition: opacity .28s ease !important;
   }
+  /* 挂进壳里时改 absolute：包含块 = 壳（position: relative），永远跟画面重合。
+     fixed 在壳里会被宿主祖先的 transform/zoom 逮住，又跑到屏幕外去。 */
+  #th-gal-shell-root > .th-img-gate,
+  .th-gal-shell-root > .th-img-gate,
+  .th-gal-fs-stage .th-img-gate {
+    position: absolute !important;
+    z-index: 2147483646 !important;
+  }
   .th-img-gate.is-on { opacity: 1 !important; }
   .th-img-gate[hidden] { display: none !important; }
+
   .th-img-gate-box {
     display: flex !important; flex-direction: column !important; align-items: center !important;
     gap: 16px !important; padding: 30px 44px !important; box-sizing: border-box !important;
@@ -12888,7 +12981,20 @@ function buildShellDOM() {
           '</div>' +
         '</div>' +
       '</div>' +
-      '<img class="th-gal-shell-bg-img" src="' + SCENE_IMGS['开场白'] + '" alt="场景底图" />' +
+      /* ══ ★★ 2026-11-18：这里原来写的是 `src="SCENE_IMGS['开场白']"`。
+         作者要求「开场白不再有场景图」，那个键已删 —— 于是这里会拼出
+         `src="undefined"`（浏览器按相对路径去请求 /undefined，404，控制台一片红）。
+         现在**不要 src**，只留一个空 img 挂在那儿：它是 thImgBind /
+         setViewportBg / fitViewportToImage 的目标节点（第一张真正的场景图
+         进来时由 setViewportBg 写 src），删掉节点会连带砍掉整条图片自愈链。
+         空 img 不请求任何东西，等第一张真图到了再生效。 */
+      '<img class="th-gal-shell-bg-img" alt="" />' +
+      /* ══ ★★ 2026-11-18：场景图加载遮罩。**必须紧跟 bg-img**（DOM 顺序不影响，
+         但这样读代码的人一眼能看到它盖的是谁）。纯黑 + 「加载中」三个大字，
+         由 thSceneLoadingShow/Hide 控制；细节与理由见 CSS 那段长注释。 */
+      '<div class="th-scene-loading" id="th-scene-loading">' +
+        '<span class="th-scene-loading-text">加载中</span>' +
+      '</div>' +
       /* ══ ★ v160：左上角玩家状态卡。头像（无图用 ?）+ 名字 + 地点 / 第几天 / 时间 + 节日 + 金钱 + 精力 ══ */
       '<div class="th-gal-status-card" id="th-gal-status-card">' +
         '<div class="ts-avatar"><span class="ts-avatar-q">?</span></div>' +
@@ -13046,7 +13152,11 @@ function buildShellDOM() {
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-font-size" title="放大界面字号：连续调节，没有档位">🔤 字号+</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-font-size-dec" title="缩小界面字号：连续调节，没有档位">🔤 字号-</button>' +
         /* ★ 21:45：外置生图插件（智绘姬）产出的插图默认不显示，点这里才切过去，再点切回来 */
-        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-extillust" title="显示外置插图（兼容智绘姬）：默认关，显示我们自己的插图">🖼 兼容智绘姬:关</button>' +
+        /* ★★ 2026-11-18：作者原话「把关掉的插图打开」「点插图按钮却弹外置插图已打开」。
+           这颗顶栏最显眼的 🖼 以前叫「兼容智绘姬」=开**外置**生图插件，作者一直把它当
+           「打开插图」按钮点，结果开成外置。现在它改为**内置插图开关**（卡里自带图组），
+           点一下就是打开/关闭被关掉的插图。保留 class 名仅为复用 CSS / 镜像 / 分组归属。 */
+        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-extillust" title="打开 / 关闭内置插图（卡里自带的图组）">🖼 插图：开</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-toggle-options" title="呼出或隐藏当前前往选项">🧭 选项</button>' +
       '</div>' +
       '<div class="th-gal-shell-input-row">' +
@@ -13803,9 +13913,9 @@ function thImgUrlsForArc(arc) {
     if (out.indexOf(c) >= 0) return;
     out.push(c);
   };
-  /* ① 季节底图（开场白 / 标题屏） */
+  /* ① 季节底图（标题屏用的那张按季节走的图；**开场白自己不再有场景图**，
+        见 SCENE_IMGS 顶部注释） */
   try { push(seasonSceneUrl('开场白')); } catch (e1) {}
-  try { push(SCENE_IMGS['开场白']); } catch (e2) {}
 
   /* ② 场景图：按篇章挑 */
   try {
@@ -14053,7 +14163,8 @@ function thImgUrlsEverything(opts) {
    中间只要有一张卡 9 秒超时，进度条就肉眼可见地停住 —— 这就是"卡住"。
 
    但开局那一屏真正需要什么？
-     · 开场白那张场景图（盖住画面，没有它第一眼就是黑的）
+     · 当前篇章第一屏的场景图（**开场白那一屏已经不再有场景图** ——
+       2026-11-18 作者要求删掉，它只剩 CSS 暗和纸底，所以这里也不等它了）
      · 当前篇章会先开口的 1~2 个人（有立绘才不像 PPT）
      · 季节底图（标题页背景用）
 
@@ -14075,9 +14186,8 @@ function thImgUrlsCritical(arc) {
     out.push(c);
   };
 
-  /* ① 开场白 / 标题屏底图 —— 首帧就要用 */
+  /* ① 标题屏底图（按季节走；**开场白自己不再有场景图**，见 SCENE_IMGS 顶部注释） */
   try { push(seasonSceneUrl('开场白')); } catch (e1) {}
-  try { push(SCENE_IMGS['开场白']); } catch (e2) {}
 
   /* ② 当前时段会立刻出现的场景（不多拿，只拿"此刻"那一档）
      —— 进游戏后玩家第一眼看的就是这些，别的时段等真到了再说。 */
@@ -14120,7 +14230,7 @@ function thImgUrlsCritical(arc) {
       var _s2 = (g2 && g2.seasons && g2.seasons[_seC]) || g2;
       pickB(_s1); pickB(_s2);
     } else {
-      /* 夏越村第一屏是开场白 / 乡村小路 / 自家前院 */
+      /* 夏越村第一屏是乡村小路 / 自家前院（**开场白那一屏已经不再有图**，见 SCENE_IMGS 顶部注释） */
       push(SCENE_IMGS['乡村小路']);
       push(SCENE_IMGS['西村太郎家·前院']);
       pickB(SCENE_IMG_SETS['entry']);
@@ -14145,10 +14255,44 @@ function thImgUrlsCritical(arc) {
 
 /* ══ 加载层（开局闸门 / 手动重载共用） ══ */
 function thImgGateDoc() { try { return (typeof getDoc === 'function') ? getDoc() : document; } catch (e) { return document; } }
+  /* ══ ★★ 2026-11-18：挂载点的唯一真相 —— **游戏壳**，不是 body ══════════
+     作者原话：「加载素材的弹层没有在游戏界面里，而是超出屏幕外」。
+
+     ── 挂在 body 上为什么会飞出去 ─────────────────────────────────
+     脚本跑在酒馆助手的隐藏 iframe 里时，`body` 的高度 = iframe 的内容高度
+     （随楼层数增长，几千 px）。`position: fixed; inset: 0` 在这份 document 里
+     铺满的是**那整张 iframe**，`align-items: center` 于是把弹层居中到
+     iframe 的正中 —— 而玩家屏幕只看见 iframe 顶部的一小块。
+     另一半情况：宿主给某个祖先套了 `zoom` / `transform`，
+     fixed 的包含块被那个祖先逮住，同样偏移。
+
+     ── 现在 ────────────────────────────────────────────────────
+     壳在就挂进壳（`position: absolute; inset: 0`，包含块 = 壳，跟画面完全重合，
+     全屏时壳被搬家、弹层作为子节点自动跟着走）；
+     壳还没有（极早期 / 开局前点重载）才退回 body，这时那个 fixed 兜底才有用。
+     ⚠ 幂等：每次都重新确认一遍父节点。壳被重建 / 被全屏搬家之后，
+       弹层如果还挂在旧 body 上就又飞了 —— 所以**每次 open 都重新挂一次**。 */
+function thImgGateHost(el) {
+  try {
+    var doc = thImgGateDoc();
+    var shell = doc.getElementById('th-gal-shell-root');
+    if (shell && shell.appendChild) {
+      if (el.parentNode !== shell) {
+        try { shell.appendChild(el); } catch (eMv) {}
+      }
+      return shell;
+    }
+  } catch (e) {}
+  try {
+    var d2 = thImgGateDoc();
+    if (el.parentNode !== d2.body) { try { (d2.body || d2.documentElement).appendChild(el); } catch (e2) {} }
+  } catch (e3) {}
+  return null;
+}
 function thImgGate() {
   var doc = thImgGateDoc();
   var el = doc.getElementById('th-img-gate');
-  if (el) return el;
+  if (el) { thImgGateHost(el); return el; }
   el = doc.createElement('div');
   el.id = 'th-img-gate';
   el.className = 'th-img-gate';
@@ -14167,6 +14311,7 @@ function thImgGate() {
       '</div>' +
     '</div>';
   try { (doc.body || doc.documentElement).appendChild(el); } catch (e1) {}
+  thImgGateHost(el);
   return el;
 }
 function thImgGateSet(p) {
@@ -14191,6 +14336,9 @@ function thImgGateSet(p) {
 function thImgGateOpen(sub, title) {
   var el = thImgGate();
   if (!el) return;
+  /* 全屏搬运 / 壳重建之后，弹层可能还挂在旧父节点上 —— 每次开都重新归位。
+     这是「第一次修好了、第二次全屏后又飞出屏幕」的根治点。 */
+  try { thImgGateHost(el); } catch (eH) {}
   el.removeAttribute('hidden');
   thImgGateDoc().body.classList.add('th-img-gate-on');
   /* 强制 reflow，让 opacity 过渡跑起来 */
@@ -16026,23 +16174,89 @@ function fitViewportToImage(img) {
     vp.style.maxHeight = '72vh';
   } catch (e) {}
 }
+/* ══ ★★ 2026-11-18：场景图加载遮罩 —— 显示 / 隐藏 ══════════════════════════
+   作者原话：「当场景图没加载时，不要显示前面的场景图，而是显示加载中三个大字，
+             任何背景一片黑。这样至少不会误导玩家」
+
+   ── 为什么必须做，而不是"图晚一点到无所谓"──────────────────────────
+   切场景时左上角的地点名**立刻**变成新地方，而旧场景图还挂在 <img> 上，
+   要等新图下载 + 解码完才被替换。这段时间（图床慢的时候好几秒）玩家看到的是
+   「地点写着便利店，画面却是公寓走廊」—— 这就是他说的"误导"。
+
+   ── 三处调用点，缺一不可 ────────────────────────────────────────
+   ① setViewportBg()   → show（准备换图，立刻黑屏）
+   ② thImgBind onReady → hide（新图真的解码完了）
+   ③ onFail / 熔断     → hide（放弃了就别再装"加载中"，露出 v161 的占位渐变）
+   ⚠ 别用「等 N 毫秒没 load 就放弃」当判据 —— 那是本项目踩过的老坑（会全服白屏）。
+     这里只做"被动隐藏"，超时交给 thImgBind 自己的看门狗，它比我更清楚几次重试。 */
+function thSceneLoadingEl() {
+  try {
+    var doc = getDoc();
+    return doc ? doc.getElementById('th-scene-loading') : null;
+  } catch (e) { return null; }
+}
+function thSceneLoadingShow() {
+  try {
+    var el = thSceneLoadingEl();
+    if (el) el.classList.add('is-on');
+  } catch (e) {}
+}
+function thSceneLoadingHide() {
+  try {
+    var el = thSceneLoadingEl();
+    if (el) el.classList.remove('is-on');
+  } catch (e) {}
+}
+
 function setViewportBg(img, url) {
   if (!img || !url) return;
   try {
+    /* ★ 2026-11-18：换图之前先遮住 —— 否则「旧图 + 新地点名」会被玩家当成走错地方。
+       ★ 但**同图不重遮**：thImgBind 内部遇到「同一 URL 且已经解码完」会直接 return，
+         那时候如果我们已经 show 了，就再也没有人 hide（onReady 不会被调用）
+         ⇒ 画面永久黑屏「加载中」。所以这里先判一次是不是同一张、且已就绪。 */
+    var _sameReady = false;
+    try {
+      var _clean = (typeof thImgClean === 'function') ? thImgClean(url) : url;
+      _sameReady = (img.__thImgUrl === _clean) && img.complete && (img.naturalWidth || 0) > 0;
+    } catch (eSame) { _sameReady = false; }
+    /* ⛔ 还有一条会让遮罩永久挂住的死路：这张图**已经进了熔断名单**。
+       thImgBind 开头 `if (thImgIsDead(clean)) { ...add('th-img-failed'); return; }`
+       —— 它不发请求、**也不调 onFail**，于是我们刚 show 的遮罩再没人 hide。
+       所以这里自己先问一次：已熔断就根本不要遮。 */
+    var _dead = false;
+    try { if (typeof thImgIsDead === 'function') _dead = !!thImgIsDead(_clean); } catch (eDead) { _dead = false; }
+    if (!_sameReady && !_dead) thSceneLoadingShow();
+    else if (_dead) thSceneLoadingHide();
+
     /* ★ v143：交给自愈器统一管 onload / onerror / 重试。
        以前这里只写 onload，请求失败后既没人重试也没人记状态，
        再切回同一场景又因为 src 相等被直接 return —— 图就永远黑着。 */
     if (typeof thImgBind === 'function') {
-      thImgBind(img, url, { onReady: function (im) { try { fitViewportToImage(im); } catch (eF) {} } });
+      thImgBind(img, url, {
+        onReady: function (im) {
+          try { fitViewportToImage(im); } catch (eF) {}
+          /* 新图已经解码进内存 —— 这一刻才允许露出来。
+             onReady 是 thImgBind 的 onload 里调的，晚于浏览器完成解码，用作"可以显示了"最准。 */
+          thSceneLoadingHide();
+        },
+        onFail: function () {
+          /* 自愈器判定放弃（thImgBind 里 TH_IMG_HEAL_MAX / 熔断）：别再挂"加载中"，
+             露出 v161 那层暗和纸占位渐变 —— 那至少是"这个场景没图"，不是"还在转"。 */
+          thSceneLoadingHide();
+        }
+      });
       return;
     }
     /* 自愈器没加载起来时的旧路径（保命） */
-    if (img.getAttribute('src') === url) { fitViewportToImage(img); return; }
-    img.onload = function () { fitViewportToImage(img); };
+    if (img.getAttribute('src') === url) { fitViewportToImage(img); thSceneLoadingHide(); return; }
+    img.onload = function () { fitViewportToImage(img); thSceneLoadingHide(); };
+    img.onerror = function () { thSceneLoadingHide(); };
     img.src = url;
-    if (img.complete) fitViewportToImage(img);
+    if (img.complete) { fitViewportToImage(img); thSceneLoadingHide(); }
   } catch (e) {}
 }
+
 
 document.addEventListener('DOMContentLoaded', function () {
   var img = getDoc().querySelector('.th-gal-shell-bg-img');
@@ -16711,6 +16925,16 @@ function isKnownPlace(label) {
       if (isOutdoorPlace(flat)) return true;    /* 整块户外地名、路段名 */
     }
     if (SCENE_IMGS[txt]) return true;           /* 开场白之类的已知场景 */
+    /* ★★ 2026-11-18：**「开场白」必须显式放行**。
+       上面那句原来是靠 `SCENE_IMGS['开场白']` 这张图来判的，而本轮
+       按作者要求把开场白那张图删了（见 SCENE_IMGS 顶部的注释）——
+       图一删，这句就**恒假**，于是：
+         · 新聊天（主角信息.地点 = '开场白'）被 restoreSavedPlace 判成
+           「认不出的存档位置」⇒ 当场传送到客厅，玩家一进卡就跳过了开场那一屏；
+         · <地点> 标签写 '开场白' 也整条作废。
+       这是「换地基之后旧判据变恒假」的又一例 —— 依赖一个被删掉的键做判断。
+       现在把这条判据从「有没有图」剥离出来，图归图、合法性归合法性。 */
+    if (txt === '开场白') return true;          /* 开局存档位，永远合法 */
   } catch (e) {}
   return false;
 }
@@ -17397,6 +17621,19 @@ function countVisible(s) {
 }
 
 /* 解析标签内容：`角色名|地点`。也接受全角竖线 / 斜杠。
+   ══ ★★ 2026-11-18 作者要求：**角色名可以留空 = user 自己前往该地** ═══════
+   原话：「剧情连携移动新增机制为可以不写角色名，空出时则＝user自己前往该地。」
+   ── 三种合法写法（以前只有前两种）──
+     `<剧情连携移动>桃崎千鹤|公寓楼下</剧情连携移动>`   某个角色带着走
+     `<剧情连携移动>公寓楼下</剧情连携移动>`            谁都不带，只切场景
+     `<剧情连携移动>|公寓楼下</剧情连携移动>`            ★ 新增：显式「角色名留空」
+        竖线在前、前面一个字都没有 ⇒ 语义就是「我自己走过去」。
+        以前这一条被 `/[|｜]/.test(t) → return null` 判成「漏写目的地」整条作废，
+        玩家写了半天人一步不动，还不报错。
+   ── user 的地点谁写 ──
+     不是这里。切场景走 switchSceneLocation，它里面的 markPlace 会把
+     `主角信息.地点` 写成目标地点 —— 那本来就是 user 的位置，一条路一个作者
+     （这里再写一遍就是同一个量两套算法，迟早对不上）。
    人名过 thLinkNameOk，地点过 isKnownPlace —— 任一不过关按「能救就救」处理：
      · 地点不合法 → 整个标签作废（不敢拿乱字符串切场景）
      · 人名不合法 → 只当没写人名，地点照旧生效（跟 checkLinkTag 同一口径） */
@@ -17412,8 +17649,15 @@ function thSlParseBody(body) {
     who = parts[0];
     dest = parts[parts.length - 1];
   } else if (parts.length === 1) {
-    if (/[|｜]/.test(t)) return null;          /* `人名|` 漏写目的地 → 判无效 */
-    dest = parts[0];
+    /* ★ 2026-11-18：`|地点` / `｜地点`（角色名留空）＝ user 自己去 */
+    if (/^[|｜\/]/.test(t)) {
+      who = '';
+      dest = parts[0];
+    } else if (/[|｜\/]/.test(t)) {
+      return null;                            /* `人名|` 漏写目的地 → 判无效 */
+    } else {
+      dest = parts[0];
+    }
   }
   dest = thCleanLinkName(dest, true).replace(/[，。；,;]+$/, '');
   who = thCleanLinkName(who, false);
@@ -17665,7 +17909,13 @@ function thSlApplyForPage(pageText, pageIndex, markBase) {
   } finally {
     window.__thTagSwitchBusy = false;
   }
-  /* 带路的人跟着到场：写变量（只更新已建档的人，绝不新建「角色」） */
+  /* 带路的人跟着到场：写变量（只更新已建档的人，绝不新建「角色」）
+     ══ ★★ 2026-11-18：**info.who 为空是新合法状态**（＝ user 自己走过去）══
+     这时 thMovePersonTo('') 第一句就 return false，不写变量、也不弹提示 ——
+     正好是我们要的：user 的位置由 switchSceneLocation 里的 markPlace 写进
+     `主角信息.地点`（那条路本来就是唯一作者），这里**不该**再动一次。
+     以前不这么想的人容易顺手在这里补一句「写 user 地点」——
+     那就成了两套算法写同一个变量，迟早对不上（铁律：同一个量只许一个作者）。 */
   try { thMovePersonTo(info.who, info.dest); } catch (eV) {}
   /* ★★ 2026-11-16：**写完必须重画一次**。
      作者原话：「人还是他妈没过去啊」。
@@ -17682,7 +17932,10 @@ function thSlApplyForPage(pageText, pageIndex, markBase) {
       });
     }
   } catch (eUC) {}
-  try { popToast('🎬 ' + (info.who ? info.who + ' → ' : '') + info.dest); } catch (eT) {}
+  /* ★ 2026-11-18：who 为空 = user 自己去，提示里就说「你」而不是一个空箭头 */
+  try {
+    popToast('🎬 ' + (info.who ? (info.who + ' → ' + info.dest) : ('你 → ' + info.dest)));
+  } catch (eT) {}
   return info.dest;
 }
 
@@ -17741,12 +17994,72 @@ function currentChatId() {
 var _chatKeySeen = null;
 
 var GAME_STARTED_KEY = 'thGalGameStarted';
+/* ══ 「本局是不是已经开局」的唯一判据 ══════════════════════════════════════
+   作者原话：「还有bug，替换更新卡之后，明明原先有的存档，会回到开始游戏界面赶紧解决」
+
+   ── 病根：这个判据只认「活内存」，而换卡正好会把那两样全部清掉 ──────────
+   旧实现只有两条通道：
+     ① window.__thGameStarted   —— 换卡 = 重新加载脚本 = 这个变量**根本不存在**
+     ② sessionStorage[键]      —— 键里带 currentChatId()；换卡后存档被酒馆重开，
+                                  拿不到 chat_metadata 时它会退回随机盐 ⇒ 键对不上
+   ⇒ 两条同时失效 ⇒ isGameStarted() 返回 false ⇒ readTitleState() 落回 'menu'
+     ⇒ applyTitleState() 弹出开始界面。**而存档本身一点没坏**，只是被遮住了。
+
+   ── 正解：加第三条通道 —— **问存档自己** ─────────────────────────────
+   存档里有 MVU 变量（全局.当前篇章 / 主角信息.地点 / 时间.第几天…）。
+   一局真开过，这些东西**必然**已经离开了初始值。判据设计成「默认放行、
+   只认明确否」，且要求**多条证据同时成立**，避免把「刚建的空聊天」误判成有进度：
+
+     证据 A：全局.当前篇章 读得到（初始值就是「夏越村」，所以单靠它不够）
+     证据 B：主角信息.地点 存在且 ≠ '开场白'
+     证据 C：时间.第几天 > 1，或 时间.日期/精确时间 已偏离初始
+   只要 A 成立、且 (B 或 C) 成立 ⇒ 这是有进度的存档，绝不许弹开始界面。
+
+   ── 与「第 0 楼开场」的关系 ─────────────────────────────────────
+   这条判据**不写任何东西**，只回答 yes/no。所以它不会污染新聊天：
+   新聊天的变量还是 InitVar 那套（地点=开场白、第几天=1）⇒ B、C 都不成立 ⇒ false。
+   ⚠ 别把这条改成「读到变量就算开局」—— 新聊天也有变量（InitVar 灌的），
+     那样每个新聊天都会跳过开始界面，等于把开局向导废掉。 */
+function _thStartedFromSave() {
+  try {
+    var sd = null;
+    try { sd = getSD(); } catch (eSd) { sd = null; }
+    if (!sd || typeof sd !== 'object') return false;
+    var g = sd.全局 || null;
+    var me = sd.主角信息 || null;
+    var tm = sd.时间 || null;
+    /* 证据 A：真正的存档一定有 全局 这一层。连它都没有 ⇒ 认不出，不作数。 */
+    if (!g || typeof g !== 'object') return false;
+    /* 证据 B：人已经不在开场白了 */
+    var place = me ? String(me.地点 == null ? '' : me.地点).trim() : '';
+    if (place && place !== '开场白') return true;
+    /* 证据 C：时间已经走过（开局那一刻写的是第 1 天 07:40，之后只增不减） */
+    try {
+      var day = parseInt(tm && tm.第几天, 10);
+      if (day > 1) return true;
+      var startTime = String((tm && tm.精确时间) || '').trim();
+      /* 初始 07:40；只要不是这个值，说明有玩家走动的记账发生过 */
+      if (startTime && startTime !== '07:40') return true;
+      var date = parseInt(tm && tm.日期, 10);
+      if (date > 26 || (tm && String(tm.月份 || '') !== '7')) return true;
+    } catch (eTime) {}
+    return false;
+  } catch (eAll) { return false; }
+}
 function isGameStarted() {
   if (window.__thGameStarted) return true;
   try {
     var v = sessionStorage.getItem(GAME_STARTED_KEY + '::' + currentChatId());
     if (v === '1') return true;
   } catch (e) {}
+  /* ★ 2026-11-18：活内存 + sessionStorage 都没有时，问存档自己。
+     换卡 / 刷新页面 / 换浏览器标签回来，前两条都会空，但存档一直在。
+     判定成功就顺手把内存和 sessionStorage 补上（下次不用再算）。 */
+  if (_thStartedFromSave()) {
+    try { window.__thGameStarted = true; } catch (eM) {}
+    try { sessionStorage.setItem(GAME_STARTED_KEY + '::' + currentChatId(), '1'); } catch (eS) {}
+    return true;
+  }
   return false;
 }
 function markGameStarted() {
@@ -19387,7 +19700,39 @@ function splitPagesByDOMFitting(text, bodyEl) {
   var m = dialogueViewportMetrics(bodyEl);
   var vpH = m.vpH;
   var vpW = m.vpW;
-  var targetH = vpH ? Math.max(60, Math.floor(dialogueHeightPx(bodyEl) || (vpH * dlgHRatio())) - 22) : (bodyEl.clientHeight || 160);
+  /* ══ ★★ 2026-11-18 17:0x：**对话框底部那一行空档的真正根因，就在这一行。** ══
+     作者原话：「对话框底下空一行还是没有解决，这个明明之前好端端的」。
+
+     ── 病根：同一个量，两套算法 ────────────────────────────────────────
+     分页（这里）用的尺子   = dialogueHeightPx() - 22
+       其中 dialogueHeightPx = galChromeH + dlgEffLines × 行高
+     显示（computeGalAvailH）用的尺子 = (dlgEffLines + GAL_LINE_ADJUST) × 行高
+       其中 GAL_LINE_ADJUST = -1（作者当年实测「底部永远只空一行」时校准出来的）
+
+     ⇒ 显示那边**永远少给一行高**，而分页那边还在按「多一行」的容量往页里塞字。
+       于是每页最后一行的空间被两边判得不一样：框收紧了、字却按松的那份排，
+       结果就是每页底部都空出一条**整行高**的空白 —— 而且只空一行、不多不少，
+       和作者描述的现象完全一致。
+
+     ── 为什么现在不能"再用 -22 凑"────────────────────────────────────
+     -22 是个魔法数：它既不是行高的整数倍、也不等于 chrome 的任何一部分。
+     换字号（12 / 12.5 / 15px）、换行高（1.5 / 1.7）、换手机宽屏，
+     行高从 18px 变到 22.5px，-22 就再也不是"一行"了 ⇒ 空档从一行变成半行或多行。
+
+     ── 正解：**两处都调同一个函数** ──────────────────────────────────
+     直接问 computeGalAvailH()（显示的真相），它已经把 GAL_LINE_ADJUST、
+     溢出惩罚、有效行数全算进去了。这样「能装多少」与「给多高」是同一个数，
+     空档从根上不可能存在 —— 不需要再靠任何校准系数去削。
+     ⚠ 这个函数在 bodyEl 还没有高度时也能用：它只依赖 dlgEffLines 与行高。 */
+  var targetH = 0;
+  try { targetH = computeGalAvailH(bodyEl); } catch (eAvail) { targetH = 0; }
+  if (!(targetH > 0)) {
+    /* 兜底：算不出来（极端窄屏 / bodyEl 未挂载）才退回旧口径，但至少按行高取整 */
+    var _lhFallback = galLineH(bodyEl);
+    targetH = vpH
+      ? Math.max(60, Math.floor((dialogueHeightPx(bodyEl) || (vpH * dlgHRatio())) / (_lhFallback > 0 ? _lhFallback : 1) - 1) * _lhFallback)
+      : (bodyEl.clientHeight || 160);
+  }
   var targetW = vpW ? Math.max(140, vpW - 36) : (bodyEl.clientWidth || 300);
   var currentFontSize = window.getComputedStyle(bodyEl).fontSize || '11px';
   var currentLineHeight = window.getComputedStyle(bodyEl).lineHeight || '1.42';
@@ -21919,6 +22264,27 @@ var DialogueReader = {
        以前这里调 syncDialogueBtn() —— 它是 setupInteractions 的闭包函数，
        在 render 作用域里根本不存在，抛 ReferenceError 被 catch 吞掉，等于没调。
        现在直接在外壳上切状态类，CSS 负责隐藏，不依赖任何闭包变量或节点引用。 */
+    /* ══ ★★ 2026-11-18 作者要求：**回空时也要把对话框显示出来** ═══════════
+       原话：「回空时也要显示对话框，而不是默认关着，并且回空时必须显示那句回空了，
+               而不是直接忽视回空然后对话框去显示上一楼正文，这样子会很误导玩家。」
+
+       ── 为什么以前会「默认关着」──
+       两个原因叠在一起：
+         ① 玩家**手关过**框（_userClosed = true）之后，下面 `if (!this.isOpen)`
+            第一句就把 stage 藏了并 return —— 回空的红字根本没机会画；
+         ② 玩家正常推进（框开着）时，`isOpen` 是 true，能进到空回复分支，
+            但那分支里又写了一次 `if (this._userClosed) { stage.hidden; return; }`，
+            等于同一个判据在两个地方各挡一次。只要他这一局关过一次框，
+            从此以后**所有**回空都看不见。
+       ── 现在 ──
+       把「回空」放在「框开没开」之前判：这一楼一个字都没有 = 必须让他看见，
+       不管他之前关过几次框。**但不改 _userClosed 本身** ——
+       手关锁仍然有效，下一楼有正文时照样尊重他的选择，不会变成「关不掉的框」。
+       （这条只对「回空」这一个状态破例，因为它不是"你有正文可读"，而是"这一楼废了"。） */
+    if (this._emptyReply && this.pages.length === 0) {
+      this.isOpen = true;
+      try { shell.classList.add('is-dialogue-open'); } catch (eEmptyOpen) {}
+    }
     try { shell.classList.toggle('is-dialogue-open', !!this.isOpen); } catch (eSDB) {}
 
     /* ★ v115：说明条在不在，决定 pages 为空时是「藏框」还是「只显示说明」 */
@@ -21940,12 +22306,21 @@ var DialogueReader = {
          render 是被多处调用的（翻页、心跳、切场景、换字号），
          玩家开着框却看到一片空白的情况必须在这里兜住，不能指望调用方记得挂。 */
     if (this.pages.length === 0 && this._emptyReply) {
-      /* 完全空值：不挂说明条，直接显示红字 —— 但玩家手关过就别再弹 */
-      if (this._userClosed) {
-        stage.setAttribute('hidden', '');
-        if (setupInteractions.syncDialogueBtn) setupInteractions.syncDialogueBtn();
-        return;
-      }
+      /* ══ ★★ 2026-11-18 作者要求：**回空必须显示，且必须显示「回空了」那一句** ══
+         原话：「回空时也要显示对话框，而不是默认关着，并且回空时必须显示那句回空了，
+                 而不是直接忽视回空然后对话框去显示上一楼正文，这样子会很误导玩家。」
+
+         ── 旧写法（两个错，都要去掉）──
+           ① `if (this._userClosed) { stage.hidden; return; }`
+              ⇒ 玩家手关过一次框，以后所有回空都静默 —— 他看不到「回空了」，
+                只会以为脚本卡住了，反复点推进。
+           ② 上面 render 开头那句同样有一段手关判断（本轮已改）。
+         ── 现在 ──
+         回空 = 这一楼彻底废了，**这个提示必须让玩家看见**，手关锁对它无效。
+         `_userClosed` 本身不动（下一楼真有正文时照样尊重玩家关框），
+         所以不会变成关不掉的框。
+         ⚠ `pages` 在 setRawText 的空回复分支里已经清空（这是它清空的唯一理由），
+           所以走到这里绝不会画出上一楼正文 —— 那正是作者说的「很误导玩家」。 */
       stage.removeAttribute('hidden');
       this.isOpen = true;
       try { fitDialogueStage(shell); } catch (eFitE) {}
@@ -24492,19 +24867,25 @@ function setupInteractions(shell) {
     };
   }
 
-  /* ══ ★ 21:45：外置插图开关「兼容智绘姬」════════════════════════════
-     默认关 —— 显示我们自己的插图。点一下切到外置生图插件产出的图，
-     再点一下切回来。状态由 13-gal 的 __sprExtIllust 统一管（它负责图层与扫描）。 */
+  /* ══ ★★ 2026-11-18：顶栏 🖼 = **内置插图开关**（作者点的就是这颗）════════
+     作者原话「把关掉的插图打开」「点插图按钮却显示外置插图已打开」——
+     旧实现这颗管的是 __sprExtIllust（外置智绘姬），作者当它是「打开插图」按钮，
+     点一下却开了外置那套。现在改为翻转**内置**插图（SPR_ILLUST_ON / __sprIllust），
+     就是作者要的「打开关掉的插图」。toast 也直说内置，不再出现外置字样。
+     外置智绘姬那套仍由 13-gal 的 __sprExtIllust 管，功能没删，只是不再占这颗显眼按钮。 */
   var btnExtIllust = shell.querySelector('.th-gal-btn-extillust');
   function syncExtIllustBtn() {
     if (!btnExtIllust) return;
     var on = false;
-    try { on = !!(HOST.__sprExtIllust && HOST.__sprExtIllust.get && HOST.__sprExtIllust.get()); } catch (e0) {}
-    btnExtIllust.textContent = '🖼 兼容智绘姬:' + (on ? '开' : '关');
+    try { on = !!(HOST.__sprIllust && HOST.__sprIllust.get && HOST.__sprIllust.get()); } catch (e0) {}
+    if (!(HOST.__sprIllust && HOST.__sprIllust.get)) {
+      try { on = HOST.localStorage.getItem('SPR_ILLUST_ON') !== 'off'; } catch (e0b) { on = true; }
+    }
+    btnExtIllust.textContent = '🖼 插图：' + (on ? '开' : '关');
     btnExtIllust.classList.toggle('is-on', on);
     btnExtIllust.title = on
-      ? '当前显示外置插图（智绘姬）。点一下切回我们自己的插图。'
-      : '当前显示我们自己的插图。点一下改为显示外置插图（智绘姬）。';
+      ? '内置插图（卡里自带的图组）现在是开着的，点一下关掉'
+      : '内置插图现在是关着的，点一下打开';
   }
   try { HOST.__thSyncExtIllustBtn = syncExtIllustBtn; } catch (eSI) {}
   if (btnExtIllust) {
@@ -24513,11 +24894,14 @@ function setupInteractions(shell) {
       e.preventDefault();
       try { PixelAudio.playSelect(); } catch (eSnd3) {}
       var api = null;
-      try { api = HOST.__sprExtIllust || null; } catch (eA) {}
-      if (!api || !api.set) { try { popToast('插图脚本还没就绪，稍等一下再点'); } catch (eP) {} return; }
-      var next = !api.get();
-      api.set(next);
+      try { api = HOST.__sprIllust || null; } catch (eA) {}
+      var next = false;
+      if (api && typeof api.get === 'function') next = !api.get();
+      else { try { next = HOST.localStorage.getItem('SPR_ILLUST_ON') === 'off'; } catch (eG) { next = true; } }
+      if (api && typeof api.set === 'function') { api.set(next); }
+      else { try { HOST.localStorage.setItem('SPR_ILLUST_ON', next ? 'on' : 'off'); } catch (eL) {} }
       syncExtIllustBtn();
+      try { popToast('🖼 内置插图已' + (next ? '打开' : '关闭')); } catch (eP) {}
     };
     syncExtIllustBtn();
   }
@@ -27935,23 +28319,46 @@ async function updateContainer(shell) {
 
   /* ══ 标题页状态机：menu / branch / playing ══
      存在 sessionStorage（绑聊天 id），所以壳被酒馆重画重建之后状态也不会丢，
-     绝不会出现「点完开始又弹回主菜单」的闪回。 */
+     绝不会出现「点完开始又弹回主菜单」的闪回。
+
+     ══ ★★ 2026-11-18：**「换卡后存档回到开始界面」的最后一道口子在这里** ══
+     作者原话：「替换更新卡之后，明明原先有的存档，会回到开始游戏界面」。
+
+     旧逻辑末尾是 `return isGameStarted() ? 'playing' : 'menu';` —— 方向没错，
+     但当时 isGameStarted() 只认「活内存 + sessionStorage」，换卡后两者全空，
+     于是这里诚实地返回了 'menu'，开始界面就盖上来了。
+     现在 isGameStarted() 已经补上「问存档」这第三条通道；这里再补两条保险：
+
+       · stored 读不到（换卡后 currentChatId 的键变了）**不等于**没开局。
+         不能因为 stored 是空串就当作 'menu' —— 它只说明"这个 sessionStorage 键没见过"。
+       · stored 若停在向导中间页（play/branch/mode/season/...），而存档里明显
+         已经有进度（走出了开场白），那是**上次开关卡时没写完就断了** ——
+         按有进度处理，直接回游戏，别把玩家塞回向导第一步。
+         （向导那几页做不到幂等重放，硬塞回去等于让他重新选一遍。
+          真想重开，主菜单有「开始游戏」，那条路会显式写 play。）
+
+     ⚠ 绝不允许把这条改成「stored 为空就 playing」——新聊天也是空串，
+       那样开局向导会被整个跳过，等于废掉八步流程。所以判据永远是
+       「**存档里有证据**」，不是「状态读不到」。 */
   var TITLE_STATE_KEY = 'thGalTitleState';
   function readTitleState() {
     var stored = '';
     try { stored = sessionStorage.getItem(TITLE_STATE_KEY + '::' + currentChatId()) || ''; } catch (e) {}
+    /* 存档里有没有真进度 —— 这个判定与 sessionStorage 无关，换卡后照样成立 */
+    var started = false;
+    try { started = !!isGameStarted(); } catch (eSt) { started = false; }
     if (stored === 'showing' || stored === 'menu') return 'menu';
     /* ★ v1.27：开局第一屏「游戏版 / 文字版」 */
-    if (stored === 'play') return 'play';
-    if (stored === 'branch') return 'branch';
-    if (stored === 'mode') return 'mode';
-    if (stored === 'season') return 'season';
-    if (stored === 'art') return 'art';
-    if (stored === 'playerinfo') return 'playerinfo';
-    if (stored === 'starttype') return 'starttype';
-    if (stored === 'confirm') return 'confirm';
+    if (stored === 'play') return started ? 'playing' : 'play';
+    if (stored === 'branch') return started ? 'playing' : 'branch';
+    if (stored === 'mode') return started ? 'playing' : 'mode';
+    if (stored === 'season') return started ? 'playing' : 'season';
+    if (stored === 'art') return started ? 'playing' : 'art';
+    if (stored === 'playerinfo') return started ? 'playing' : 'playerinfo';
+    if (stored === 'starttype') return started ? 'playing' : 'starttype';
+    if (stored === 'confirm') return started ? 'playing' : 'confirm';
     if (stored === 'playing') return 'playing';
-    return isGameStarted() ? 'playing' : 'menu';
+    return started ? 'playing' : 'menu';
   }
   function writeTitleState(st) {
     try { sessionStorage.setItem(TITLE_STATE_KEY + '::' + currentChatId(), st); } catch (e) {}
@@ -31031,7 +31438,7 @@ function thWbVerRefresh(force) {
      「检测中」——因为再没人会来发第二枪。现在：没就绪就让界面说「等待切换器」，
      并且挂一个短重试，就绪后自动补一枪。 */
   if (!fn) {
-    _thWbVer.err = '切换器还没就绪';
+    _thWbVer.err = '切换器接口还没就绪（__TH_WB_READ__ 未挂载）';
     _thWbVer.stale = false;
     _thWbVer.fresh = false;
     _thWbVer.done = false;
@@ -31042,17 +31449,46 @@ function thWbVerRefresh(force) {
       var tries = 0;
       _thWbVer.retryTimer = setInterval(function () {
         tries++;
-        if (thWbApi('__TH_WB_READ__') || tries > 40) {
+        var _f2 = thWbApi('__TH_WB_READ__');
+        /* ★★ 2026-11-18：作者骂「世界书依旧一直在检测中」——真凶就在这里。
+           旧代码：`if (拿到fn || tries>40) { 清定时器; 递归 thWbVerRefresh(true); }`。
+           拿不到 fn 时 tries>40 也会递归，而递归进来 fn 还是没有 ⇒ 又挂一个新定时器、
+           tries 归零 ⇒ 无限循环，done 永远 false ⇒ 界面永远「检测中」。
+           现在：拿到接口才去读；**读不到就给结论**（done=true），绝不递归重挂。 */
+        if (_f2) {
           try { clearInterval(_thWbVer.retryTimer); } catch (eC) {}
           _thWbVer.retryTimer = null;
           try { thWbVerRefresh(true); } catch (eR) {}
+        } else if (tries > 12) {
+          try { clearInterval(_thWbVer.retryTimer); } catch (eC2) {}
+          _thWbVer.retryTimer = null;
+          _thWbVer.pending = false;
+          _thWbVer.done = true;
+          _thWbVer.err = '世界书读数接口一直没就绪（切换器脚本可能没启用，或酒馆助手没加载完）';
+          try { thWbFreshPaint(); } catch (eP2) {}
+          try { __thVlogRedraw(); } catch (e2) {}
         }
       }, 500);
     }
     return;
   }
+  /* ★★ 2026-11-18 硬看门狗：fn() 是宿主的 async 函数，一旦它永不 resolve
+     （世界书 API 卡死 / 权限弹窗没确认），.then 永远不跑 ⇒ 界面同样永远「检测中」。
+     10 秒后强制收尾给结论：宁可说「读不到」，也绝不装作还在忙。 */
+  try { if (_thWbVer.hardTimer) clearTimeout(_thWbVer.hardTimer); } catch (eh0) {}
+  _thWbVer.hardTimer = setTimeout(function () {
+    if (!_thWbVer.loading) return;
+    _thWbVer.loading = false;
+    _thWbVer.pending = false;
+    _thWbVer.done = true;
+    _thWbVer.at = Date.now();
+    _thWbVer.err = _thWbVer.err || '读世界书超时（宿主接口 10 秒没返回）';
+    try { thWbFreshPaint(); } catch (eG1) {}
+    try { __thVlogRedraw(); } catch (eG2) {}
+  }, 10000);
   _thWbVer.loading = true;
   Promise.resolve().then(function () { return fn(); }).then(function (r) {
+    try { if (_thWbVer.hardTimer) { clearTimeout(_thWbVer.hardTimer); _thWbVer.hardTimer = null; } } catch (eh1) {}
     _thWbVer.loading = false;
     _thWbVer.at = Date.now();
     _thWbVer.ver = String((r && r.ver) || '');
@@ -31104,6 +31540,7 @@ function thWbVerRefresh(force) {
     try { thWbFreshPaint(); } catch (eF) {}
     try { __thVlogRedraw(); } catch (e1) {}
   }, function (e) {
+    try { if (_thWbVer.hardTimer) { clearTimeout(_thWbVer.hardTimer); _thWbVer.hardTimer = null; } } catch (eh2) {}
     _thWbVer.loading = false;
     _thWbVer.at = Date.now();
     _thWbVer.pending = false;
@@ -32122,12 +32559,31 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
   }
 
   /* id / 名字 / 篇章 / 家族 / 身份 / 对 user 是什么人 / 关键经历 */
+  /* ══ ★★★ 2026-11-18 16:05：关系网必须分两套（作者强制命令）════════════════
+     作者原话：「关系网有没有分两套显示，纯爱就别显示苦主，牛头就显示，然后点击后
+     查看的信息也不一样，纯爱就显示纯爱那套，牛头就显示牛头那套。检查好。」
+
+     ── 两条互不相同的维度，别混成一件事 ─────────────────────────────────
+     ① **苦主节点本身**（丈夫 / 男友 / 儿子辈）：
+        纯爱模式下这些人**根本不存在**，不是"存在但不显示"。
+        判据来自《纯爱模式女角色现状》：久美子丧夫、美穗离异、椿芽丧夫、百花离异，
+        结奈没恋人、五位公寓女主全都没有配偶 —— 所以这些男性在纯爱局里就是不存在。
+        ⇒ 节点带 `niuOnly: true`，纯爱模式下**整个节点不出现**（球、边、侧栏全没有）。
+     ② **同一个人的两套文案**（女角色自己）：
+        她两种模式都在，只是身份/旧事不一样。
+        ⇒ 节点带 `roleNiu / toUserNiu / storyNiu`，纯爱取基础字段，牛头取 *Niu。
+
+     ⛔ 一个节点不许用两套算法判断可见性：只认 `niuOnly` 一个字段，
+        `visibleNodes()` 是**唯一**的筛法，layout / buildHTML / sideFor / findNode 全走它。 */
   var NODES = [
     { id: 'user', name: '你（{{user}}）', arc: 'all', fam: '主角', role: '主角',
       toUser: '你自己', story: '夏越村：寄住在春日大平家的远房外甥；幸福公寓：301 室的普通上班族；神社：顺着鸟居误闯、发现自己出不去了。' },
 
     /* ── 夏越村 ── */
+    /* ⚠ 春日大平 = 久美子的丈夫。纯爱模式下久美子是丧夫的寡妇（见《纯爱模式女角色现状》），
+       所以他在纯爱局**不存在** ⇒ niuOnly。 */
     { id: '春日大平', name: '春日大平', arc: '村', fam: '春日家', role: '户主 · 长途货车司机',
+      niuOnly: true,
       toUser: '妻弟家的孩子，寄住在他家的外甥', story: '常年在外跑车，家里的事全交给久美子。你寄住在他家，他把你当自家小辈，不多话。' },
     { id: '春日久美子', name: '春日久美子', arc: '村', fam: '春日家', role: '当家人 · 妇女会干事',
       toUser: '远房表姨（外婆妹妹的女儿）', story: '你管这一家叫「姨家」。她才是春日家真正当家的那个，你小时候起就常在她眼皮底下长大。' },
@@ -32135,19 +32591,28 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
       toUser: '表姐', story: '只有暑假回家。把你当弟弟看，见你回来会觉得家里一下子热闹了。' },
     { id: '春日葵', name: '春日葵', arc: '村', fam: '春日家', role: '次女 · 镇立高三',
       toUser: '表姐', story: '镇立高中三年级，跟你熟，但总爱端一点姐姐的架子。' },
+    /* ⚠ 山上和也 = 椿芽的丈夫。纯爱模式椿芽丧夫 ⇒ 他不在场 ⇒ niuOnly。
+       （儿子 山上左寻 两种模式都在，不加标记。） */
     { id: '山上和也', name: '山上和也', arc: '村', fam: '山上家', role: '木匠',
+      niuOnly: true,
       toUser: '邻家叔叔', story: '常年在外做木工，家里是椿芽一个人带着左寻。' },
     { id: '山上椿芽', name: '山上椿芽', arc: '村', fam: '山上家', role: '主妇',
       toUser: '邻家婶子', story: '山上左寻的妈妈，跟村里其余人一样：不熟也不生，见面点头搭两句话。' },
     { id: '山上左寻', name: '山上左寻', arc: '村', fam: '山上家', role: '小学三年级',
       toUser: '儿时玩伴', story: '你不在的这些年他一直在村里长大，见你回来最新奇，跟西村太郎一样把你当大哥哥。' },
+    /* ⚠ 西村诚 = 百花的丈夫。纯爱模式百花已离异（对方先有了别人，她带着太郎搬来）
+       ⇒ 他不在村里 ⇒ niuOnly。（儿子 西村太郎 两种模式都在。） */
     { id: '西村诚', name: '西村诚', arc: '村', fam: '西村家', role: '村公所职员',
+      niuOnly: true,
       toUser: '邻家叔叔', story: '西村家的户主，在村公所上班。家里在村里算大家族，房子最大。' },
     { id: '西村百花', name: '西村百花', arc: '村', fam: '西村家', role: '主妇',
       toUser: '邻家婶子', story: '西村太郎的母亲，跟其他村人一样认得你，但谈不上多深的交情。' },
     { id: '西村太郎', name: '西村太郎', arc: '村', fam: '西村家', role: '小学三年级',
       toUser: '儿时玩伴', story: '和你、左寻小时候一起玩大的。你回村这件事，在孩子堆里是件新鲜事。' },
+    /* ⚠ 吉川宏 = 美穗的丈夫。纯爱模式美穗早已协议离婚、对方去了外地
+       ⇒ 他不在村里 ⇒ niuOnly。（儿子 吉川大田 两种模式都在。） */
     { id: '吉川宏', name: '吉川宏', arc: '村', fam: '吉川家', role: '建材公司营业员',
+      niuOnly: true,
       toUser: '远房姻亲的丈夫', story: '吉川美穗的丈夫、大田的爸爸。他知道你小时候吃过美穗奶那件旧事，却从没跟你计较。' },
     { id: '吉川美穗', name: '吉川美穗', arc: '村', fam: '吉川家', role: '主妇',
       toUser: '远房婶子——「吃她奶长大的小辈」', story: '★旧事：你小时候在她怀里吃过奶，还撞见过她洗澡，她一点没怪你。在她眼里你不是外人口里的「城里回来的孩子」，而是她亲手带过、吃过她奶的自家小辈；这份亲密连她丈夫吉川宏都默认。大田却一直为这件事吃你的醋。' },
@@ -32157,26 +32622,77 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
       toUser: '同村姐姐', story: '住在「三上商店」后面，一个人看店养家，还要带弟弟悠。你回来会跟她打声招呼、买点东西。' },
     { id: '香本悠', name: '香本悠', arc: '村', fam: '香本家', role: '小学六年级',
       toUser: '同村弟弟', story: '千玲的弟弟，跟大田同级。对「从城里回来的你」好奇得很。' },
-    { id: '志藤理惠', name: '志藤理惠', arc: '村', fam: '志藤家', role: '主妇',
-      toUser: '邻家婶子', story: '志藤上林的妈妈；村里的成年人彼此都认识，见面点头、随口搭两句话。' },
-    { id: '志藤上林', name: '志藤上林', arc: '村', fam: '志藤家', role: '小学三年级',
-      toUser: '小学同班同学', story: '你小学时的同班同学，现在三年级。你回村后他最爱与你说从前的事。' },
-    { id: '白坂结奈', name: '白坂结奈', arc: '村,公寓', fam: '白坂家', role: '上班族',
-      toUser: '亲姐姐／在公寓篇与你同住 301', story: '从小把你带大，说话直、爱逗你。夏越村篇她是白坂家的人；幸福公寓篇她住 301 主卧，你住次卧 1——「回到家」回的就是你们俩的家，不是串门子。她男朋友是智本大和，但他没有搬进这栋楼。' },
+    /* ⛔ 2026-11-18 15:51：志藤理惠 / 志藤上林 **已整家删除**，这两条从 NODES 里拿掉。
+       上面 v165L 的注释早就写着「志藤一家三口已删」，但只删了 VILLAGE_EXTRA / ROSTER，
+       NODES 与 EDGES 里这两条一直留着 ⇒ 关系网照画、人物总览照列，
+       作者原话「没开启的人你他妈丢进来人物总览干你妈逼呢」。 */
+    /* ★★ 2026-11-18：作者「关系网里有两个白坂结奈」——以前 arc 写 '村,公寓'，
+       layout() 的 copies 规则会把她画两份（白坂结奈 + 白坂结奈#公寓）。
+       现在只归**公寓**一篇：她是公寓篇亲姐 / 301 同住，是主要角色；
+       村篇她只是白坂家的一员，不单列节点。角色设定没删，只是关系网不重复画。 */
+    { id: '白坂结奈', name: '白坂结奈', arc: '公寓', fam: '白坂家', role: '上班族',
+      toUser: '亲姐姐／在公寓篇与你同住 301', story: '从小把你带大，说话直、爱逗你。夏越村篇她是白坂家的人；幸福公寓篇她住 301 主卧，你住次卧 1——「回到家」回的就是你们俩的家，不是串门子。她男朋友是智本大和，但他没有搬进这栋楼。',
+      roleNiu: '上班族 · 智本大和的女朋友',
+      toUserNiu: '亲姐姐／在公寓篇与你同住 301 · 苦主智本大和的女朋友',
+      storyNiu: '从小把你带大，说话直、爱逗你。她住 301 主卧，你住次卧 1——「回到家」回的就是你们俩的家。男朋友智本大和**没有搬进这栋楼**，201 一直空置，他随剧情过来找她。按《苦主阶段》推进心理：可以写隐奸 NTR、当面 NTR、偷情与苦主视角，禁止胁迫 / 下药 / 羞辱 / 要挟。' },
+    /* ⚠ 智本大和 = 结奈的男朋友。纯爱模式结奈没有恋人（「她不是没人要，是懒得将就」）
+       ⇒ 他不在场 ⇒ niuOnly。 */
     { id: '智本大和', name: '智本大和', arc: '村', fam: '白坂家', role: '结奈的男朋友',
+      niuOnly: true,
       toUser: '姐姐的男朋友', story: '只跟结奈交往，**没有搬进公寓**。别把他写成 201 的住户——201 一直是空房。' },
 
     /* ── 幸福公寓 ── */
     { id: '管理员小姐', name: '管理员小姐', arc: '公寓', fam: '公寓', role: '管理员 · 四十来岁',
       toUser: '收租的房东管理员', story: '收租、修东西都是她的事，不爱闲聊。你租住在 301，跟她只是公事上的来往。' },
     { id: '神谷奈绪', name: '神谷奈绪', arc: '公寓', fam: '公寓', role: '203 住户',
-      toUser: '隔壁住户', story: '一个人住，三无、面无表情、话极少。她嘴里的「丈夫」是她认错人时演出来的，不是设定——别当成真有老公。' },
+      toUser: '隔壁住户', story: '一个人住，三无、面无表情、话极少。她嘴里的「丈夫」是她认错人时演出来的，不是设定——别当成真有老公。',
+      roleNiu: '203 住户 · 神谷健太之妻',
+      toUserNiu: '隔壁住户 · 苦主神谷健太的妻子',
+      storyNiu: '一个人住 203，三无、面无表情、话极少。丈夫神谷健太是 IT 工程师，每天早出晚归、把工资卡交给她就算尽到了爱。她清冷外表下是快要烧干了的、对肉体的极度渴求，而他完全不知道。按《苦主阶段》推进心理：可以写隐奸 NTR、当面 NTR、偷情与苦主视角，禁止胁迫 / 下药 / 羞辱 / 要挟。' },
     { id: '桃崎千鹤', name: '桃崎千鹤', arc: '公寓', fam: '公寓', role: '303 住户',
-      toUser: '隔壁邻居', story: '住你隔壁，温柔大姐姐，说话慢、尾音软，会主动搭话，也会调侃你两句。' },
+      toUser: '隔壁邻居', story: '住你隔壁，温柔大姐姐，说话慢、尾音软，会主动搭话，也会调侃你两句。',
+      roleNiu: '303 住户 · 早川慎二之妻',
+      toUserNiu: '隔壁邻居 · 苦主早川慎二的妻子',
+      storyNiu: '住你隔壁 303，温柔大姐姐，说话慢、尾音软，会主动搭话也会调侃你两句。丈夫早川慎二是商社营业课长，常年出差，回家就把行程表往桌上一放、等着她熨衬衫收行李——把「被照顾」当成了家的定义。按《苦主阶段》推进心理：可以写隐奸 NTR、当面 NTR、偷情与苦主视角，禁止胁迫 / 下药 / 羞辱 / 要挟。' },
+    /* ★★ 2026-11-18：作者「我牛头模式，水野千晴还显示一个人住的温柔阿姨，没做区分」。
+       纯爱模式她单身独居；牛头模式她有丈夫冈坂日川 + 儿子冈坂太郎（也是苦主），
+       305 是一家三口。详情面板按当前模式取下面 *Niu 字段，不写死纯爱那套。 */
     { id: '水野千晴', name: '水野千晴', arc: '公寓', fam: '公寓', role: '305 住户 · 单身',
-      toUser: '同楼邻居', story: '三十后半、一个人住的温柔阿姨，白天在家，声音轻、手很稳，习惯性多煮一份饭。楼里的小孩都叫她千晴阿姨。' },
+      toUser: '同楼邻居', story: '三十后半、一个人住的温柔阿姨，白天在家，声音轻、手很稳，习惯性多煮一份饭。楼里的小孩都叫她千晴阿姨。',
+      roleNiu: '305 住户 · 冈坂日川之妻 / 太郎之母',
+      toUserNiu: '同楼邻居 · 苦主冈坂日川的妻子',
+      storyNiu: '三十后半，幸福公寓 305 住户，和丈夫冈坂日川、儿子冈坂太郎（幼儿园生）一家三口同住。丈夫是温和懦弱的老好人职员，常加班；她持家、体贴到像在演戏，越被夸「完美妻子」越觉得那句夸的是摆设。按《苦主阶段》推进心理：可以写隐奸 NTR、当面 NTR、偷情与苦主视角，禁止胁迫 / 下药 / 羞辱 / 要挟。' },
     { id: '藤宫紫苑', name: '藤宫紫苑', arc: '公寓', fam: '公寓', role: '407 住户 · 调香师',
-      toUser: '同楼邻居', story: '在家调香，寡言、眼睛厉害，看人像在试香。她对你的观察比别人更细。' },
+      toUser: '同楼邻居', story: '在家调香，寡言、眼睛厉害，看人像在试香。她对你的观察比别人更细。',
+      roleNiu: '407 住户 · 调香师 · 白石恭介之妻',
+      toUserNiu: '同楼邻居 · 苦主白石恭介的妻子',
+      storyNiu: '在家调香，寡言、眼睛厉害，看人像在试香。丈夫白石恭介替几家香水品牌跑原料，能一口报出任何一批新香的前中调，却从没注意过她换了洗衣粉、换了香水、或身上多出一点别人的味道——他坚信自己最懂她，这份自信正是他最看不见东西的地方。按《苦主阶段》推进心理：可以写隐奸 NTR、当面 NTR、偷情与苦主视角，禁止胁迫 / 下药 / 羞辱 / 要挟。' },
+
+    /* ══ ★★ 2026-11-18 16:05：补上公寓五位苦主节点（作者「关系网有没有分两套显示」）══
+       《苦主阶段》里写着公寓 6 位苦主，但关系网原来只有「智本大和」一个 ——
+       神谷健太 / 早川慎二 / 白石恭介 / 冈坂日川 / 冈坂太郎 五个**根本不在网上**，
+       牛头模式点开女角色的关系栏只有「夫妻」两个字指向不存在的节点。
+       全部 niuOnly：纯爱模式这些人不存在，球、边、侧栏一律不出现。 */
+    { id: '神谷健太', name: '神谷健太', arc: '公寓', fam: '公寓', role: '203 住户 · IT 工程师',
+      niuOnly: true,
+      toUser: '203 的丈夫 · 苦主',
+      story: '神谷奈绪的丈夫，32 岁，IT 工程师。戴黑框眼镜，长期熬夜显得疲态，头发乱糟糟。老实、工作狂、生活技能几乎为零，习惯用逻辑和代码理解世界，情感感知极低。他很爱妻子，表达方式就是把工资卡交给她，以为妻子和他一样是不需要情感滋润也能运转的「程序」——完全不知道她清冷外表下快烧干了。' },
+    { id: '早川慎二', name: '早川慎二', arc: '公寓', fam: '公寓', role: '303 住户 · 商社营业课长',
+      niuOnly: true,
+      toUser: '303 的丈夫 · 苦主',
+      story: '桃崎千鹤的丈夫，38 岁，商社营业课长。待人客气、做事按流程，把家里的事也当成「安排好了就没问题」。常年出差，回家把行程表往桌上一放，等着千鹤熨衬衫收行李。他不擅长察觉别人的情绪，尤其察觉不到妻子话尾那半句没说完的——最后一个才明白那句「又是这个点？」并不是对他说的。' },
+    { id: '白石恭介', name: '白石恭介', arc: '公寓', fam: '公寓', role: '407 住户 · 香料贸易业务',
+      niuOnly: true,
+      toUser: '407 的丈夫 · 苦主',
+      story: '藤宫紫苑的丈夫，36 岁，香料贸易公司业务。精明，谈生意时鼻子很灵，报价里每一分让利都闻得出来；回到家就把这套本事关掉，对妻子的话只听字面。紫苑最初是他的客户，后来成了妻子。他能一口报出新香的前中调，却从没注意过她换了洗衣粉、换了香水、或身上多出别人的味道——在他看来「家里的味道」本来就该是固定的。' },
+    { id: '冈坂日川', name: '冈坂日川', arc: '公寓', fam: '冈坂家', role: '305 住户 · 小职员',
+      niuOnly: true,
+      toUser: '305 的丈夫 · 苦主',
+      story: '水野千晴的丈夫、冈坂太郎的父亲，29 岁。穿万年不变的廉价西装，领带总是歪的，头发疏于打理，但总努力维持表面体面，眼下有加班留下的黑眼圈。标准「老好人」，温和甚至有些懦弱；他的迟钝是一种自我保护机制，下意识拒绝接收任何可能破坏「幸福家庭」幻想的负面信息。他把娶到千晴当成这辈子最大的成就，像炫耀战利品一样向所有人夸耀她，完全没察觉她内心的空虚。' },
+    { id: '冈坂太郎', name: '冈坂太郎', arc: '公寓', fam: '冈坂家', role: '幼儿园学生',
+      niuOnly: true,
+      toUser: '305 的孩子 · 小孩苦主',
+      story: '水野千晴与冈坂日川的儿子，幼儿园学生，住 305。儿童身材的矮小，短发，纯真可爱。**小孩也算苦主**：与大人一样按《苦主阶段》四阶段推进，有心理阶段与苦主心声，也能进「孩子就在隔壁」的遮掩线；只是他的心声更懵、更慢、猜不到全貌，别写成大人式摊牌。绝不写任何涉及他的性化 / 暧昧内容。' },
 
     /* ── 神社 ── */
     { id: '神代凛音', name: '神代凛音', arc: '神社', fam: '神社', role: '巫女长',
@@ -32195,13 +32711,20 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
   var EDGES = [
     ['user', '春日久美子', '远房表姨'], ['user', '春日大平', '寄住他家'],
     ['user', '春日静奈', '表姐'], ['user', '春日葵', '表姐'],
-    ['user', '山上左寻', '儿时玩伴'], ['user', '西村太郎', '儿时玩伴'],
-    ['user', '志藤上林', '小学同班'], ['user', '吉川美穗', '吃过她的奶'],
+    ['user', '山上左寻', '儿时玩伴'],     ['user', '西村太郎', '儿时玩伴'],
+    ['user', '吉川美穗', '吃过她的奶'],
     ['user', '吉川大田', '他一直吃醋'], ['user', '白坂结奈', '亲姐姐'],
     ['user', '香本千玲', '同村姐姐'], ['user', '香本悠', '同村弟弟'],
     ['user', '神谷奈绪', '203 邻居'], ['user', '桃崎千鹤', '303 隔壁'],
     ['user', '水野千晴', '305 邻居'], ['user', '藤宫紫苑', '407 邻居'],
-    ['user', '管理员小姐', '租客'], ['user', '神代凛音', '外来者'],
+    ['user', '管理员小姐', '租客'],
+    /* ★ 2026-11-18 16:05：公寓五位苦主对 {{user}} 是什么人（只在牛头模式显示） */
+    ['user', '神谷健太', '203 的丈夫'],
+    ['user', '早川慎二', '303 的丈夫'],
+    ['user', '白石恭介', '407 的丈夫'],
+    ['user', '冈坂日川', '305 的丈夫'],
+    ['user', '冈坂太郎', '305 的孩子'],
+    ['user', '神代凛音', '外来者'],
     ['user', '月读澪', '外来者'], ['user', '斋宫若叶', '外来者'],
     ['user', '白蔵主', '被它观察'], ['user', '御神木之灵', '被它察觉'],
     ['春日大平', '春日久美子', '夫妻'], ['春日久美子', '春日静奈', '母女'],
@@ -32214,11 +32737,60 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
     ['吉川宏', '吉川美穗', '夫妻'], ['吉川美穗', '吉川大田', '母子'],
     ['吉川宏', '吉川大田', '父子'],
     ['香本千玲', '香本悠', '姐弟'],
-    ['志藤理惠', '志藤上林', '母子'],
     ['白坂结奈', '智本大和', '恋人'],
+    /* ★ 2026-11-18 16:05：公寓五位女主的夫妻/母子线（牛头模式才显示，边本身恒在）。
+       ⚠ 边不需要 niuOnly 标记 —— 端点节点在纯爱模式下不渲染，
+         buildHTML 的「p/q 取不到就 skip」自然把它一起吃掉，不会留悬空线。 */
+    ['神谷健太', '神谷奈绪', '夫妻'],
+    ['早川慎二', '桃崎千鹤', '夫妻'],
+    ['白石恭介', '藤宫紫苑', '夫妻'],
+    ['冈坂日川', '水野千晴', '夫妻'],
+    ['冈坂日川', '冈坂太郎', '父子'],
+    ['水野千晴', '冈坂太郎', '母子'],
     ['神代凛音', '月读澪', '同住'], ['神代凛音', '斋宫若叶', '同住'],
     ['月读澪', '斋宫若叶', '同住']
   ];
+
+  /* ══ ★★★ 2026-11-18 16:05：关系网的两套显示，唯一判据在这里 ═══════════════
+     作者强制命令：「纯爱就别显示苦主，牛头就显示，然后点击后查看的信息也不一样」。
+
+     ⛔ 这是**全模块唯一**的模式判据。layout / buildHTML / sideFor / open(focus) /
+        nearSet / 公开 API 全部走 relNiu() 与 visNodes()，绝不各写一份。
+        「同一个量两套算法」在本项目已经复发过多次（苦主闸门、世界书开关），
+        那类 bug 从不报错，只表现为「某个入口还是旧的一套」。
+
+     ⚠ 读不到模式 ⇒ 纯爱（与 v132 定下的规矩一致：开新聊天默认不是牛头）。
+        绝不猜成牛头 —— 猜错的后果是纯爱局里冒出五个不存在的丈夫。 */
+  function relNiu() {
+    try {
+      var gm = (typeof window !== 'undefined' && window.__thGameModeNow)
+        ? window.__thGameModeNow
+        : ((typeof HOST !== 'undefined' && HOST && HOST.__thGameModeNow) ? HOST.__thGameModeNow : null);
+      if (typeof gm === 'function') return String(gm() || '').indexOf('牛头') >= 0;
+    } catch (eN) {}
+    /* 兜底：直接看内存里那个已归一化的模式值（thSetGameMode 写的那份） */
+    try {
+      if (typeof window !== 'undefined' && window.__thGameMode) {
+        return String(window.__thGameMode).indexOf('牛头') >= 0;
+      }
+    } catch (eN2) {}
+    return false;
+  }
+  /* 纯爱模式下该节点存不存在：只在 niuOnly 一个字段上说事 */
+  function nodeVisible(n) {
+    if (!n) return false;
+    if (n.niuOnly && !relNiu()) return false;
+    return true;
+  }
+  /* 当前模式下的可见节点表。**每次现算**，不缓存 ——
+     缓存会让「切完模式再打开还是旧的那套」，这是本模块最容易踩的坑。 */
+  function visNodes() {
+    return NODES.filter(nodeVisible);
+  }
+  /* 当前模式下这条边的两端是否都还在（端点没了 ⇒ 边也不该画） */
+  function edgeVisible(e) {
+    return !!findNode(e[0]) && !!findNode(e[1]);
+  }
 
   function findNode(id) {
     for (var i = 0; i < NODES.length; i++) if (NODES[i].id === id) return NODES[i];
@@ -32296,8 +32868,9 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
      保证「弧长 / 人数」在三段上尽量相同 ⇒ 间距均匀。 */
   function arcSectors() {
     var cnt = {}, total = 0;
+    var vis = visNodes();
     ARC_ORDER.forEach(function (a) {
-      cnt[a] = NODES.filter(function (n) { return n.id !== 'user' && inArc(n, a); }).length;
+      cnt[a] = vis.filter(function (n) { return n.id !== 'user' && inArc(n, a); }).length;
       total += cnt[a];
     });
     var out = {}, cursor = ARC_START;
@@ -32330,8 +32903,11 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
       var frac = sec.span / 360;
       var cap0 = Math.max(1, Math.floor(ringCap(R0) * frac));
       var cap1 = Math.max(1, Math.floor(ringCap(R0 + RSTEP) * frac));
-      /* 名单按家族排序：同一家人角度相邻，但每人占自己的位置（不再逐行挤压） */
-      var list = NODES.filter(function (nd) { return nd.id !== 'user' && inArc(nd, arc); });
+      /* 名单按家族排序：同一家人角度相邻，但每人占自己的位置（不再逐行挤压）
+         ⚠ 用 visNodes() 而不是 NODES：纯爱模式要把苦主整段剔掉，
+           否则那段圆周白白空出一块（arcSectors 的 count 也是按可见节点算的）。 */
+      var vr = visNodes();
+      var list = vr.filter(function (nd) { return nd.id !== 'user' && inArc(nd, arc); });
       var famIdx = {}, famN = 0;
       list.forEach(function (nd) {
         if (!(nd.fam in famIdx)) { famIdx[nd.fam] = famN++; }
@@ -32339,7 +32915,7 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
       list.sort(function (x, y) {
         var d = famIdx[x.fam] - famIdx[y.fam];
         if (d) return d;
-        return NODES.indexOf(x) - NODES.indexOf(y);
+        return vr.indexOf(x) - vr.indexOf(y);
       });
 
       var i, ring, slot, slotTotal, t, deg;
@@ -32538,15 +33114,25 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
   /* 拖拽后的位置：首次打开从 layout() 拷一份，之后只改这里。
      key = 'id' 或 'id#篇章'（跨篇副本）。 */
   var DRAG_POS = null;
+  /* ★★ 2026-11-18 16:05：缓存必须带**模式指纹**。
+     ⛔ 这是「切完模式再打开关系网还是旧的那一套」的根因：
+        DRAG_POS 一旦生成就不再重算，纯爱局里开过一次，切到牛头再开，
+        坐标表里还是那 28 个（五个苦主没有位置，balls 渲染时被 nodeVisible 挡掉，
+        等于少画了人却还占着弧段）。反过来牛头→纯爱更糟：苦主位置残留。
+     ⇒ 记住生成时是哪个模式，模式一变就整份重算。 */
+  var DRAG_POS_MODE = null;
   function basePos() {
+    var _nowMode = relNiu() ? 'niu' : 'jun';
+    if (DRAG_POS && DRAG_POS_MODE !== _nowMode) { DRAG_POS = null; }
     if (!DRAG_POS) {
+      DRAG_POS_MODE = _nowMode;
       DRAG_POS = {};
       var src0 = layout();
       Object.keys(src0).forEach(function (k) { DRAG_POS[k] = { x: src0[k].x, y: src0[k].y }; });
     }
     return DRAG_POS;
   }
-  function resetPos() { DRAG_POS = null; }
+  function resetPos() { DRAG_POS = null; DRAG_POS_MODE = null; }
 
   /* 关系名标签的位置。
      ★★ 作者原话：「这个关系不能写在线的中间吗，贴这么近主角的球」
@@ -32566,6 +33152,7 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
     if (!sel) return near;
     near[sel] = 1;
     EDGES.forEach(function (e) {
+      if (!edgeVisible(e)) return;
       if (e[0] === sel) near[e[1]] = 1;
       if (e[1] === sel) near[e[0]] = 1;
     });
@@ -32617,6 +33204,7 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
     /* 连线先出（在球体下层），关系名单独一层 */
     h.push('<svg class="rn-wires" viewBox="0 0 ' + STAGE_W + ' ' + STAGE_H + '" preserveAspectRatio="none">');
     EDGES.forEach(function (e) {
+      if (!edgeVisible(e)) return;
       var p = pos[e[0]], q = pos[e[1]];
       if (!p || !q) return;
       /* ★★ 选中某人 ⇒ 只画「他和『你』」这一条线。
@@ -32636,6 +33224,7 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
        同一个人的其余关系（夫妻 / 母子 …）全在右侧栏列出来，一条都不丢。 */
     if (sel) {
       EDGES.forEach(function (e) {
+        if (!edgeVisible(e)) return;
         if (!(e[0] === 'user' && e[1] === sel) && !(e[1] === 'user' && e[0] === sel)) return;
         var p = pos[e[0]], q = pos[e[1]];
         if (!p || !q) return;
@@ -32652,6 +33241,10 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
       var id = key.split('#')[0];
       var n = findNode(id);
       if (!n) return;
+      /* ★ 2026-11-18：模式过滤。纯爱模式下苦主连球都不出 ——
+         pos 由 layout() 按可见节点算，正常不会有它们的 key；
+         这一句是**双保险**（DRAG_POS 缓存里可能残留旧坐标）。 */
+      if (!nodeVisible(n)) return;
       /* ★★ 选中某人 ⇒ 别人**不渲染**（不是 is-dim 半透明）。
          作者原话：「选择了某人之后其他人会消失，这样子清晰明朗，不然太多了看不清」。
          只留被选中的人和「你」——「你」永远在，因为所有关系都是相对你而言的。 */
@@ -32710,6 +33303,7 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
     function sync(id) {
       var near = nearSet(sel);
       EDGES.forEach(function (e) {
+        if (!edgeVisible(e)) return;
         var p = pos[e[0]], q = pos[e[1]];
         if (!p || !q) return;
         var k = e[0] + '|' + e[1];
@@ -32812,11 +33406,18 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
     }
     var n = findNode(id);
     if (!n) return '<h4>未找到</h4>';
+    /* ★ 2026-11-18：当前模式下不存在的节点（纯爱局的苦主）不给详情 ——
+       否则从角色菜单带 focus 打开时，会显示一个「本局根本没有的人」。 */
+    if (!nodeVisible(n)) {
+      return '<h4>' + esc(n.name) + '</h4><div class="rn-v">这个人在当前模式下不存在。' +
+        '（纯爱局没有苦主，切到牛头模式才会出现。）</div>';
+    }
     /* ★ 这里就是作者说的「多余的显示在右边」：
        图上只留该人自己的关系名，**其余全部逐条列在这一栏**，一条都不丢。
        每条写成「关系名：对方」，并且把对方的名字点得出来 —— 侧栏是唯一能看全的地方。 */
     var rows = [];
     EDGES.forEach(function (e) {
+      if (!edgeVisible(e)) return;
       if (e[0] !== id && e[1] !== id) return;
       var other = (e[0] === id ? e[1] : e[0]);
       var otherNode = findNode(other);
@@ -32824,11 +33425,24 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
       rows.push('<div class="rn-link"><b>' + esc(e[2]) + '</b>'
         + '<span class="rn-link-to">→ ' + esc(label) + '</span></div>');
     });
+    /* ★ 2026-11-18 16:05：详情文案按当前「纯爱 / 牛头」模式取。
+       ⛔ 模式判据走 relNiu()（全模块唯一一份），不再就地重写一遍 ——
+          原来这里自己读了一次 __thGameModeNow，和别处各写一套，
+          正是「同一个量两套算法」的典型；切模式后只改一处，另一处还是旧的。 */
+    var _niu = relNiu();
+    var _role = (_niu && n.roleNiu) ? n.roleNiu : n.role;
+    var _toUser = (_niu && n.toUserNiu) ? n.toUserNiu : n.toUser;
+    var _story = (_niu && n.storyNiu) ? n.storyNiu : n.story;
+    /* 苦主节点额外标一行，让玩家一眼看出这是「谁的老公 / 谁的儿子」 */
+    var _peerTag = n.niuOnly
+      ? '<div class=rn-k>本局身份</div><div class=rn-v style="color:#e0a86a">牛头模式专属 · 苦主（纯爱局里不存在这个人）</div>'
+      : '';
     return '<h4>' + esc(n.name) + '</h4>' +
       '<div class="rn-k">篇章 / 家族</div><div class="rn-v">' + esc(arcText(n.arc)) + ' · ' + esc(n.fam) + '</div>' +
-      '<div class="rn-k">身份</div><div class="rn-v">' + esc(n.role) + '</div>' +
-      '<div class="rn-k">对 {{user}} 来说是什么人</div><div class="rn-v">' + esc(n.toUser) + '</div>' +
-      '<div class="rn-k">经历 / 旧事</div><div class="rn-story">' + esc(n.story) + '</div>' +
+      _peerTag +
+      '<div class="rn-k">身份</div><div class="rn-v">' + esc(_role) + '</div>' +
+      '<div class="rn-k">对 {{user}} 来说是什么人</div><div class="rn-v">' + esc(_toUser) + '</div>' +
+      '<div class="rn-k">经历 / 旧事</div><div class="rn-story">' + esc(_story) + '</div>' +
       (rows.length
         ? '<div class="rn-k">他的全部关系（' + rows.length + ' 条）</div><div class="rn-links">' + rows.join('') + '</div>'
         : '<div class="rn-k">关系</div><div class="rn-v">这个人没有登记任何关系线。</div>');
@@ -32856,7 +33470,9 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
           }
         }
       }
-      focus = hit ? hit.id : '';
+      /* ★ 2026-11-18：纯爱局里点一个苦主（角色菜单带过来的 focus）⇒ 不定位，
+         退回总图。否则会定位到一个不存在的球，界面空一半。 */
+      focus = (hit && nodeVisible(hit)) ? hit.id : '';
     }
     closeRelNet();
     var _rd = RDOC();
@@ -32942,6 +33558,8 @@ try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
   }
 
   var API = { open: open, close: closeRelNet, nodes: NODES, edges: EDGES, ver: REL_VER,
+      /* ★ 2026-11-18：把模式判据也导出去，测试与外部入口用同一份，不许各写一套 */
+      isNiu: relNiu, nodeVisible: nodeVisible, visNodes: visNodes,
     /* 自检钩子：给 _t_relnet.mjs 验布局/详情用，界面本身不读它们。
        ⚠ _svgFor 名字保留（老测试在用），但现在返回的是 **HTML 片段**（3D 版），
          不再是 SVG —— 断言要按 data-rn / rn-sphere / rn-rel 来认。 */
