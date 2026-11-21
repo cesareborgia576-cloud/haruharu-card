@@ -2845,9 +2845,10 @@
           } else {
             src = map[nm];
           }
+          /* ★ 玩家修改保护：上次我们写入后玩家又改过（hash 对不上账本）⇒ 本条跳过官方覆盖 */
+          var _skipWbOv = nm ? wbEntryProtected(wb, nm, String(e.content == null ? '' : e.content)) : false;
           if (src && typeof src.content === 'string' && src.content && e.content !== src.content) {
-            /* ★ 玩家修改保护：上次我们写入后玩家又改过 ⇒ 跳过，官方更新不覆盖这条 */
-            if (nm && wbEntryProtected(wb, nm, String(e.content == null ? '' : e.content))) {
+            if (_skipWbOv) {
               c.protected = (c.protected || 0) + 1;
               if ((c.protectedNames = c.protectedNames || []).length < 10) c.protectedNames.push(nm);
             } else {

@@ -33796,20 +33796,26 @@ function __thVerInfoHtml() {
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  /* 运行中：显示「第几次」；反查不到才显示版本号。永远不显示 seq。 */
+  /* ★ 2026-11-22：统一短格式「v1.56 · 第 N 次修复更新」——
+     版本号和次数都要看得到（作者：「v1.56呢，怎么就显示个第一次更新」）。 */
+  function _shortVer(s) {
+    s = String(s == null ? '' : s);
+    var m = /v(\d+)\.(\d+)/.exec(s);
+    var n = /第\s*(\d+)\s*次/.exec(s);
+    if (m && n) return 'v' + m[1] + '.' + m[2] + ' · 第 ' + n[1] + ' 次修复更新';
+    return s;
+  }
+  /* 运行中：优先用标签里的「版本号 + 第几次」；没有才用 seq 反查。 */
   var _runFix = __thFixNoFromSeq(_vs.runSeq);
-  var _runTxt = _runFix
-    ? ('第 ' + _runFix + ' 次修复更新')
-    : (_vs.runVer
-        ? ((/第\s*\d+\s*次修复更新/.exec(String(_vs.runVer)) || [])[0]
-           || ('v' + String(_vs.runVer).replace(/^v/i, '')))
-        : '（未取到）');
+  var _runTxt = _vs.runVer
+    ? (_shortVer(_vs.runVer) || '（未取到）')
+    : (_runFix ? ('第 ' + _runFix + ' 次修复更新') : '（未取到）');
   /* 线上：从标签里抽「第几次」，抽不到退回版本号 */
   var _ossTxt = '';
-  var _mo = /第\s*(\d+)\s*次修复更新/.exec(String(_vs.ossLabel || ''));
-  if (_mo) { _ossTxt = '第 ' + _mo[1] + ' 次修复更新'; }
-  else if (_vs.ossVer) { _ossTxt = 'v' + String(_vs.ossVer).replace(/^v/i, ''); }
+  if (_vs.ossLabel) { _ossTxt = _shortVer(_vs.ossLabel); }
+  else if (_vs.ossVer) { _ossTxt = _shortVer(_vs.ossVer); }
   else { _ossTxt = '（未取到）'; }
+  if (!_ossTxt) _ossTxt = '（未取到）';
   var _cmpTxt = _vs.newer
     ? '<span style="color:#fca5a5;font-weight:700;">↑ 有新更新</span>'
     : '<span style="color:#86efac;">已是最新</span>';
@@ -33835,7 +33841,7 @@ function __thVerInfoHtml() {
     /* ★ 2026-11-18 21:1x：内嵌版没有 loader，没人广播 __SPR_CARD_VER ⇒ 卡版本永远「未知」。
        但期望号（__TH_WB_EXPECT_VER__）就是这张卡打出来时的版本号 —— 直接拿它当卡版本。 */
     var _cvLocal = String(_vs.card || '') || String(thWbWantLabel() || '');
-    return '卡版本 <b style="color:#c9bfae;">' + esc(_cvLocal || '（未知）') + '</b>'
+    return '卡版本 <b style="color:#c9bfae;">' + esc(_shortVer(_cvLocal) || '（未知）') + '</b>'
       + '<span style="opacity:.65;">（内嵌版 · 同步以卡内包为准，无线上）</span>'
       + thWbVerLine()
       + thWbSyncDiagLine()
@@ -33847,7 +33853,7 @@ function __thVerInfoHtml() {
       + 'background:rgba(0,0,0,.45);border:1px solid rgba(190,160,255,.3);border-radius:6px;'
       + 'font-size:10px;line-height:1.55;color:#cfc6e8;white-space:pre-wrap;word-break:break-all;"></pre>';
   }
-  return '卡版本 <b style="color:#c9bfae;">' + esc(_vs.card || '（未知）') + '</b>'
+  return '卡版本 <b style="color:#c9bfae;">' + esc(_shortVer(_vs.card) || '（未知）') + '</b>'
     + ' · 运行中 <b style="color:#c9bfae;">' + esc(_runTxt) + '</b>'
     + '<br>线上 <b style="color:' + (_vs.newer ? '#f0a95c' : '#86efac') + ';">' + esc(_ossTxt) + '</b>'
     + ' ' + _cmpTxt + _reload
