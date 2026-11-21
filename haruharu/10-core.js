@@ -32875,7 +32875,17 @@ function __thLiveVerState() {
   try { runSeqSrc = String(pick(['__SPR_RUN_SEQ_SRC__', '__SPR_RUN_SEQ_SRC']) || ''); } catch (e3b) {}
   try { ossVer = String(pick(['__CQ_OSS_VER__', '__SPR_LIVE_VER__']) || ''); } catch (e4) {}
   try { ossSeq = Number(pick(['__CQ_OSS_SEQ__', '__SPR_LIVE_SEQ__']) || 0) || 0; } catch (e5) {}
-  try { ossLabel = String(pick(['__CQ_OSS_LABEL__', '__SPR_LIVE_NEW__']) || ''); } catch (e6) {}
+  try { ossLabel = String(pick(['__CQ_OSS_LABEL__', '__SPR_LIVE_LABEL__', '__SPR_LIVE_NEW__']) || ''); } catch (e6) {}
+  /* ★ 2026-11-22：loader 用 tag 探到的「线上」放在 __SPR_LIVE_*；
+     分支嗅探可能拿回 12h 旧值（seq 更小），这里取更大的 seq，绝不被降级。 */
+  try {
+    var _lsq = Number(pick(['__SPR_LIVE_SEQ__']) || 0) || 0;
+    if (_lsq > ossSeq) {
+      ossSeq = _lsq;
+      try { ossVer = String(pick(['__SPR_LIVE_VER__']) || ossVer || ''); } catch (e4b) {}
+      try { ossLabel = String(pick(['__SPR_LIVE_LABEL__', '__SPR_LIVE_NEW__']) || ossLabel || ''); } catch (e6b) {}
+    }
+  } catch (eLv0) {}
   /* loader 读 @<ref> 的 ver.js 后留了一份结构化快照 —— 前面几项都空时用它补。
      ⚠ 只补「显示用」的版本号与 seq 来源，不碰 newer 判定。 */
   if (!runVer || !runSeq) {
@@ -33784,7 +33794,10 @@ function __thVerInfoHtml() {
   var _runFix = __thFixNoFromSeq(_vs.runSeq);
   var _runTxt = _runFix
     ? ('第 ' + _runFix + ' 次修复更新')
-    : (_vs.runVer ? ('v' + String(_vs.runVer).replace(/^v/i, '')) : '（未取到）');
+    : (_vs.runVer
+        ? ((/第\s*\d+\s*次修复更新/.exec(String(_vs.runVer)) || [])[0]
+           || ('v' + String(_vs.runVer).replace(/^v/i, '')))
+        : '（未取到）');
   /* 线上：从标签里抽「第几次」，抽不到退回版本号 */
   var _ossTxt = '';
   var _mo = /第\s*(\d+)\s*次修复更新/.exec(String(_vs.ossLabel || ''));
@@ -33828,9 +33841,15 @@ function __thVerInfoHtml() {
       + 'background:rgba(0,0,0,.45);border:1px solid rgba(190,160,255,.3);border-radius:6px;'
       + 'font-size:10px;line-height:1.55;color:#cfc6e8;white-space:pre-wrap;word-break:break-all;"></pre>';
   }
+  var _runSeqTxt = _vs.runSeq
+    ? (' <span style="opacity:.7;font-family:ui-monospace,Consolas,monospace;">seq ' + esc(_vs.runSeq) + '</span>')
+    : '';
+  var _ossSeqTxt = _vs.ossSeq
+    ? (' <span style="opacity:.7;font-family:ui-monospace,Consolas,monospace;">seq ' + esc(_vs.ossSeq) + '</span>')
+    : '';
   return '卡版本 <b style="color:#c9bfae;">' + esc(_vs.card || '（未知）') + '</b>'
-    + ' · 运行中 <b style="color:#c9bfae;">' + esc(_runTxt) + '</b>'
-    + '<br>线上 <b style="color:' + (_vs.newer ? '#f0a95c' : '#86efac') + ';">' + esc(_ossTxt) + '</b>'
+    + ' · 运行中 <b style="color:#c9bfae;">' + esc(_runTxt) + '</b>' + _runSeqTxt
+    + '<br>线上 <b style="color:' + (_vs.newer ? '#f0a95c' : '#86efac') + ';">' + esc(_ossTxt) + '</b>' + _ossSeqTxt
     + ' ' + _cmpTxt + _reload
     + thWbVerLine()
     + thWbSyncDiagLine()
