@@ -2523,7 +2523,15 @@
          这正是「同一个符号两处真相」的另一种形态：`var` 让语法检查全绿，
          `node --check` 也不会报，只有真正跑起来才知道它是 undefined。 */
       var SEP_NAME = '====================';
-      function isSepName(v) { return String(v || '').indexOf(SEP_NAME) === 0; }
+      /* ★ 2026-11-22：包里还有第二种分隔条「—————————————」（纯长横线，4 条，
+         无 display_index / 无 keys / 空正文）。旧 isSepName 只认 ====，
+         导致这 4 条被当普通条目 ⇒ 重编号时没有 display_index 全部沉底 ⇒ 顺序乱。 */
+      function isSepName(v) {
+        var t = String(v || '');
+        if (!t) return false;
+        if (t.indexOf(SEP_NAME) === 0) return true;
+        return /^[—=_-]{6,}$/.test(t);   /* 纯分隔符（长横线/等号/短横线/下划线）≥6 个 */
+      }
 
       var map = {}, mapAll = {};
       list.forEach(function (x) {
@@ -2837,12 +2845,12 @@
             /* 打包里还没被别的分隔条占用的、序号离它最近的那一条 */
             var _best = null, _bestD = Infinity;
             for (var _k = 0; _k < _arr.length; _k++) {
-              if (seqOf[_k]) continue;
+              if (seqOf[nm + '#' + _k]) continue;
               var _d = isFinite(_cur) ? Math.abs(Number(_arr[_k].display_index) - _cur) : _k;
               if (_d < _bestD) { _bestD = _d; _best = _k; }
             }
             if (_best === null) _best = 0;
-            seqOf[_best] = 1;
+            seqOf[nm + '#' + _best] = 1;
             src = _arr[_best];
           } else {
             src = map[nm];
@@ -2997,7 +3005,10 @@
              包里没有的一律沉底（10000 + 原数组位置，保持它们彼此的前后关系）。 */
           var _sepSlots = [];
           for (var _si = 0; _si < list.length; _si++) {
-            if (isSepName(list[_si].comment)) _sepSlots.push(Number(list[_si].display_index));
+            if (isSepName(list[_si].comment)) {
+              var _sv = Number(list[_si].display_index);
+              _sepSlots.push(isFinite(_sv) ? _sv : (_si + 1));   /* ★ 无 display_index → 用包内位置 */
+            }
           }
           outArr.forEach(function (e, i) {
             var nmE = '';
