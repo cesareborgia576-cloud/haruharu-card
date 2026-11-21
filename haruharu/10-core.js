@@ -22056,7 +22056,11 @@ function thIsDevChannel() {
 /* ★ 2026-11-19：早期设想落地 —— 对话框默认以酒馆当前可见 DOM 为输入，不要求正文标签。
    TH_NATIVE_PROJECTION 是总开关；显示美化 / 剔除美化由玩家选择，默认剔除（更稳、更贴原有 Gal UI）。 */
 var TH_NATIVE_PROJECTION = true;
-var TH_NATIVE_MODE_KEY = 'TH_NATIVE_PROJECTION_MODE';
+/* ★ 2026-11-21：键名升 V2。第 172 次把默认改成 strip 后，作者进卡仍看到美化 ——
+   旧键里还留着早前写入的 'beautify'，下面分支 ① 一直尊重它，默认 strip 形同虚设。
+   V2 从空白起步，旧键整键作废不再读；之后只有玩家点 🪞/🎨 切换才会写键，
+   默认「剔除美化」从「新玩家才生效」变成人人都生效。 */
+var TH_NATIVE_MODE_KEY = 'TH_NATIVE_PROJECTION_MODE_V2';
 var TH_NATIVE_PAGE_TOKEN = '\u2063TH_NATIVE_PROJECTION_PAGE\u2063';
 var TH_LAST_NATIVE_HTML = '';
 function thNativeProjectionMode() {
