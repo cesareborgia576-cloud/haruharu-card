@@ -33755,6 +33755,7 @@ function thWbDoSync(btn) {
         + (r.changed ? '，改写 ' + r.changed + ' 条' : '')
         + (r.added ? '，补入 ' + r.added + ' 条' : '')
         + (r.removed ? '，删除 ' + r.removed + ' 条' : '')
+        + (r.protected ? '｜🛡 保护 ' + r.protected + ' 条玩家修改' : '')
         + '｜通道 ' + (r.how || '无')
         + '｜order ' + (r.orderSpread ? '已排' : '没写进去')
         + '｜displayIndex ' + (r.dispCount || 0) + ' 条';
@@ -33846,15 +33847,9 @@ function __thVerInfoHtml() {
       + 'background:rgba(0,0,0,.45);border:1px solid rgba(190,160,255,.3);border-radius:6px;'
       + 'font-size:10px;line-height:1.55;color:#cfc6e8;white-space:pre-wrap;word-break:break-all;"></pre>';
   }
-  var _runSeqTxt = _vs.runSeq
-    ? (' <span style="opacity:.7;font-family:ui-monospace,Consolas,monospace;">seq ' + esc(_vs.runSeq) + '</span>')
-    : '';
-  var _ossSeqTxt = _vs.ossSeq
-    ? (' <span style="opacity:.7;font-family:ui-monospace,Consolas,monospace;">seq ' + esc(_vs.ossSeq) + '</span>')
-    : '';
   return '卡版本 <b style="color:#c9bfae;">' + esc(_vs.card || '（未知）') + '</b>'
-    + ' · 运行中 <b style="color:#c9bfae;">' + esc(_runTxt) + '</b>' + _runSeqTxt
-    + '<br>线上 <b style="color:' + (_vs.newer ? '#f0a95c' : '#86efac') + ';">' + esc(_ossTxt) + '</b>' + _ossSeqTxt
+    + ' · 运行中 <b style="color:#c9bfae;">' + esc(_runTxt) + '</b>'
+    + '<br>线上 <b style="color:' + (_vs.newer ? '#f0a95c' : '#86efac') + ';">' + esc(_ossTxt) + '</b>'
     + ' ' + _cmpTxt + _reload
     + thWbVerLine()
     + thWbSyncDiagLine()
@@ -33907,6 +33902,18 @@ function thWbSyncDiagLine() {
       + dEsc(String((r.extraNames || []).join('、'))) + (r.extra > (r.extraNames || []).length ? ' 等' : '')
       + '</span>';
   }
+  /* ★ 2026-11-22：玩家条目保护状态 + 「恢复官方」入口 */
+  var protLine = '';
+  try {
+    var _pn = Number(r.protected || 0) || 0;
+    if (_pn > 0) {
+      protLine = '<br>🛡 玩家修改保护 <b style="color:#7dd3fc;">' + _pn + ' 条</b>'
+        + '<span style="color:#8b8175;">（这些条目官方更新不会覆盖；想放弃自己的改动点「恢复官方」）</span>'
+        + ' <button type="button" id="th-wb-restore" style="margin-left:6px;padding:2px 9px;border-radius:999px;'
+        + 'border:1px solid rgba(125,211,252,.5);background:rgba(30,58,95,.55);color:#cfe6ff;font-size:11px;'
+        + 'cursor:pointer;white-space:nowrap;">♻ 恢复官方</button>';
+    }
+  } catch (ePr) {}
   return '<br>条目同步 <b style="color:' + col + ';">'
     + (bad.length ? ('⚠ ' + dEsc(bad.join('、'))) : '✓ 正常')
     + '</b><br><span style="font-size:10px;color:#9c9488;line-height:1.7;word-break:break-all;">'
@@ -33918,6 +33925,7 @@ function thWbSyncDiagLine() {
     + ' · order 首/尾 ' + dEsc(r.orderHead || '—') + ' / ' + dEsc(r.orderTail || '—')
     + ' · displayIndex ' + (r.dispCount || 0) + ' 条（首 ' + dEsc(r.dispHead || '—') + '）'
     + extraLine
+    + protLine
     + (r.msg ? ('<br>' + dEsc(r.msg)) : '')
     + '</span>';
 }
@@ -34131,6 +34139,39 @@ function __thVlogRedraw() {
         wbDump.onclick = function (e) {
           try { e.stopPropagation(); e.preventDefault(); } catch (e0) {}
           try { thWbDump(); } catch (e1) { showDiag('体检失败：' + ((e1 && e1.message) || e1)); }
+        };
+      }
+      /* ★★ 2026-11-22：玩家条目保护 —— 「恢复官方」：清保护账本 + 强制重同步。
+         玩家改过的条目从此让位官方版本（想再改可以再改，会重新被保护）。 */
+      var wbRestore = el.querySelector('#th-wb-restore');
+      if (wbRestore) {
+        wbRestore.onclick = function (e) {
+          try { e.stopPropagation(); e.preventDefault(); } catch (e0) {}
+          var api = null;
+          try { api = window.__sprWbProtectApi || (window.top && window.top.__sprWbProtectApi) || null; } catch (e1) {}
+          if (!api || !api.restoreOfficial) {
+            try { showDiag('恢复官方没跑：拿不到保护接口（切换器没就绪，稍等再点）'); } catch (e2) {}
+            try { popToast('切换器还没就绪，稍等一下再点'); } catch (e2b) {}
+            return;
+          }
+          var oldT = wbRestore.textContent;
+          wbRestore.disabled = true;
+          wbRestore.textContent = '♻ 恢复中…';
+          Promise.resolve().then(function () { return api.restoreOfficial(); }).then(function (r) {
+            wbRestore.disabled = false;
+            wbRestore.textContent = oldT || '♻ 恢复官方';
+            try { window.__thWbLastSync = r || null; } catch (e3) {}
+            try { thWbVerRefresh(true); } catch (e4) {}
+            var _m = '♻ 已恢复官方条目' + (r && r.ok
+              ? ('（改写 ' + (r.changed || 0) + ' · 补入 ' + (r.added || 0) + ' · 删除 ' + (r.removed || 0) + '）')
+              : '（' + ((r && r.msg) || '详情看同步行') + '）');
+            try { showDiag(_m); } catch (e5) {}
+            try { thWbSyncBanner(_m, 12000); } catch (e6) {}
+          }).catch(function (err) {
+            wbRestore.disabled = false;
+            wbRestore.textContent = oldT || '♻ 恢复官方';
+            try { showDiag('恢复失败：' + ((err && err.message) || err)); } catch (e7) {}
+          });
         };
       }
       return true;

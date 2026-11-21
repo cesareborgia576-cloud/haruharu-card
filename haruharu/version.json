@@ -1,9 +1,9 @@
 {
-  "version": "v1.55（第 55 次修复更新 · 开发者通道）",
-  "seq": 900057,
-  "fixNo": 55,
-  "label": "v1.55（第 55 次修复更新 · 开发者通道）",
-  "stableRef": "90d2fe9347231addd7c00522d43dd1c7f118864d",
+  "version": "v1.56（第 1 次修复更新 · 开发者通道）",
+  "seq": 900058,
+  "fixNo": 1,
+  "label": "v1.56（第 1 次修复更新 · 开发者通道）",
+  "stableRef": "",
   "updated": "2026-11-21T10:50:02.210Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
@@ -26,5 +26,7 @@
       "23-opening.js",
       "24-statusbar.js"
     ]
-  }
+  },
+  "verBase": "v1.56",
+  "lastPushedFixNo": 0
 }

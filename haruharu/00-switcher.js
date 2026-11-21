@@ -637,6 +637,7 @@
           var hit = 0;
           var _legacyOff = 0;
           var _contentSync = 0;
+          var _protSkip = 0;
           var _present = {};
           /* ★ 08:26：先取线上条目包（JSONP，不受跨域限制），供下面同步 content 用 */
           /* ★★ 2026-11-17：改走 fetchWbPatch（按 seq 缓存）。
@@ -665,8 +666,13 @@
               try {
                 var _src = _wbMap[c];
                 if (_src && typeof _src.content === 'string' && _src.content && e.content !== _src.content) {
-                  e.content = _src.content;
-                  _contentSync++;
+                  /* ★ 玩家修改保护：切模式也不覆盖玩家改过的条目 */
+                  if (wbEntryProtected(String(wb || ''), c, String(e.content == null ? '' : e.content))) {
+                    _protSkip = (_protSkip || 0) + 1;
+                  } else {
+                    e.content = _src.content;
+                    _contentSync++;
+                  }
                 }
               } catch (eSync) {}
               if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
@@ -2436,6 +2442,39 @@
   }
 
   /* 真同步：选书 → 写正文 + 补缺 + 删「创作要求」 → **回读比对** */
+  /* ══ ★ 2026-11-22：玩家条目保护（账本）══════════════════════════════════
+     作者需求：「有的条目是必须改（官方更新要进得来），但玩家自己改过的不能被覆盖」。
+     一个账本同时满足两件事：
+       · 每次同步**写入成功后**，把每条「我们写入后的正文」记成 hash 账本；
+       · 下次同步逐条对：书里现在的 hash ≠ 账本 ⇒ 玩家动过 ⇒ **跳过这条**，
+         官方更新不覆盖它；书里 hash = 账本 ⇒ 玩家没动 ⇒ 官方更新**照常写入**。
+       · 版本页「恢复官方」按钮：清账本 + 强制重同步，玩家的改动让位官方。
+     ⚠ 必须定义在 var WB_VER_ENTRY 之后（_t_wbver 从那里切片，切出来要自足）。 */
+  function wbHash(s) {
+    s = String(s == null ? '' : s);
+    var h = 5381;
+    for (var i = 0; i < s.length; i++) h = (((h << 5) + h) + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(16) + '-' + s.length;
+  }
+  var WB_LEDGER_KEY = 'sprWbHashLedger';
+  function wbLedgerLoad() {
+    try { return JSON.parse(HW.localStorage.getItem(WB_LEDGER_KEY) || '') || { wb: '', hash: {} }; }
+    catch (e) { return { wb: '', hash: {} }; }
+  }
+  function wbLedgerSave(o) {
+    try { HW.localStorage.setItem(WB_LEDGER_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  function wbEntryProtected(wbName, nm, curContent) {
+    try {
+      if (!nm) return false;
+      var lg = wbLedgerLoad();
+      if (!lg || lg.wb !== wbName) return false;
+      var rec = lg.hash ? lg.hash[nm] : null;
+      if (rec == null) return false;
+      return rec !== wbHash(curContent);
+    } catch (e) { return false; }
+  }
+
   async function wbSyncOnly(opts) {
     opts = opts || {};
     var out = { ok: false, wb: '', total: 0, same: 0, changed: 0, added: 0, removed: 0,
@@ -2807,8 +2846,14 @@
             src = map[nm];
           }
           if (src && typeof src.content === 'string' && src.content && e.content !== src.content) {
-            e.content = src.content;
-            c.changed++;
+            /* ★ 玩家修改保护：上次我们写入后玩家又改过 ⇒ 跳过，官方更新不覆盖这条 */
+            if (nm && wbEntryProtected(wb, nm, String(e.content == null ? '' : e.content))) {
+              c.protected = (c.protected || 0) + 1;
+              if ((c.protectedNames = c.protectedNames || []).length < 10) c.protectedNames.push(nm);
+            } else {
+              e.content = src.content;
+              c.changed++;
+            }
           }
           /* ══ ★★★ 2026-11-20：EJS 开关 + 递归闸门，**每条每次同步都写** ══════
              作者报「其他篇章的人物 / 心理阶段 / 苦主 / 苦主阶段条目全部触发了」。
@@ -3006,6 +3051,8 @@
       out.changed = cnt.changed;
       out.added = cnt.added;
       out.removed = cnt.removed;
+      out.protected = cnt.protected || 0;
+      out.protectedNames = cnt.protectedNames || [];
       /* ★ 2026-11-17：删掉了哪些「不属于本包」的，把名字带出去给面板看。
          作者要求「该删删」，那就必须说清楚删了什么 —— 静默删除比不删更可怕。 */
       out.extraGone = cnt.extraGone || 0;
@@ -3070,6 +3117,23 @@
       out.count = (after || []).length;
       var now = {};
       (after || []).forEach(function (e) { now[wbEntryName(e)] = String(e.content == null ? '' : e.content); });
+      /* ★ 玩家修改保护：写入成功后刷新账本。
+         本轮被保护（玩家改过）的条目**不**入账 —— 账本保持旧值，
+         下次同步才能继续认出「这条是玩家改的」。 */
+      try {
+        var _lg = wbLedgerLoad();
+        if (!_lg || _lg.wb !== wb || !_lg.hash) _lg = { wb: wb, hash: {} };
+        var _prot = {};
+        (cnt.protectedNames || []).forEach(function (n) { _prot[n] = 1; });
+        list.forEach(function (x) {
+          var nm3 = String(x.comment || '');
+          if (!nm3 || _prot[nm3]) return;
+          var ct3 = now[nm3];
+          if (ct3 == null) return;
+          _lg.hash[nm3] = wbHash(ct3);
+        });
+        wbLedgerSave(_lg);
+      } catch (eLg0) {}
       out.ver = String(now[WB_VER_ENTRY] || '').trim();
       /* 标题被吃掉的兜底：按正文形状再找一次 */
       if (!out.ver) {
@@ -3289,7 +3353,7 @@
      读书是内存操作（getLorebookEntries），比写盘便宜得多，不用担心成本。 */
   async function wbCompareBook(list) {
     var out = { wb: '', count: 0, same: false, diff: 0, missing: 0,
-                retiredLeft: 0, nameless: 0, err: '' };
+                retiredLeft: 0, nameless: 0, err: '', protected: 0 };
     try {
       var getE = pickWbFn('getLorebookEntries');
       if (!getE) { out.err = '取不到 getLorebookEntries'; return out; }
@@ -3311,11 +3375,18 @@
         if (!n) { out.nameless++; return; }
         have[n] = String(e.content == null ? '' : e.content);
       });
+      var _lg0 = wbLedgerLoad();
+      var _lgOk = !!(_lg0 && _lg0.wb === (pick.name || ''));
       (list || []).forEach(function (x) {
         var n = String(x && x.comment || '');
         if (!n) return;
         var want = String(x.content == null ? '' : x.content);
         if (!Object.prototype.hasOwnProperty.call(have, n)) { out.missing++; return; }
+        /* ★ 玩家修改保护：书里这条和账本对不上 = 玩家改过 ⇒ 不算差异，也不许写 */
+        if (_lgOk && _lg0.hash[n] != null && wbHash(have[n]) !== _lg0.hash[n]) {
+          out.protected = (out.protected || 0) + 1;
+          return;
+        }
         if (have[n] !== want) out.diff++;
       });
       /* 已下架的老条目还在不在 —— 光「正文一致」不代表书是对的，
@@ -3368,6 +3439,10 @@
         out.diag.push('书《' + pre.wb + '》' + pre.count + ' 条'
           + '｜差 ' + pre.diff + ' 缺 ' + pre.missing + ' 待清 ' + pre.retiredLeft
           + (pre.nameless ? ' 无名 ' + pre.nameless : ''));
+        if (pre.protected) {
+          out.protected = pre.protected;
+          out.diag.push('🛡 玩家修改保护 ' + pre.protected + ' 条（不会被官方覆盖）');
+        }
       }
       if (pre.same) {
         out.ok = true;
@@ -3392,6 +3467,7 @@
         out.skipped = false;
         out.how = String(r.how || '');
         out.count = Number(r.count || 0);
+        out.protected = Number(r.protected || 0) || out.protected || 0;
         if (r.books) out.diag.push('候选书：' + r.books);
         if (r.tried && r.tried.length) out.diag.push('写入通道失败：' + r.tried.join(' / '));
       }
@@ -3410,6 +3486,23 @@
       return out;
     }
   }
+
+  /* ★ 版本页「恢复官方」按钮用的 API：清账本 + 强制重同步（玩家的改动让位官方） */
+  try {
+    var _protApi = {
+      last: function () {
+        try { var r = HW.__thWbAutoResult || {}; return { count: Number(r.protected || 0), names: r.protectedNames || [] }; }
+        catch (e0) { return { count: 0, names: [] }; }
+      },
+      restoreOfficial: function () {
+        try { HW.localStorage.removeItem(WB_LEDGER_KEY); } catch (e0) {}
+        try { HW.__sprWbProtectCleared = Date.now(); } catch (e1) {}
+        return wbAutoSync(true);
+      }
+    };
+    HW.__sprWbProtectApi = _protApi;
+    try { if (window.top && window.top !== window) window.top.__sprWbProtectApi = _protApi; } catch (ePA) {}
+  } catch (ePA2) {}
 
   /* ══ ★ 11-15 02:10：**打开世界书面板的那一刻，先同步、再给玩家看** ══
      作者实测出来的现象：先开面板再同步 = 看起来没用；先同步再开 = 有效。
