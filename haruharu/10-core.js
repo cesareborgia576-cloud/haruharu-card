@@ -22366,6 +22366,165 @@ function thNativeHoldsChoice(el) {
   } catch (e) { return false; }
 }
 
+/* ⑤ 这块文字看起来像**赤裸的 CSS 样式表**吗？（作者：「美化的代码块疯狂露出」）
+   ★★ 2026-11-21 第 173 次。现实成因：
+     · 预设/插件把 `<style>` 内容以**纯文本**形式贴进楼层（不是元素属性、也不隐藏），
+       酒馆原样显示，投影也原样带走 ⇒ 玩家对话框里全是 `.card { background:#1a1a1a }`；
+     · 模型偶尔把美化模板的 CSS 当正文抄出来。
+   判据：命中足够多的「CSS 语法特征」才算，避免把正文里的普通冒号、括号误杀。
+     · 形如 `选择器 { 属性: 值; }` 的成对结构（至少 2 条属性）
+     · 常见 CSS 属性名（background / border-radius / padding / margin / font-size / display / color…）
+     · `@media` / `@keyframes` / `:root` / `--var:` / `!important`
+   长度门槛 24 字以上（太短的多半是正文里的短括号）。
+   ⚠ 绝不因为「有花括号」就杀 —— 正文里写代码示例很常见，必须命中等号+分号的属性对。 */
+var TH_CSS_PROP = /(?:^|[\s;{])(?:background(?:-color|-image)?|border(?:-radius|-color|-width|-style)?|padding|margin|font(?:-size|-family|-weight|-style)?|line-height|letter-spacing|text-align|text-shadow|box-shadow|display|position|color|width|height|max-width|min-width|overflow|opacity|flex|grid|gap|transform|transition|z-index)\s*:/i;
+function thNativeLooksLikeCssText(txt) {
+  try {
+    /* ★★ 2026-11-21 第 173 次：**先在函数内部折叠空白**，绝不让调用点各自处理。
+       现实里的样式表几乎总是多行的：
+         `.card-wrap {\n  background: #1a1a2e;\n  border-radius: 12px;\n}`
+       而下面所有正则都用 `[^{}\n]` 这类「不跨行」写法 ⇒ 真样式表**一条都匹配不上**
+       ⇒ 判据恒假 ⇒ 玩家对话框里整段 CSS 原样铺开（作者：「美化的代码块疯狂露出」）。
+       实测证据：同一段 435 字的样式表，
+         原文（带换行）thNativeLooksLikeCssText = false
+         折叠空白后            = true
+       放在这里做而不是让调用点做：这个函数有 strip / beautify 两个调用点，
+       各自折叠就是「同一个量两套算法」，早晚有一边漏（本次 beautify 那侧就漏了）。 */
+    var t = String(txt || '').replace(/\s+/g, ' ').trim();
+    if (t.length < 24) return false;
+    /* ① 必须有「选择器 { ... }」这种成对结构 */
+    var hasBlock = /[.#@][\w-]+[^{}\n]{0,80}\{[^{}\n]{0,400}\}/.test(t)
+      || /\{[^{}\n]*[\w-]+\s*:\s*[^;{}\n]{1,80};/.test(t);
+    if (!hasBlock) return false;
+    /* ② 必须命中 CSS 属性名 */
+    if (!TH_CSS_PROP.test(t)) return false;
+    /* ★★ 2026-11-21 第 173 次：**强信号必须排在条数门槛之前**。
+       原来它在 `propHits < 2 ⇒ return false` 之后，于是
+         `@media (max-width:600px){ .x{ padding:4px; } }`
+       这种「属性只出现一次」的合法样式片段永远走不到那条判断 ⇒ 恒判 false ⇒
+       露在玩家对话框里。强信号（@media/@keyframes/:root/--var/!important）
+       本身就是「这是样式表」的确证，不需要再凑条数。 */
+    if (/@(?:media|keyframes|import|font-face)|:root\s*\{|--[\w-]+\s*:|\!\s*important/i.test(t)) return true;
+    /* ③ 判密度：属性对出现的次数，至少 2 条才算「一块样式表」。
+         正文里偶然提一句 background:#333 不会被误杀。 */
+    var propHits = (t.match(/(?:^|[\s;{])(?:[\w-]+)\s*:\s*(?:#[0-9a-fA-F]{3,8}|rgba?\(|\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw)|[\w-]+(?:-[\w-]+)*)(?:\s*;|\s*})/gi) || []).length;
+    if (propHits < 2) return false;
+    return propHits >= 2;
+  } catch (e) { return false; }
+}
+
+/* ⑥ 数「可见文字」字数 —— **跳过 script/style/noscript/template**。
+   ★★ 2026-11-21 第 173 次，两条数据必须同源：
+     全楼基准（totalTextLen）和单块占比（_ownLen）如果口径不同，
+     「这块占全楼百分之几」就是假的 —— 这是「同一个量两套算法」的典型。
+   为什么必须跳过 style：一段 200 字的美化 CSS 贴在楼里，
+   若算进全楼字数，真正的正文占比会被稀释到 25% 以下，
+   正文容器于是被判成「美化装饰」整块剔掉 ⇒ 玩家一个字都看不到。 */
+function thNativeVisLen(node) {
+  try { return thNativeVisText(node).length; } catch (e) { return 0; }
+}
+/* 同上，但要的是**文字本身**（给 CSS 文本判据用）。
+   ⚠ 必须排除 style/script —— 否则「这块里有没有 CSS」会把容器自己
+     里面那个 <style> 的内容算进来，于是**装着正文的外层容器被当成 CSS 块整块剔掉**
+     （实测：card-wrap 的 textContent 含 63 字 CSS ⇒ 命中 CSS 判据 ⇒ 正文一起没）。
+     这正是「同一个量两套算法」的坑：判 CSS 要的是「**可见**文字的形态」，
+     不是「子树里有没有 style 标签」。 */
+function thNativeVisText(node) {
+  try {
+    var buf = [];
+    (function walk(x) {
+      if (!x) return;
+      if (x.nodeType === 3) { buf.push(String(x.nodeValue || '')); return; }
+      if (x.nodeType !== 1) return;
+      var t = String(x.tagName || '').toLowerCase();
+      if (t === 'script' || t === 'style' || t === 'noscript' || t === 'template') return;
+      var c = x.firstChild;
+      while (c) { walk(c); c = c.nextSibling; }
+    })(node);
+    return buf.join('').replace(/\s+/g, ' ');
+  } catch (e) { return ''; }
+}
+
+/* ⑦ 行级剥 CSS —— 「一个 <p> 里 CSS 和正文混在一起」唯一不误杀的办法。
+   ★★ 2026-11-21 第 173 次：
+     模型抄样式表时经常把正文**接在同一段**里（`</style>` 之后直接写剧情，
+     或整楼就是一个 p）。此时整块剔 = 连正文一起丢（实测 text 长度 0），
+     整块留 = CSS 原样露出。只能按行拆：像 CSS 的行扔掉，其余留下。
+   判据逐行独立（不用上面的 thNativeLooksLikeCssText，那个要求「整块」像样式表）：
+     · 纯花括号/空行
+     · `选择器 {` 结尾
+     · `属性: 值;` 形态（必须有分号或紧贴右括号，避免误杀「她看着他：」这类正文冒号）
+     · `@media / @keyframes / :root / --var` 开头
+   只要还剩至少 1 行像样的正文，就返回剥好的文本；否则返回 ''（交给整块剔）。 */
+function thNativeStripCssLines(txt) {
+  try {
+    var s = String(txt || '').replace(/\r/g, '');
+    if (!s) return '';
+    /* ① 先整块删「选择器 { … }」—— 这是唯一能处理**单行内联 CSS** 的办法：
+         `.a{color:#fff;background:#000;padding:2px;}她把钥匙插进锁孔…`
+       `[^{}]` 是跨行匹配的，所以多行样式表也一并吃掉；
+       循环 6 次专为嵌套（`@media{ .x{ … } }` 要先吃内层）。
+       ⛔ 这条只在「整块已命中 CSS 判据」之后才调用（见 clean 里的顺序），
+          所以不用担心把正文里的 `公式 {a, b}` 当 CSS 删掉 ——
+          那种块根本进不到这里。 */
+    var prev = null;
+    for (var k = 0; k < 6 && s !== prev; k++) {
+      prev = s;
+      s = s.replace(/[^{}\n]{0,300}\{[^{}]*\}/g, '\n');
+    }
+    /* ② @规则残留头部（@media 的括号已经被上面吃掉了） */
+    s = s.replace(/@(?:media|keyframes|import|font-face|charset|supports)\b[^\n]*/gi, '\n');
+    /* ③ 行级：把剩下的「属性对 / 选择器 / 纯符号」行删掉，正文行留下。
+       判据逐行独立（不用 thNativeLooksLikeCssText，那个要求「整块」像样式表）：
+         · 纯花括号/分号/逗号
+         · `选择器 {` 结尾（上面吃掉大部分，这里兜残）
+         · `属性: 值;` 形态（必须带分号或右括号收尾，
+           避免误杀「她看着他：好」这类正文冒号）
+         · `:root` / `--var` */
+    var lines = s.split('\n');
+    var kept = [];
+    for (var i = 0; i < lines.length; i++) {
+      var t = String(lines[i] || '').trim();
+      if (!t) continue;
+      if (/^[{}();,]+$/.test(t)) continue;
+      if (/^:root\s*\{/.test(t)) continue;
+      if (/^--[\w-]+\s*:/.test(t)) continue;
+      if (/^[.#\[a-zA-Z][^:;{}]*\{$/.test(t) && !/[：。，！？]/.test(t)) continue;
+      if (/^[-\w]+\s*:\s*[^;{}]*(?:;|\})$/.test(t) && !/[。，！？]/.test(t)) continue;
+      if (/^(?:[-\w]+\s*:\s*[^;{}]+;\s*)+$/.test(t)) continue;
+      kept.push(t);
+    }
+    var outTxt = kept.join('\n').trim();
+    /* 「剥完只剩零星几个字」也算失败 —— 那种情况整块丢掉更干净，
+       否则会把 `}` `;` 之类的残渣当正文吐给玩家。 */
+    if (outTxt.replace(/\s+/g, '').length < 8) return '';
+    return outTxt;
+  } catch (e) { return ''; }
+}
+
+/* ⑧ **保留换行**的可见文字（专供上面的行级剥离用）。
+   ⛔ thNativeVisText 会把 `\s+`（含换行）全折成空格 ⇒ 多行样式表变成一行
+      ⇒ 行级剥离无从下手。两个函数分工必须分清：
+        thNativeVisText   → 判 CSS 形态（折叠空白，正则才有界）
+        thNativeVisRaw    → 逐行剥 CSS（保留换行） */
+function thNativeVisRaw(node) {
+  try {
+    var buf = [];
+    (function walk(x) {
+      if (!x) return;
+      if (x.nodeType === 3) { buf.push(String(x.nodeValue || '')); return; }
+      if (x.nodeType !== 1) return;
+      var t = String(x.tagName || '').toLowerCase();
+      if (t === 'script' || t === 'style' || t === 'noscript' || t === 'template') return;
+      if (t === 'br') { buf.push('\n'); return; }
+      var c = x.firstChild;
+      while (c) { walk(c); c = c.nextSibling; }
+      if (/^(div|p|li|h[1-6]|blockquote|pre|tr|section|article|ul|ol|table)$/.test(t)) buf.push('\n');
+    })(node);
+    return buf.join('').replace(/[ \t]+/g, ' ');
+  } catch (e) { return ''; }
+}
+
 function thNativeProjection(box, mode) {
   var out = { text: '', html: '' };
   try {
@@ -22377,9 +22536,37 @@ function thNativeProjection(box, mode) {
     var copy = clone.querySelectorAll ? clone.querySelectorAll('*') : [];
     var len = Math.min(live.length, copy.length);
     /* ★ 2026-11-21：本楼总字数 —— 「这一定是正文容器」那条保护的基准。
-       必须在删任何东西之前算，否则越删基准越小、保护越失效。 */
+       必须在删任何东西之前算，否则越删基准越小、保护越失效。
+       ★★ 第 173 次修正：**必须排除 script/style 里的字**。
+       以前直接 `box.textContent` ⇒ 预设把一段 200 字的 CSS 贴在楼里，
+       这 200 字被算进「全楼字数」⇒ 真正的正文 20 字只占 84 字的 24%，
+       刚好掉到 25% 保护线以下 ⇒ 正文容器被判成「美化装饰」整块剔掉
+       ⇒ 玩家一个字都看不到（实测 text 长度为 0）。
+       现在：只统计**可见文字**（跳过 script/style/noscript/template）。 */
     var totalTextLen = 0;
-    try { totalTextLen = String(box.textContent || '').replace(/\s+/g, '').length; } catch (eTT) { totalTextLen = 0; }
+    try { totalTextLen = thNativeVisLen(box); } catch (eTT) { totalTextLen = 0; }
+    /* ══ ★★ 2026-11-21 第 173 次：**所有判定必须用活元素，绝不能用 clone** ══
+       作者原话：「不行，有巨大bug，美化的代码块疯狂露出，思维链也暴露出来了」。
+       ── 真凶 ─────────────────────────────────────────────────────
+       `clean()` 递归处理的是 **clone 里的元素**，而 clone 是游离节点、不在文档树里
+       ⇒ `getComputedStyle(cloneEl)` 拿不到任何 CSS 规则 ⇒ display/visibility/opacity
+       全是空默认值 ⇒ **靠预设 CSS 隐藏的思维链，判据完全失灵、原样漏出**。
+       实测证据（_probe_leak.mjs）：同一个 .pre-note，
+         活元素 display = "none"（正确），clone 元素 display = ""（空）。
+       这也正好解释了「details 剔除了，但别的思维链还在漏」——
+       `<details>` 的折叠是**属性**（open），不依赖文档树，所以那条能拦住；
+       而 CSS 隐藏必须读计算样式，在 clone 上必假。
+       ── 修法（老路径 buildCleanProseClone 用的就是这套，已验证）──────────
+       先建立 **clone 元素 ⇄ 活元素** 的一一对应映射（cloneNode 保序，
+       两边 querySelectorAll('*') 的下标天然对齐），给每个 clone 元素打
+       data-th-li=<下标>；之后 clean 里所有判定都通过该下标去取**活元素**。 */
+    try {
+      var _m = Math.min(live.length, copy.length);
+      for (var _mi = 0; _mi < _m; _mi++) {
+        try { copy[_mi].setAttribute('data-th-li', String(_mi)); } catch (eMI) {}
+      }
+    } catch (eMap) {}
+
     /* 在改动 clone 前按位置同步复制计算样式；只复制安全白名单。 */
     if (mode === 'beautify') {
       /* ★★ 2026-11-19 作者：「别穷举法啊，酒馆显示什么就显示什么」。
@@ -22407,6 +22594,14 @@ function thNativeProjection(box, mode) {
         var el = kids[i];
         if (!el || el.nodeType !== 1) continue;
         var tag = String(el.tagName || '').toLowerCase();
+        /* ★★ 取对应的**活元素** —— 所有 CSS 相关判定必须在活元素上做。
+           见上面那段长注释：clone 不在文档树里，getComputedStyle 恒为空 ⇒
+           靠 CSS 隐藏的思维链在 clone 上永远判不出来。 */
+        var liveEl = null;
+        try {
+          var liIdx = el.getAttribute && el.getAttribute('data-th-li');
+          if (liIdx != null) liveEl = live[Number(liIdx)] || null;
+        } catch (eLi) { liveEl = null; }
         /* ★★ 2026-11-21 第 172 次：这条判据原来只认 `<details>`，害死人。
            ── 作者原话 ──────────────────────────────────────────────
            「剔除美化有问题，没有成功。比如说，思维链折叠美化，是剔除了，
@@ -22426,21 +22621,56 @@ function thNativeProjection(box, mode) {
              · 例外里的例外：class 命中「推演/思维链」字样的，即使是正文容器也剔。 */
         var drop = !!forbidden[tag];
         if (mode !== 'beautify') {
-          drop = drop || !thNativeVisible(el, rootVisible) || thNativeHiddenDeep(el, box);
+          /* ★★ 2026-11-21 第 173 次：这两条判定**必须传活元素**。
+             传 clone 时 getComputedStyle 恒空、父链也在 clone 里 ⇒
+             靠预设 CSS 隐藏的思维链（display:none / opacity:0）全部判不出来 ⇒
+             strip 模式下原样漏出（本次「巨大 bug」的另一半）。
+             `thNativeVisible(活元素, rootVisible)` + `thNativeHiddenDeep(活元素, box)`
+             两个都换成 liveEl；第二个的 stop 用**活的 box**（不是 clone）。 */
+          var _visJudge = liveEl || el;
+          try {
+            drop = drop || !thNativeVisible(_visJudge, rootVisible) || thNativeHiddenDeep(_visJudge, box);
+          } catch (eVis0) { /* 判不出就退回只靠其它判据，绝不因此崩 */ }
           if (!drop) {
             try {
+              /* ★ 判定一律用活元素（liveEl）：clone 上读不到 CSS */
+              var _judge = liveEl || el;
+              /* ★★ 先杀「块内裸 CSS 文本」—— 预设把样式表当纯文本贴进楼层时，
+                 它既不带隐藏也不带特征 class，只能靠文本特征认。两模式都要杀。 */
+              /* ★★ 必须用「可见文字」判：若用 el.textContent，
+                 外层容器子树里的 <style> 内容会被算进来 ⇒
+                 装着正文的外层容器被误判成 CSS 块整块剔掉 ⇒ 正文丢失。 */
+              if (thNativeLooksLikeCssText(thNativeVisText(_judge))) drop = true;
+              /* ★★ 但「整块剔」会把混在同一段里的正文一起丢掉（实测 text=0）。
+                 先试行级剥离：能剥出像样的正文就用剥好的，只剔掉 CSS 那几行。 */
+              if (drop) {
+                try {
+                  var _cssKept = thNativeStripCssLines(thNativeVisRaw(_judge));
+                  if (_cssKept) {
+                    var _sp0 = el.ownerDocument.createElement('span');
+                    _sp0.textContent = _cssKept;
+                    if (el.parentNode) { el.parentNode.replaceChild(_sp0, el); }
+                    drop = false;   /* 已就地换成纯正文，不再整块剔 */
+                  }
+                } catch (eSp0) {}
+              }
               var _ownText = String(el.textContent || '').replace(/\s+/g, '');
-              var _ownLen = _ownText.length;
+              /* ★ 占比必须与 totalTextLen 同一口径（都跳过 style/script） */
+              var _ownLen = thNativeVisLen(_judge);
               var _isProseHost = totalTextLen > 0 && _ownLen >= totalTextLen * 0.25;
               /* ★★ 顺序极重要：**选项 > 思维链 > 正文容器保护 > 带 class 就剔**
                  选项是玩法本体，一旦被吞玩家就没法玩，优先级必须最高。 */
-              if (thNativeChoiceLike(el) || thNativeHoldsChoice(el)) {
+              if (drop) {
+                /* 上面已判 CSS 文本；若是选项仍救回来（极少数情况下选项里带样式串） */
+                if (thNativeChoiceLike(_judge) || thNativeHoldsChoice(_judge)) drop = false;
+              }
+              if (!drop && (thNativeChoiceLike(_judge) || thNativeHoldsChoice(_judge))) {
                 /* 行动选项（自身是选项，或外层装着选项）—— 无条件保留 */
                 drop = false;
-              } else if (thNativeCotLike(el)) {
+              } else if (!drop && thNativeCotLike(_judge)) {
                 /* 思维链/推演/思考过程 —— 无条件剔，不受正文容器保护 */
                 drop = true;
-              } else if ((el.getAttribute('class') || el.getAttribute('id')) && !_isProseHost) {
+              } else if (!drop && (_judge.getAttribute('class') || _judge.getAttribute('id')) && !_isProseHost) {
                 /* 带 class/id 但不是正文容器 ⇒ 美化装饰块 ⇒ 剔 */
                 drop = true;
               }
@@ -22450,15 +22680,42 @@ function thNativeProjection(box, mode) {
           /* ★ beautify 模式：酒馆里看不见的（预设自己 CSS 藏起来的折叠内容）
              也该剔 —— 以前这里完全不做隐藏判定，于是 details 里的思维链
              在「显示美化」下原样漏出来。隐藏判据照搬，但**只认元素自身的
-             display/visibility/opacity**（thNativeHiddenDeep），
-             不用 getClientRects（整层不可见时那条判据会把正文全判没）。 */
+             display/visibility/opacity**，不用 getClientRects
+             （整层不可见时那条判据会把正文全判没）。 */
           if (!drop) {
             try {
-              if (thNativeHardHidden(el)) drop = true;
+              /* ★★ 关键修复：判定必须传**活元素**。
+                 传 clone 时 getComputedStyle 恒空 ⇒ display:none 判不出来 ⇒
+                 靠 CSS 隐藏的思维链全漏（本次「巨大 bug」的头号真凶）。 */
+              var _judge2 = liveEl || el;
+              /* 先做「块内裸 CSS 文本」判定：预设把样式表当纯文本贴进楼层，
+                 那条代码块既不是元素属性也不隐藏，只能靠文本特征认。
+                 ⛔ 必须用 thNativeVisText（**跳过 style/script**），不能用 el.textContent：
+                    外层正文容器子树里若挂着一个 `<style>`（预设常态），
+                    textContent 就把那几十上百字 CSS 算成「本块的文字」⇒ 命中 CSS 判据
+                    ⇒ **整个正文容器被当成 CSS 块剔掉** ⇒ 玩家一个字都看不到。
+                    实测（_probe_nested）：`<div class="card-wrap"><style>…</style>
+                    <div class="inner"><p>正文</p></div></div>` 在 beautify 下
+                    投影 text 长度为 0，正是这条。 */
+              var _rawTxt = thNativeVisText(_judge2);
+              if (thNativeLooksLikeCssText(_rawTxt)) drop = true;
+              /* 同 strip 分支：整块剔会连混排的正文一起丢 ⇒ 先试行级剥离 */
+              if (drop) {
+                try {
+                  var _cssKept2 = thNativeStripCssLines(thNativeVisRaw(_judge2));
+                  if (_cssKept2) {
+                    var _sp2 = el.ownerDocument.createElement('span');
+                    _sp2.textContent = _cssKept2;
+                    if (el.parentNode) { el.parentNode.replaceChild(_sp2, el); }
+                    drop = false;
+                  }
+                } catch (eSp2) {}
+              }
+              if (!drop && thNativeHardHidden(_judge2)) drop = true;
               /* ★★ 顺序同 strip 分支：**选项 > 思维链**。选项是玩法本体。 */
               if (drop) {
                 /* 已被判为隐藏，但若是行动选项（自身或外层装着选项）仍要救回来 */
-                if (thNativeChoiceLike(el) || thNativeHoldsChoice(el)) drop = false;
+                if (thNativeChoiceLike(_judge2) || thNativeHoldsChoice(_judge2)) drop = false;
               }
               /* ★ beautify 模式下**明确是思维链的块无条件剔**。
                  作者要的是「显示美化」，不是「显示思维链」—— 思维链在酒馆原生
@@ -22468,7 +22725,7 @@ function thNativeProjection(box, mode) {
                  说明他要的是思维链一定消失。若一块占了大半楼，说明这楼根本就是
                  推演内容而不是剧情正文，那也不该铺进对话框。
                  只认特征词、不认预设名。 */
-              if (!drop && thNativeCotLike(el)) drop = true;
+              if (!drop && thNativeCotLike(_judge2)) drop = true;
             } catch (eBh) {}
           }
         }
