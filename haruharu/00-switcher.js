@@ -27,7 +27,7 @@
 
   var KEY = 'SPR_UNIFIED_MODE';
   var LOCK = '__SPR_SWITCHER_LOCK__';
-  var CFG = {"defaultMode":"game","gameFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","textFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","bookOffInText":["连携判定","内置思维链","格式","[mvu_update]变量更新规则","[mvu_update]变量输出格式"],"bookNonOnly":["内置思维链·文字版","格式·文字版"],"bookAlwaysOff":["[InitVar]初始变量"]};
+  var CFG = {"defaultMode":"game","gameFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","textFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","bookOffInText":["连携判定","内置思维链","格式"],"bookAlwaysOn":["[mvu_update]变量更新规则","[mvu_update]变量输出格式"],"bookNonOnly":["内置思维链·文字版","格式·文字版"],"bookAlwaysOff":["[InitVar]初始变量"]};
   var GAME = 'game', TEXT = 'text';
 
   /* ── 宿主 window / document（脚本跑在酒馆助手 iframe 里） ────────── */
@@ -228,10 +228,20 @@
        于是不管在游戏版还是文字版，嗅探一律返回文字版（球显示错、加载错脚本）。
        现在：localStorage 优先；script_trees / 卡数据只在「确实存在启用的 [同层]」
        时才判 GAME，全禁用视为热更卡正常态，跳过不判。 */
-    try {
-      var vL = HW.localStorage.getItem(KEY);
-      if (vL === GAME || vL === TEXT) return vL;
-    } catch (eL) {}
+    var _vL = '';
+    try { _vL = String(HW.localStorage.getItem(KEY) || ''); } catch (eL) {}
+    if (_vL !== GAME && _vL !== TEXT) _vL = '';
+    /* ★★★ 2026-11-18 21:4x：作者「我他妈游戏版，一直显示已经是文字版了」。
+       ── 病根 ──
+       KEY（SPR_UNIFIED_MODE）是**跨聊天、跨卡**存在 localStorage 里的一个字符串，
+       只要它写着 text，这里第一句就直接 return —— 哪怕此刻跑的分明是游戏版
+       （[同层] 脚本全开、gal 壳都在）。切过模式、换过卡、导过新卡之后，
+       这个键就可能是上一次留下的陈旧值，于是「界面是游戏版、标签说文字版」。
+       ── 改法 ──
+       KEY 只当**没有证据时的默认值**；有证据（[同层] 脚本在启用 = 游戏版在跑）
+       就以证据为准，并顺手把 KEY 治好（写回证据值，下次不用再猜）。
+       热更卡那套（业务脚本全冷备）不受影响：那时没有证据，照旧用 KEY。 */
+    var _ev = null;   /* 嗅探证据：GAME / TEXT / null(无证据) */
 
     var TH = pickTH();
     if (TH && typeof TH.getScriptTrees === 'function') {
@@ -241,7 +251,11 @@
         var on0 = flat.filter(function (s) {
           return String(s.name || '').indexOf('[同层]') === 0 && s.enabled;
         });
-        if (on0.length) return GAME;
+        var off0 = flat.filter(function (s) {
+          return String(s.name || '').indexOf('[非同层]') === 0 && s.enabled;
+        });
+        if (on0.length) _ev = GAME;
+        else if (off0.length) _ev = TEXT;
       } catch (e0) {}
     }
     try {
@@ -253,10 +267,20 @@
           var on1 = ss0.some(function (s) {
             return String(s.name || '').indexOf('[同层]') === 0 && s.enabled;
           });
-          if (on1) return GAME;
+          var off1 = ss0.some(function (s) {
+            return String(s.name || '').indexOf('[非同层]') === 0 && s.enabled;
+          });
+          if (on1) _ev = GAME;
+          else if (off1) _ev = TEXT;
         }
       }
     } catch (e1) {}
+    /* 证据优先；没有证据才用 KEY；都没有才用默认值。 */
+    if (_ev) {
+      if (_vL !== _ev) { try { HW.localStorage.setItem(KEY, _ev); } catch (eHeal) {} }
+      return _ev;
+    }
+    if (_vL) return _vL;
     return CFG.defaultMode;
   }
   function flattenTrees(list, out) {
@@ -399,6 +423,11 @@
   function wantedBook(comment, mode, oldValue) {
     /* 强制命令：初始化变量恒关，优先级最高（理由见下方大段注释） */
     if (String(comment == null ? '' : comment).indexOf('[InitVar]') === 0) return false;
+    /* ★★★ 2026-11-18 21:5x：作者「切换文字怎么又他妈关变量更新规则和变量强调，你他妈再关一个试试看」。
+       这两条是**两种模式都要吃**的（变量怎么写、怎么强调），以前被塞进 bookOffInText，
+       一切文字版就整条关掉 ⇒ MVU 直接不更新。现在单开一张 ALWAYS_ON 名单，
+       排在最前面、谁也盖不掉（wantedBook / wantedBookPack / _wantOnPack 三处都拦）。 */
+    if ((CFG.bookAlwaysOn || []).indexOf(String(comment == null ? '' : comment).trim()) >= 0) return true;
     if (CFG.bookOffInText.indexOf(comment) >= 0) return mode === GAME;
     if (CFG.bookNonOnly.indexOf(comment) >= 0) return mode === TEXT;
     return !!oldValue;
@@ -449,6 +478,11 @@
   function wantedBookPack(comment, mode, oldValue, packEnabled) {
     /* 强制命令：初始化变量恒关。⚠ 必须内联，不许抽函数 —— 本函数会被单独切片运行 */
     if (String(comment == null ? '' : comment).indexOf('[InitVar]') === 0) return false;
+    /* ★★★ 2026-11-18 21:5x：作者「切换文字怎么又他妈关变量更新规则和变量强调，你他妈再关一个试试看」。
+       这两条是**两种模式都要吃**的（变量怎么写、怎么强调），以前被塞进 bookOffInText，
+       一切文字版就整条关掉 ⇒ MVU 直接不更新。现在单开一张 ALWAYS_ON 名单，
+       排在最前面、谁也盖不掉（wantedBook / wantedBookPack / _wantOnPack 三处都拦）。 */
+    if ((CFG.bookAlwaysOn || []).indexOf(String(comment == null ? '' : comment).trim()) >= 0) return true;
     if (CFG.bookOffInText.indexOf(comment) >= 0) return mode === GAME;
     if (CFG.bookNonOnly.indexOf(comment) >= 0) return mode === TEXT;
     if (packEnabled === true) return true;
@@ -603,6 +637,7 @@
           var hit = 0;
           var _legacyOff = 0;
           var _contentSync = 0;
+          var _protSkip = 0;
           var _present = {};
           /* ★ 08:26：先取线上条目包（JSONP，不受跨域限制），供下面同步 content 用 */
           /* ★★ 2026-11-17：改走 fetchWbPatch（按 seq 缓存）。
@@ -631,8 +666,13 @@
               try {
                 var _src = _wbMap[c];
                 if (_src && typeof _src.content === 'string' && _src.content && e.content !== _src.content) {
-                  e.content = _src.content;
-                  _contentSync++;
+                  /* ★ 玩家修改保护：切模式也不覆盖玩家改过的条目 */
+                  if (wbEntryProtected(String(wb || ''), c, String(e.content == null ? '' : e.content))) {
+                    _protSkip = (_protSkip || 0) + 1;
+                  } else {
+                    e.content = _src.content;
+                    _contentSync++;
+                  }
                 }
               } catch (eSync) {}
               if (CFG.bookOffInText.indexOf(c) >= 0 || CFG.bookNonOnly.indexOf(c) >= 0) { hit++; _present[c] = 1; }
@@ -680,17 +720,40 @@
              这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
              只增不删、只碰这 21 个具名条目，不动玩家自己的条目。 */
           try {
-            var _wantAll = (window.__TH_WBPATCH__ || []).map(function (x) { return String(x.comment || ''); }).filter(Boolean);
+            /* ★★★ 2026-11-18 19:5x：**这里原来取的是整个条目包的名字，不是那 21 条。**
+               ── 作者原话：「模式切换有巨大bug，简直完全乱来。我文字版切换成游戏版，
+                  给他妈变量全关了是什么意思，给我他妈彻查」
+               ── 病根 ──────────────────────────────────────────────────
+               `_present` 只在那 21 条具名条目上被置 1（见上面 setBookEnabled 那段），
+               而 `_wantAll` 取的是 `window.__TH_WBPATCH__` 的**全部 100+ 条** ⇒
+               其余 80 多条每一条都 `_present[nm] === undefined` ⇒ 全被判成「书里缺这条」
+               ⇒ `_add` 装进 80 多个副本 ⇒ 副本的开关又是
+               `wantedBook(nm, mode, false)` = **关**（非 21 条的条目走 oldValue 分支）
+               ⇒ 每切一次模式，就往玩家的书里灌一遍**关着的**副本。
+               副本的 uid 与原条目相同，酒馆按 uid 落库时把原来那条一起改掉，
+               于是「一切模式，变量条目全关」—— 就是这个。
+               ── 现在 ──
+               · 候选名只取那 21 条（bookOffInText + bookNonOnly），与注释一致
+               · 补入的副本按 `wantedBook(nm, mode, true)` 给状态（这 21 条都有显式裁决，
+                 oldValue 传什么都不影响，但传 true 语义正确）
+               · 再加一道：书里**已经有同名条目**（不管在不在 21 条里）就绝不补 ——
+                 补入的唯一理由是"缺"，不是"开关不对"。 */
+            var _wantAll = CFG.bookOffInText.concat(CFG.bookNonOnly);
             var _embedded = (data.character_book && data.character_book.entries) || [];
+            /* 书里现存的全部条目名（补入前的那一份），用来兜住「21 条之外」的重名 */
+            var _existAll = {};
+            try {
+              (before || []).forEach(function (e) { var n = String(e.comment || ''); if (n) _existAll[n] = 1; });
+            } catch (eEx) {}
             var _add = [];
             var _missNames = [];
             _wantAll.forEach(function (nm) {
-              if (_present[nm]) return;
+              if (_present[nm] || _existAll[nm]) return;
               _missNames.push(nm);
               for (var i = 0; i < _embedded.length; i++) {
                 if (String(_embedded[i].comment || '') === nm) {
                   var cp = JSON.parse(JSON.stringify(_embedded[i]));
-                  setBookEnabled(cp, wantedBook(nm, mode, false));
+                  setBookEnabled(cp, wantedBook(nm, mode, true));
                   _add.push(cp);
                   break;
                 }
@@ -711,7 +774,9 @@
                   var nm = String(e.comment || '');
                   if (_missNames.indexOf(nm) < 0) return;
                   var cp = JSON.parse(JSON.stringify(e));
-                  setBookEnabled(cp, wantedBook(nm, mode, false));
+                  /* ★ 2026-11-18：补进去的条目按**该开的开**（以前一律 false，
+                     等于每次切模式都给书里塞一批关着的副本 —— 见上面那段长注释）。 */
+                  setBookEnabled(cp, wantedBook(nm, mode, true));
                   _add.push(cp);
                 });
                 oks.push('从本地包取回条目原文 ' + _add.length + ' 条');
@@ -1467,7 +1532,14 @@
       '精灵 御神木',
       '妖怪 白蔵主',
       '人物 御神木之灵',
-      '人物 白蔵主'
+      '人物 白蔵主',
+      /* ── 2026-11-18 20:5x：作者点名「神社设定这个条目和神社世界观冲突了，叫你删一个」──
+         《神社设定 山裾の神社》（constant 常驻）与《世界观 神社篇》重叠：
+         小路 / 神域 / 不许许愿 / 后山区别 / 结界，两份各讲一遍且口径不一。
+         留《世界观 神社篇》（有 keys、覆盖更全：院落结构 / 檐廊 / 温泉 / 季节 / 场景图），
+         它独有的两条细则（小路只在夏季午后出现 / 强行许愿的人会被留在里面）已并进去。
+         ⚠ 老玩家书里的实体必须删掉，否则冲突照旧。 */
+      '神社设定 山裾の神社'
     ];
     for (var i = 0; i < names.length; i++) m[names[i]] = 1;
     return m;
@@ -2160,6 +2232,47 @@
         out.books = '（没有 getLorebookEntries）';
       }
 
+      /* ══ 路线 ①.5：主书里没有版本号 → 把**所有**世界书都翻一遍 ═══════════
+         ★ 2026-11-18：抄天元录 xzWBCollect 的关键一点 —— 它**从不「选一本」**，
+           而是每本都读、拍平成一个大数组，再按条目名去找。
+         为什么必须这样：ST 里「角色主书」经常不是玩家真正在用的那一本
+           （聊天书 / 附加书 / 手动绑的另一本 / 换卡后主书还指着旧书），
+           旧逻辑只问主书 ⇒ 主书里没这条就永远找不到，界面只能报「未同步」。
+         ⚠ 只用于**读**。同步（写）仍然只写主书 —— 绝不能因为读到了别人的书
+           就往别人的书里写。读与写两套取书范围，是故意的。 */
+      if (!out.ver && getE) {
+        try {
+          var _allNames = [];
+          var _gAll = pickWbFn('getWorldbookNames');
+          if (_gAll) {
+            var _an = await _gAll();
+            if (Array.isArray(_an)) _allNames = _an;
+          }
+          for (var _ai = 0; _ai < _allNames.length; _ai++) {
+            var _bnm = _allNames[_ai];
+            if (!_bnm || names.indexOf(_bnm) >= 0) continue;
+            var _bes = null;
+            try { _bes = await getE(_bnm); } catch (eA1) { _bes = null; }
+            if (!_bes || !_bes.length) continue;
+            var _bh = _bes.filter(wbIsVerEntry)[0] || null;
+            if (!_bh) continue;
+            out.ver = String(_bh.content == null ? '' : _bh.content).trim();
+            out.wb = _bnm;
+            out.count = _bes.length;
+            es = _bes;
+            hitEnt = _bh;
+            out.verSrcUid = (_bh.uid != null) ? String(_bh.uid) : '';
+            out.verSrcName = wbEntryName(_bh) || '';
+            out.verSrcIdx = 1;
+            out.verBy = 'name';
+            out.books = (out.books ? out.books + '  |  ' : '') + _bnm + '：' + _bes.length + ' 条（版本号在此）';
+            out.sample = out.verSrcName + ' = ' + out.ver;
+            out.hit = out.hit || 1;
+            break;
+          }
+        } catch (eA2) {}
+      }
+
       /* ══ 路线 ②：本地扫描兜底（抄天元录 xzWBLocalEntries）═════════════════
          作者原话：「功能页的世界书依旧没检测到，你别犯贱，我求你，这个真的不难，
                    我命令你去抄天元录的界面脚本的版本分页里怎么显示的世界书版」
@@ -2230,6 +2343,17 @@
               _want = String((_locList[_li] && _locList[_li].content) || '').trim(); break;
             }
           }
+        }
+        if (!_want) {
+          /* ★ 2026-11-18：热更卡以内嵌条目包的版本号为准（书会被同步成它） */
+          try {
+            var _pk2 = window.__TH_WBPATCH__ || (HW && HW.__TH_WBPATCH__) || null;
+            for (var _pj = 0; _pj < (_pk2 || []).length; _pj++) {
+              if (String((_pk2[_pj] && (_pk2[_pj].comment || _pk2[_pj].name)) || '') === WB_VER_ENTRY) {
+                _want = String((_pk2[_pj] && _pk2[_pj].content) || '').trim(); break;
+              }
+            }
+          } catch (ePk2) {}
         }
         if (!_want) { try { _want = String((window.__CQ_OSS_LABEL__ || (HW && HW.__CQ_OSS_LABEL__) || '')); } catch (eW1) {} }
         out.want = _want;
@@ -2318,6 +2442,39 @@
   }
 
   /* 真同步：选书 → 写正文 + 补缺 + 删「创作要求」 → **回读比对** */
+  /* ══ ★ 2026-11-22：玩家条目保护（账本）══════════════════════════════════
+     作者需求：「有的条目是必须改（官方更新要进得来），但玩家自己改过的不能被覆盖」。
+     一个账本同时满足两件事：
+       · 每次同步**写入成功后**，把每条「我们写入后的正文」记成 hash 账本；
+       · 下次同步逐条对：书里现在的 hash ≠ 账本 ⇒ 玩家动过 ⇒ **跳过这条**，
+         官方更新不覆盖它；书里 hash = 账本 ⇒ 玩家没动 ⇒ 官方更新**照常写入**。
+       · 版本页「恢复官方」按钮：清账本 + 强制重同步，玩家的改动让位官方。
+     ⚠ 必须定义在 var WB_VER_ENTRY 之后（_t_wbver 从那里切片，切出来要自足）。 */
+  function wbHash(s) {
+    s = String(s == null ? '' : s);
+    var h = 5381;
+    for (var i = 0; i < s.length; i++) h = (((h << 5) + h) + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(16) + '-' + s.length;
+  }
+  var WB_LEDGER_KEY = 'sprWbHashLedger';
+  function wbLedgerLoad() {
+    try { return JSON.parse(HW.localStorage.getItem(WB_LEDGER_KEY) || '') || { wb: '', hash: {} }; }
+    catch (e) { return { wb: '', hash: {} }; }
+  }
+  function wbLedgerSave(o) {
+    try { HW.localStorage.setItem(WB_LEDGER_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  function wbEntryProtected(wbName, nm, curContent) {
+    try {
+      if (!nm) return false;
+      var lg = wbLedgerLoad();
+      if (!lg || lg.wb !== wbName) return false;
+      var rec = lg.hash ? lg.hash[nm] : null;
+      if (rec == null) return false;
+      return rec !== wbHash(curContent);
+    } catch (e) { return false; }
+  }
+
   async function wbSyncOnly(opts) {
     opts = opts || {};
     var out = { ok: false, wb: '', total: 0, same: 0, changed: 0, added: 0, removed: 0,
@@ -2459,6 +2616,7 @@
       function _wantOnPack(nm, curOn, packEnabled) {
         var n = String(nm == null ? '' : nm);
         if (n.indexOf('[InitVar]') === 0) return false;
+        if ((CFG.bookAlwaysOn || []).indexOf(n) >= 0) return true;   /* 变量规则 / 变量强调：两种模式都开 */
         if (_offInText.indexOf(n) >= 0) return syncMode === 'game';
         if (_nonOnly.indexOf(n) >= 0) return syncMode === 'text';
         if (packEnabled === true) return true;
@@ -2687,10 +2845,38 @@
           } else {
             src = map[nm];
           }
+          /* ★ 玩家修改保护：上次我们写入后玩家又改过（hash 对不上账本）⇒ 本条跳过官方覆盖 */
+          var _skipWbOv = nm ? wbEntryProtected(wb, nm, String(e.content == null ? '' : e.content)) : false;
           if (src && typeof src.content === 'string' && src.content && e.content !== src.content) {
-            e.content = src.content;
-            c.changed++;
+            if (_skipWbOv) {
+              c.protected = (c.protected || 0) + 1;
+              if ((c.protectedNames = c.protectedNames || []).length < 10) c.protectedNames.push(nm);
+            } else {
+              e.content = src.content;
+              c.changed++;
+            }
           }
+          /* ══ ★★★ 2026-11-20：EJS 开关 + 递归闸门，**每条每次同步都写** ══════
+             作者报「其他篇章的人物 / 心理阶段 / 苦主 / 苦主阶段条目全部触发了」。
+             两条独立的病，都出在「字段只写一次、后来再没人写」：
+               ① EJS 开关：ST 只认 `extensions.ejs === true`，否则 `<% %>` 原样当文本塞进
+                  prompt —— 我们写了上千字的闸门，模型看到的是 JS 代码。setBookEjs 那个函数
+                  写好了却**一次都没被调用**（和 11-18 那次「EJS 从来没打开」同一个病）。
+               ② 递归闸门：玩家那本书如果是旧版本导入的，条目上根本没有
+                  exclude_recursion / prevent_recursion ⇒ 只要酒馆开了「递归扫描」，
+                  常驻的《人物总览》《苦主阶段·总纲》（里面列着全部人名）就会把所有
+                  人物条目**递归带出来** —— 于是别的篇章的人也一起触发。
+             ⚠ 这一段必须**内联**：wbSyncOnly 会被 _t_wbswitch / _t_wbver 单独切片跑，
+               在里面调用外部函数会 ReferenceError（踩过）。 */
+          try {
+            if (!e.extensions || typeof e.extensions !== 'object') e.extensions = {};
+            var _eb = String(e.content == null ? '' : e.content);
+            if (_eb.indexOf('<%') >= 0) { e.extensions.ejs = true; e.ejs = true; }
+            /* 我们的正文一律不许去触发别的条目（名字/地名都写在 keys 里了） */
+            e.extensions.prevent_recursion = true;
+            /* 非常驻条目只认关键词，不许被递归带出来；常驻的本来每轮都进，无所谓 */
+            e.extensions.exclude_recursion = (e.constant === true) ? false : true;
+          } catch (eRec) {}
           /* ★ 00:28 作者要求重排条目。★ 00:35 修正：**顺序字段各家不同** ——
              ST 认 order（降序）、魔改版认 displayIndex / display_index，
              上一版只写 display_index，所以一条都没动，作者看到的就是「热更新是假的」。
@@ -2866,6 +3052,8 @@
       out.changed = cnt.changed;
       out.added = cnt.added;
       out.removed = cnt.removed;
+      out.protected = cnt.protected || 0;
+      out.protectedNames = cnt.protectedNames || [];
       /* ★ 2026-11-17：删掉了哪些「不属于本包」的，把名字带出去给面板看。
          作者要求「该删删」，那就必须说清楚删了什么 —— 静默删除比不删更可怕。 */
       out.extraGone = cnt.extraGone || 0;
@@ -2930,6 +3118,23 @@
       out.count = (after || []).length;
       var now = {};
       (after || []).forEach(function (e) { now[wbEntryName(e)] = String(e.content == null ? '' : e.content); });
+      /* ★ 玩家修改保护：写入成功后刷新账本。
+         本轮被保护（玩家改过）的条目**不**入账 —— 账本保持旧值，
+         下次同步才能继续认出「这条是玩家改的」。 */
+      try {
+        var _lg = wbLedgerLoad();
+        if (!_lg || _lg.wb !== wb || !_lg.hash) _lg = { wb: wb, hash: {} };
+        var _prot = {};
+        (cnt.protectedNames || []).forEach(function (n) { _prot[n] = 1; });
+        list.forEach(function (x) {
+          var nm3 = String(x.comment || '');
+          if (!nm3 || _prot[nm3]) return;
+          var ct3 = now[nm3];
+          if (ct3 == null) return;
+          _lg.hash[nm3] = wbHash(ct3);
+        });
+        wbLedgerSave(_lg);
+      } catch (eLg0) {}
       out.ver = String(now[WB_VER_ENTRY] || '').trim();
       /* 标题被吃掉的兜底：按正文形状再找一次 */
       if (!out.ver) {
@@ -3149,7 +3354,7 @@
      读书是内存操作（getLorebookEntries），比写盘便宜得多，不用担心成本。 */
   async function wbCompareBook(list) {
     var out = { wb: '', count: 0, same: false, diff: 0, missing: 0,
-                retiredLeft: 0, nameless: 0, err: '' };
+                retiredLeft: 0, nameless: 0, err: '', protected: 0 };
     try {
       var getE = pickWbFn('getLorebookEntries');
       if (!getE) { out.err = '取不到 getLorebookEntries'; return out; }
@@ -3171,11 +3376,18 @@
         if (!n) { out.nameless++; return; }
         have[n] = String(e.content == null ? '' : e.content);
       });
+      var _lg0 = wbLedgerLoad();
+      var _lgOk = !!(_lg0 && _lg0.wb === (pick.name || ''));
       (list || []).forEach(function (x) {
         var n = String(x && x.comment || '');
         if (!n) return;
         var want = String(x.content == null ? '' : x.content);
         if (!Object.prototype.hasOwnProperty.call(have, n)) { out.missing++; return; }
+        /* ★ 玩家修改保护：书里这条和账本对不上 = 玩家改过 ⇒ 不算差异，也不许写 */
+        if (_lgOk && _lg0.hash[n] != null && wbHash(have[n]) !== _lg0.hash[n]) {
+          out.protected = (out.protected || 0) + 1;
+          return;
+        }
         if (have[n] !== want) out.diff++;
       });
       /* 已下架的老条目还在不在 —— 光「正文一致」不代表书是对的，
@@ -3228,12 +3440,16 @@
         out.diag.push('书《' + pre.wb + '》' + pre.count + ' 条'
           + '｜差 ' + pre.diff + ' 缺 ' + pre.missing + ' 待清 ' + pre.retiredLeft
           + (pre.nameless ? ' 无名 ' + pre.nameless : ''));
+        if (pre.protected) {
+          out.protected = pre.protected;
+          out.diag.push('🛡 玩家修改保护 ' + pre.protected + ' 条（不会被官方覆盖）');
+        }
       }
       if (pre.same) {
         out.ok = true;
         out.skipped = true;
         out.same = list.length;
-        out.msg = '书与线上完全一致（' + pre.count + ' 条），没有需要改的';
+        out.msg = '书与卡完全一致（' + pre.count + ' 条），没有需要改的';
         try { HW.__thWbAutoTries = 0; } catch (eT2) {}
         try { out.at = Date.now(); HW.__thWbAutoResult = out; } catch (eR1) {}
         return out;
@@ -3252,6 +3468,7 @@
         out.skipped = false;
         out.how = String(r.how || '');
         out.count = Number(r.count || 0);
+        out.protected = Number(r.protected || 0) || out.protected || 0;
         if (r.books) out.diag.push('候选书：' + r.books);
         if (r.tried && r.tried.length) out.diag.push('写入通道失败：' + r.tried.join(' / '));
       }
@@ -3270,6 +3487,23 @@
       return out;
     }
   }
+
+  /* ★ 版本页「恢复官方」按钮用的 API：清账本 + 强制重同步（玩家的改动让位官方） */
+  try {
+    var _protApi = {
+      last: function () {
+        try { var r = HW.__thWbAutoResult || {}; return { count: Number(r.protected || 0), names: r.protectedNames || [] }; }
+        catch (e0) { return { count: 0, names: [] }; }
+      },
+      restoreOfficial: function () {
+        try { HW.localStorage.removeItem(WB_LEDGER_KEY); } catch (e0) {}
+        try { HW.__sprWbProtectCleared = Date.now(); } catch (e1) {}
+        return wbAutoSync(true);
+      }
+    };
+    HW.__sprWbProtectApi = _protApi;
+    try { if (window.top && window.top !== window) window.top.__sprWbProtectApi = _protApi; } catch (ePA) {}
+  } catch (ePA2) {}
 
   /* ══ ★ 11-15 02:10：**打开世界书面板的那一刻，先同步、再给玩家看** ══
      作者实测出来的现象：先开面板再同步 = 看起来没用；先同步再开 = 有效。

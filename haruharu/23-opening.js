@@ -11,10 +11,9 @@
 
    ── 设置项（对齐同层版）──
    ① 起始篇章（夏越村 / 公寓 / 神社）→ 拨第 0 楼的开场白 swipe
-   ② 游戏模式（牛头 / 纯爱）        → 纯爱把苦主列表清成空表
-   ③ 季节（春夏秋冬）              → 开局月日按季节对齐（同层版 v165i 口径）
-   ④ 玩家信息（姓名/外貌身材/年龄/性格，全部可留空）
-   ⑤ 开局类型（正常 / 梦幻）        → 梦幻 = 开场白种子里所有女角色好感 100
+   ② 季节（春夏秋冬）              → 开局月日按季节对齐（同层版 v165i 口径）
+   ③ 玩家信息（姓名/外貌身材/年龄/性格，全部可留空）
+   ④ 开局类型（正常 / 梦幻）        → 梦幻 = 开场白种子里所有女角色好感 100
 
    ── 变量来源：开场白自己就是唯一真相源 ──
    三份开场白各带一份完整 <JSONPatch>（时间 / 主要角色列表 / 苦主列表 /
@@ -171,8 +170,8 @@
      这不是抄来的：04-校验会拿卡里 alternate_greetings 的实际内容逐一核对，
      顺序被谁动了闸当场红。 */
   var ARCS = [
-    { key: '夏越村', idx: 1, icon: '🌾', tag: '乡野田园', desc: '七位熟女与八位苦主 · 牛头模式的正篇' },
-    { key: '公寓',   idx: 2, icon: '🏢', tag: '都会公寓', desc: '五位邻居 · 牛头 / 纯爱双线' },
+    { key: '夏越村', idx: 1, icon: '🌾', tag: '乡野田园', desc: '七位熟女与八位苦主 · 正篇' },
+    { key: '公寓',   idx: 2, icon: '🏢', tag: '都会公寓', desc: '五位邻居 · 牛头' },
     { key: '神社',   idx: 3, icon: '⛩️', tag: '神隐秘境', desc: '三位巫女与两位非人 · 任何模式都没有苦主' }
   ];
   var SEASON_META = {
@@ -247,7 +246,8 @@
     return ARCS[0];
   }
   function normSeason(s) { return SEASON_META[s] ? s : '夏'; }
-  function normMode(m) { return m === '纯爱' ? '纯爱' : '牛头'; }
+  /* ★ 2026-11-21：纯爱模式彻底下架 —— 不管传什么，一律牛头。 */
+  function normMode(m) { return '牛头'; }
   function normStartType(s) { return s === '梦幻开局' ? '梦幻开局' : '正常开局'; }
 
   /* ══════════════ 酒馆上下文读取 ══════════════ */
@@ -327,12 +327,8 @@
     var st = normStartType(opt && opt.startType);
     var pi = (opt && opt.player) || {};
 
-    /* ① 纯爱：滤掉种子里所有 /苦主列表 的 op，再显式发一张空表。
-       不滤直接 push 清空会看顺序 —— 种子的 insert 排在后面照样把人塞回来。 */
-    if (mode === '纯爱') {
-      arr = arr.filter(function (op) { return String(op.path || '').indexOf('/苦主列表') !== 0; });
-      arr.push({ op: 'replace', path: '/苦主列表', value: {} });
-    }
+    /* ★ 2026-11-21：纯爱模式彻底下架 —— 原来这里有一段「清空苦主列表」的分支，
+       整块删除。现在无论选什么都按牛头开局。 */
 
     /* ② 季节 → 开局月日。滤掉种子里写死的月份/日期（第几天保留），按季重写。
        月份与季节必须自洽（3-5春 / 6-8夏 / 9-11秋 / 12-2冬），否则下一轮
@@ -445,7 +441,7 @@
       主角信息: {}
     };
     PLAYER_KEYS.forEach(function (k) { pack.主角信息[k] = String(d.player[k] == null ? '' : d.player[k]).trim(); });
-    if (normMode(d.mode) === '纯爱') pack.苦主列表 = {};
+    /* ★ 2026-11-21：纯爱下架 —— 原来这里会在纯爱时清空苦主列表，已删。 */
     return pack;
   }
   function scheduleReassert(d) {
@@ -721,7 +717,8 @@
     var a = arcOf(draft.arc);
     var se = normSeason(draft.season);
     var name = String(draft.player['玩家姓名'] || '').trim();
-    return '当前设置：<b>' + a.key + '篇</b> · <b>' + normMode(draft.mode) + '模式</b> · <b>' +
+    /* ★ 2026-11-21：模式概念取消，汇总行不再显示「X模式」。 */
+    return '当前设置：<b>' + a.key + '篇</b> · <b>' +
       SEASON_META[se].icon + ' ' + se + '</b> · <b>' + normStartType(draft.startType) + '</b> · 玩家姓名 ' +
       (name ? ('<b>' + escHtml(name) + '</b>') : '<span class="thso-su-empty">（留空）</span>') +
       '　—　确认后写入本局存档';
@@ -760,14 +757,10 @@
     });
     h += '</div></div>';
 
-    /* ② 游戏模式 */
-    h += '<div class="thso-sect"><div class="thso-sect-t">② 游戏模式</div><div class="thso-cards">';
-    h += itemHtml('mode', '牛头', '🐂 有苦主', '牛头模式', '保留各篇章的苦主名单，按四阶段推进', draft.mode === '牛头');
-    h += itemHtml('mode', '纯爱', '🌸 无苦主', '纯爱模式', '苦主列表清空，只写她们主动靠近', draft.mode === '纯爱');
-    h += '</div></div>';
+    /* ★ 2026-11-21：② 游戏模式 整个分区删除（纯爱下架，只剩牛头，没有可选项了） */
 
-    /* ③ 季节 */
-    h += '<div class="thso-sect"><div class="thso-sect-t">③ 季节</div><div class="thso-cards thso-cards-4">';
+    /* ② 季节 */
+    h += '<div class="thso-sect"><div class="thso-sect-t">② 季节</div><div class="thso-cards thso-cards-4">';
     ['春', '夏', '秋', '冬'].forEach(function (s) {
       var m = SEASON_META[s];
       var sd = SEASON_START_DATE[s];
@@ -775,16 +768,16 @@
     });
     h += '</div></div>';
 
-    /* ④ 玩家信息 */
-    h += '<div class="thso-sect"><div class="thso-sect-t">④ 玩家信息</div><div class="thso-grid2">';
+    /* ③ 玩家信息 */
+    h += '<div class="thso-sect"><div class="thso-sect-t">③ 玩家信息</div><div class="thso-grid2">';
     PLAYER_KEYS.forEach(function (k) {
       h += '<div class="thso-field"><label>' + PLAYER_LABEL[k] + '</label>' +
         '<input type="text" data-thso-field="' + k + '" value="' + escAttr(String(draft.player[k] || '')) + '" placeholder="' + escAttr(PLAYER_PLACEHOLDER[k]) + '" autocomplete="off" /></div>';
     });
     h += '</div></div>';
 
-    /* ⑤ 开局类型 */
-    h += '<div class="thso-sect"><div class="thso-sect-t">⑤ 开局类型</div><div class="thso-cards">';
+    /* ④ 开局类型 */
+    h += '<div class="thso-sect"><div class="thso-sect-t">④ 开局类型</div><div class="thso-cards">';
     h += itemHtml('startType', '正常开局', '🌤 原始好感起步', '正常开局', '开场白种子里的好感原样生效（全员 20）', draft.startType === '正常开局');
     h += itemHtml('startType', '梦幻开局', '🌙 所有女角色好感 100', '梦幻开局', '种子里的每位女角色好感直接拉满', draft.startType === '梦幻开局');
     h += '</div></div>';

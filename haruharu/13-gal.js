@@ -1217,10 +1217,11 @@
       '  position: fixed !important;',
       '  left: 0; top: 0; width: 100vw; height: 100vh;',
       '  z-index: 2147483630 !important;',
-      '  /* ★ v99：纯黑幕 —— 只负责盖住壳的场景图、给图两侧留黑。',
-      '     以前这里是 cover + blur(26px) 的「放大糊底」，图还没加载就先亮成一条近黑矩形，',
-      '     那就是玩家报的那条黑条（图被墙时尤其明显）。现在这层不再自己扛图片。 */',
-      '  background: #000 !important;',
+      '  /* ★ 2026-11-20：作者「加载/看插图时的纯黑太难看」。',
+      '     这层是插图后面的底（给图两侧留边），原来写死 #000；',
+      '     现在改成「中心暗金、四周渐黑」的径向渐变 —— 图是 contain 居中的，',
+      '     所以金晕正好衬在插图后面，边缘仍是黑的。不透明度不变，照样盖住壳里的场景图。 */',
+      '  background: radial-gradient(circle at 50% 50%, #3b2f14 0%, #2b2210 18%, #191307 40%, #0b0904 66%, #000000 100%) !important;',
       '  pointer-events: none !important;',
       '  opacity: 0 !important;',
       '  transition: opacity 0.55s ease-in-out !important;',
@@ -1568,6 +1569,27 @@
     } catch (e) { return null; }
   }
 
+  /* ★ 2026-11-18：静默预加载 —— 进游戏之后在后台把资源先下好，
+     玩家翻到那一页时不用等。只 preload，不显示、不占屏、失败也不吭声。 */
+  var _preloaded = {};
+  function thSilentPreload() {
+    try {
+      var urls = [];
+      /* ① 当前季节的场景图（壳里正在用的那张） */
+      try { var bg = getDoc().querySelector('.th-gal-shell-bg-img'); if (bg && bg.getAttribute('src')) urls.push(bg.getAttribute('src')); } catch (e1) {}
+      /* ② 在场角色的立绘 */
+      try { var st = getDoc().querySelectorAll('.th-gal-stage img, .th-gal-standing img'); for (var i = 0; i < st.length; i++) { var u = st[i].getAttribute('src'); if (u) urls.push(u); } } catch (e2) {}
+      /* ③ 这一轮插图队列（前 3 张） */
+      try { var q = (state && state.queue) || []; for (var j = 0; j < Math.min(3, q.length); j++) { if (q[j] && q[j].url) urls.push(q[j].url); } } catch (e3) {}
+      urls.forEach(function (u) {
+        if (!u || _preloaded[u]) return;
+        _preloaded[u] = 1;
+        try { var im = new (HOST.Image || Image)(); im.decoding = "async"; im.src = u; } catch (e4) {}
+      });
+    } catch (e) {}
+  }
+  try { setTimeout(thSilentPreload, 3500); setInterval(thSilentPreload, 20000); } catch (eP) {}
+
   function ensureDOM() {
     var doc = getDoc();
     if (!doc || !doc.body) return;
@@ -1577,6 +1599,53 @@
       np.textContent = '...';
       doc.body.appendChild(np);
     }
+    /* ★ 2026-11-18 23:5x：作者「插图加载也要像场景图那样显示加载中三个大字，不能误导玩家」。
+       图还没到就先亮一张黑幕，玩家会以为「这轮没图」。现在中间摆「加载中」，图到了再撤。
+       ★ 2026-11-20：作者「纯黑太难看，要暗金以转圈为圆心渐变到黑；字要艺术字、暗金+黑描边」。
+       ★★ 2026-11-20 当天回滚：那次我把它改成**铺满整屏**的暗金渐变，结果它盖住了对话框
+       （z-index 2147483640 ＞ 对话框 80），玩家直接报「对话框不显示字」。
+       现在这层只留「正中一块、四周渐隐」的光晕，铺满的暗金底交给 #gal-cg-background。 */
+    if (!doc.getElementById('gal-cg-loading')) {
+      var ld = doc.createElement('div');
+      ld.id = 'gal-cg-loading';
+      ld.innerHTML = '<span class="th-ld-ring"></span><span class="th-ld-txt">插图加载中</span>';
+      try {
+        if (!doc.getElementById('th-ld-style')) {
+          var stLd = doc.createElement('style');
+          stLd.id = 'th-ld-style';
+          stLd.textContent = ''
+            + '@keyframes thLdSpin{to{transform:rotate(360deg)}}'
+            + '#gal-cg-loading{display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;}'
+            + '#gal-cg-loading .th-ld-ring{width:42px;height:42px;border-radius:50%;'
+            + 'border:3px solid rgba(226,184,87,.22);border-top-color:#e2b857;border-right-color:rgba(226,184,87,.55);'
+            + 'animation:thLdSpin .9s linear infinite;box-shadow:0 0 18px rgba(226,184,87,.25);}'
+            /* 艺术字：宋体衬线 + 暗金填充 + 黑描边 + 外发光（和场景图那层同一套观感） */
+            + '#gal-cg-loading .th-ld-txt{font-family:"Songti SC","STSong","Source Han Serif SC",'
+            + '"Noto Serif SC","SimSun","STZhongsong",serif;'
+            + 'font-size:26px;font-weight:900;letter-spacing:.34em;text-indent:.34em;'
+            + 'color:#e0b75e;-webkit-text-stroke:2.2px #120c04;paint-order:stroke fill;'
+            + 'text-shadow:0 3px 0 rgba(0,0,0,.6),0 0 24px rgba(226,184,87,.45);}';
+          doc.head.appendChild(stLd);
+        }
+      } catch (eLdS) {}
+      /* ⚠⚠ 2026-11-20 事故回滚：上一版把这一层写成 `inset:0` + 不透明暗金渐变，
+         而它的 z-index 是 2147483640（比对话框的 80 高得多）⇒ 只要它一露头，
+         **整个游戏画面连同对话框和字全被盖住**，玩家报「对话框不显示字」就是它。
+         现在恢复成「屏幕正中一小块，四周渐隐到透明」的浮层：
+         不铺满、不挡对话框；真正的「插图背景」改到 #gal-cg-background 那一层去上色。 */
+      ld.setAttribute('style', 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);'
+        + 'z-index:2147483640;display:none;pointer-events:none;'
+        + 'padding:24px 34px;border-radius:20px;'
+        + 'background:radial-gradient(circle at 50% 50%,'
+        + 'rgba(59,47,20,.92) 0%,rgba(30,24,11,.80) 40%,rgba(10,8,4,.46) 70%,rgba(0,0,0,0) 100%);');
+      /* ★★ 2026-11-20 再加固：有游戏壳时，这一层的 z-index 一律压到 **79**（对话框是 80）。
+         这样哪怕它因为任何原因卡住不消失，也**永远盖不到对话框**。
+         没有壳（文字版看插图）时才用高位 —— 那时 CG 层在最上面，压低了就看不见加载提示了。
+         这条在 updateGallery 每次亮起前都会重设一次，所以壳是后建的也跟得上。 */
+      try { ld.style.zIndex = '2147483640'; } catch (eZ0) {}
+      doc.body.appendChild(ld);
+    }
+
     if (!doc.getElementById(CG_CONTAINER_ID)) {
       var cg = doc.createElement('div');
       cg.id = CG_CONTAINER_ID;
@@ -1722,17 +1791,26 @@
         try { extPaintBtn(); } catch (e3) {}
         did = 'ext';
       } else {
-        /* ② 内置：走 localStorage + paint()，和齿轮面板里那个开关是同一条路
-              （判据单一，不会出现"面板说开着、控制条说关了"） */
-        try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'off'); } catch (e4) {}
+        /* ★ 2026-11-18：内置插图**不再可关**（作者：插图默认打开，无论如何都是默认打开，
+           这颗开关只用来把关掉的打开，不是给玩家关插图用的）。
+           以前这里写 SPR_ILLUST_ON=off —— 作者就是这么把插图关掉的，
+           然后第二天打开游戏发现"插图完全不识别"，白查半天。
+           现在只提示，不写任何"关"的状态。 */
+        _illustClosedSession = true;
         try { paint(); } catch (e5) {}
         did = 'cg';
       }
     } catch (e) {}
 
-    try { extToast(did === 'ext' ? '🖼 外置插图已关闭（可在面板重新打开）'
-                                : '🖼 插图已关闭（可在面板重新打开）'); } catch (eT) {}
+    try {
+      extToast(did === 'ext' ? '🖼 外置插图已关闭（可在面板重新打开）'
+        : (did === 'cg' ? '🖼 插图已关闭（下次进游戏会自动打开）'
+        : (did === 'builtin-keep' ? '🖼 插图是常开的（这颗开关只用来把关掉的打开）'
+          : '🖼 外置插图已关闭（可在面板重新打开）')));
+    } catch (eT) {}
     /* 通知 10-core 那边同步面板上「重新打开插图」的可用状态 */
+    /* ★ 2026-11-19：回忆模式里，退出插图 = 退出回忆（作者口径），回到楼层列表 */
+    try { if (HOST.__TH_RECALL__ && HOST.__TH_RECALL__.onCgClosed) HOST.__TH_RECALL__.onCgClosed(); } catch (eRC) {}
     try { if (HOST.__thSyncExtIllustBtn) HOST.__thSyncExtIllustBtn(); } catch (eS) {}
     return did;
   }
@@ -2135,6 +2213,46 @@
         doc.body.classList.remove('gal-cg-active');
       }
       try {
+        /* 图还没到 ⇒ 亮「加载中」 */
+        try {
+          var _ld = doc.getElementById('gal-cg-loading');
+          if (_ld) {
+            /* ══ ★★ 2026-11-21：作者「插图的『插图加载中』提醒没见啊」 ══════════
+               是我 155 那版压 z-index 压错了：全屏模式下游戏壳是
+               `position:fixed + z-index:2147483001`，**自己就是一个层叠上下文**；
+               而我把加载层留在 body 上、只把 z-index 改成 79 ⇒ 它被整个壳压在下面，
+               根本看不见（对话框没事了，提示也没了）。
+               正确做法：有壳就**把节点搬进壳里**（壳是 relative），z-index 79
+               在壳内部分层里高于视口、低于对话框（80）—— 既看得见、又盖不到字。
+               没壳（文字版）才留在 body 上用高位。 */
+            try {
+              var _sh = doc.getElementById('th-gal-shell-root');
+              if (_sh) {
+                if (_ld.parentNode !== _sh) _sh.appendChild(_ld);
+                _ld.style.position = 'absolute';
+                _ld.style.left = '50%';
+                _ld.style.top = '50%';
+                _ld.style.transform = 'translate(-50%,-50%)';
+                _ld.style.zIndex = '79';
+              } else {
+                if (_ld.parentNode !== doc.body) doc.body.appendChild(_ld);
+                _ld.style.position = 'fixed';
+                _ld.style.left = '50%';
+                _ld.style.top = '50%';
+                _ld.style.transform = 'translate(-50%,-50%)';
+                _ld.style.zIndex = '2147483640';
+              }
+            } catch (eZ1) {}
+            _ld.style.display = 'flex';
+            /* ★ 安全阀：万一 onload / onerror / 8 秒兜底一个都没走到（接口变了、抛异常），
+               12 秒后强制收起。这一层在对话框之上，绝不能永久挂着 —— 那就是「对话框没字」。 */
+            try { if (HOST.__thLdGuard) clearTimeout(HOST.__thLdGuard); } catch (eG0) {}
+            HOST.__thLdGuard = setTimeout(function () {
+              try { var n = doc.getElementById('gal-cg-loading'); if (n) n.style.display = 'none'; } catch (eG1) {}
+            }, 12000);
+          }
+        } catch (eLd) {}
+
         var probe = new (HOST.Image || Image)();
         /* ★ 超时兜底：图床挂起时 onload / onerror 一个都不来，
            原来 probe 会一直挂着，界面就卡在「图还没出来」的状态。
@@ -2143,6 +2261,7 @@
         var settleOk = function () {
           if (settled) return;
           settled = true;
+          try { var _ld2 = doc.getElementById('gal-cg-loading'); if (_ld2) _ld2.style.display = 'none'; } catch (eLd2) {}
           if (failT) { clearTimeout(failT); failT = null; }
           if (!probe.naturalWidth || !probe.naturalHeight) return;
           if (currentUrl() !== url) return;          /* 又推进 / 换动作了：这一张作废 */
@@ -2158,6 +2277,7 @@
         var settleFail = function (why) {
           if (settled) return;
           settled = true;
+          try { var _ld3 = doc.getElementById('gal-cg-loading'); if (_ld3) _ld3.style.display = 'none'; } catch (eLd3) {}
           if (failT) { clearTimeout(failT); failT = null; }
           /* 图挂了：保持「什么都不亮」，场景图与立绘继续显示 —— 玩家至少还有画面。 */
           try {
@@ -2536,6 +2656,26 @@
           console.warn('⚠️ 图组未命中：' + w + '｜库里有：' + (mine.join('、') || '无'));
         });
       } catch (eLog) {}
+      /* ★ 2026-11-18：作者问「我在开场白写<插图>标签组居然没识别，还是说其实是坏了」。
+         —— 这里必须让**屏幕**回答他，不能只写控制台：
+            · 标签**被读到了**但「人物｜动作」在图库里没有 ⇒ 弹一句「没匹配」
+              （这时不是"标签没识别"，是动作名对不上，控制台里有该角色可用的动作名）
+            · 标签**根本没读到** ⇒ 这里不会有 miss，界面也不会弹 —— 两种情况一眼可分。
+         同一串未命中只弹一次，免得每秒刷屏。 */
+      try {
+        var _mk = bq.miss.join('|');
+        if (_mk !== HOST.__galMissShown) {
+          HOST.__galMissShown = _mk;
+          var _fn = null;
+          try { if (typeof popToast === 'function') _fn = popToast; } catch (eT0) {}
+          if (!_fn) { try { if (HOST && typeof HOST.popToast === 'function') _fn = HOST.popToast; } catch (eT1) {} }
+          if (_fn) {
+            _fn('插图标签读到了，但库里没这个动作：' + bq.miss.slice(0, 2).join('、'), 4200);
+          }
+        }
+      } catch (eMt) {}
+    } else {
+      try { HOST.__galMissShown = ''; } catch (eMr) {}
     }
     if (!bq.queue.length) { setQueue('', []); return; }
     try { console.log('🎬 插图队列：' + bq.queue.length + ' 张（' + bq.sig + '）'); } catch (eLog2) {}
@@ -2562,9 +2702,25 @@
   var extOn = false;
   var extTimer = null;
 
-  /* 内置插图总开关（状态栏「功能」页控制）。默认开。 */
-  function illustEnabled() {
-    try { return HOST.localStorage.getItem('SPR_ILLUST_ON') !== 'off'; } catch (e) { return true; }
+  /* 内置插图总开关。★ 2026-11-18 作者命令：「插图改成默认打开，无论如何都是默认打开，
+     这个开启只是给玩家把关掉的打开，而不是玩家想把插图关掉，别分不清主次了」。
+     ⇒ 恒 true，并把 localStorage 里残留的 off 就地改回 on（治好一次就永久好）。
+     真正可关的只有外置那套（SPR_EXT_ILLUST）。 */
+  /* ★★★ 2026-11-18 21:4x：作者点了控制条那颗 ✕，只弹一句「插图是常开的」——
+   因为上一版把「关」整个删掉了。可 ✕ 就是关的按钮，点了必须关。
+   ── 口径（把作者原话拆开看）──
+     · 「无论如何都默认打开」= **不许把 off 存进 localStorage**，下次进游戏必定是开；
+     · 「开关只用来把关掉的打开」= 面板那颗只负责开，不当关闭用。
+   ⇒ 所以「关」只存在于**本次会话**（内存变量，刷新即复位）。
+      ✕ 关得掉、面板能打开、下次进游戏自己回来 —— 三件事同时成立。 */
+var _illustClosedSession = false;
+function illustEnabled() {
+    try {
+      if (HOST.localStorage.getItem('SPR_ILLUST_ON') === 'off') {
+        HOST.localStorage.setItem('SPR_ILLUST_ON', 'on');
+      }
+    } catch (eFix) {}
+    return !_illustClosedSession;
   }
 
   function extDoc() { try { return getDoc(); } catch (e) { return null; } }
@@ -2808,11 +2964,21 @@
       };
       HOST.__sprIllust = {
         set: function (on) {
-          try { HOST.localStorage.setItem('SPR_ILLUST_ON', on ? 'on' : 'off'); } catch (eS2) {}
+          /* 面板那颗：只负责「打开」—— 清掉会话关，且永远不写 off。 */
+          _illustClosedSession = false;
+          /* ★ 2026-11-18：只开不关（传 false 也当开）。插图常开，别分不清主次。 */
+          try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'on'); } catch (eS2) {}
           try { paint(); } catch (eP2) {}
-          extToast(on ? '🖼 内置插图：开' : '🖼 内置插图：关');
+          extToast('🖼 内置插图：开（常开）');
         },
-        get: function () { return illustEnabled(); }
+        get: function () { return illustEnabled(); },
+        /* ★ 2026-11-19：回忆模式用 —— 拿一段**历史文本**直接建队列并出图，
+           走的是同一套 buildQueue，所以和正常游玩完全一样。 */
+        play: function (text) {
+          try { _illustClosedSession = false; } catch (eP0) {}
+          try { buildQueue(String(text || '')); } catch (eP1) {}
+          try { paint(); } catch (eP2) {}
+        }
       };
     } catch (e2) {}
     /* ★ v170：兜底 —— 上面那个大 try 万一在挂 __sprExtIllust 时抛了，
@@ -2821,10 +2987,11 @@
     if (!HOST.__sprIllust) {
       try {
         HOST.__sprIllust = {
-          set: function (on) {
-            try { HOST.localStorage.setItem('SPR_ILLUST_ON', on ? 'on' : 'off'); } catch (eS2) {}
+          set: function () {
+            /* ★ 2026-11-18：只开不关（同上，兜底那一份也必须同口径）。 */
+            try { HOST.localStorage.setItem('SPR_ILLUST_ON', 'on'); } catch (eS2) {}
             try { paint(); } catch (eP2) {}
-            try { extToast(on ? '🖼 内置插图：开' : '🖼 内置插图：关'); } catch (eT2) {}
+            try { extToast('🖼 内置插图：开（常开）'); } catch (eT2) {}
           },
           get: function () { return illustEnabled(); }
         };
@@ -2875,8 +3042,12 @@
     try {
       window.addEventListener('resize', syncCgRect, true);
       HOST.addEventListener && HOST.addEventListener('resize', syncCgRect, true);
-      /* 聊天区滚动（捕获阶段能收到内部滚动） */
-      doc.addEventListener('scroll', syncCgRect, true);
+      /* ══ ★ 2026-11-21 性能：滚动不再逐事件同步 ══════════════════════════
+         作者：「总感觉有点卡卡的」。原来这里是 `doc.addEventListener('scroll', syncCgRect, true)`，
+         而 syncCgRect 每跑一次要 getElementById ×3 + querySelector + 读几何 ——
+         聊天区滚动时 scroll 事件一秒能来几十个，等于每帧强制重排好几次。
+         现在改成 rAF 节流：一帧最多跑一次，滚动再快也只算一次布局。 */
+      doc.addEventListener('scroll', function () { scheduleCgRect(); }, true);
       doc.addEventListener('wheel', function () { setTimeout(syncCgRect, 60); }, { passive: true, capture: true });
     } catch (e2) {}
     setTimeout(function () { try { parseAndRender(); } catch (e3) {} }, 400);
@@ -2888,7 +3059,25 @@
      现在心跳挂在宿主 window 上，全局只有一份，永远调用「最新实例」的解析函数。
      没有标签 → 什么都不显示；有标签 → 下一拍（≤1 秒）立即显示。
      头 4 秒另加 400ms 的快拍，兜住「页面刚起来、#chat / 壳还没就绪」的空窗。 */
+  /* ══ ★ 2026-11-21：插图框随滚动的同步 —— 一帧最多一次 ══════════════════
+     滚动 / 触摸滚动会连发几十个 scroll 事件，直接绑 syncCgRect 就是每帧多次强制布局，
+     手感上就是「卡卡的」。这里用 rAF 合并：同一帧内多次调用只跑一次。 */
+  var _cgRectFrame = 0;
+  function scheduleCgRect() {
+    if (_cgRectFrame) return;
+    try {
+      var raf = (HOST && HOST.requestAnimationFrame) || (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : null);
+      if (raf) {
+        _cgRectFrame = raf(function () { _cgRectFrame = 0; try { syncCgRect(); } catch (eR) {} });
+      } else {
+        _cgRectFrame = setTimeout(function () { _cgRectFrame = 0; try { syncCgRect(); } catch (eR2) {} }, 16);
+      }
+    } catch (eS) { _cgRectFrame = 0; }
+  }
+
   function beat() {
+    /* 页面在后台时不做任何嗅探：切回来下一拍（≤1 秒）自然补齐，不丢状态。 */
+    try { if (getDoc().hidden) return; } catch (eH0) {}
     try { parseAndRender(); } catch (eB) {}
     try { syncCgRect(); } catch (eB2) {}
   }

@@ -24,7 +24,7 @@
 (function () {
   'use strict';
 
-  var VER = 'v14-nodiamond';   /* ★ v9.17：改版本号，逼 ensureStyles 重灌 CSS，清掉旧菱形 */
+  var VER = 'v15-zoomtop';   /* ★ v15：头像改成「立绘放大一倍 + 只取上半部分」，必须换 VER 才会重灌 CSS */
   var STYLE_ID = 'th-dialog-avatar-styles';
   var POLL_MS = 1200;          /* 常驻嗅探间隔 */
   var STABLE_MS = 500;         /* 文本稳定这么久才算写完，流式期间不渲染 */
@@ -116,11 +116,16 @@
   var CSS = [
     '.thdl-wrap{margin:10px 0;display:flex;gap:10px;align-items:flex-start;font-family:inherit;}',
     '.thdl-wrap.is-narr{display:block;margin:8px 0;}',
-    /* 头像框：顶部正方形裁切 —— 立绘画像的头部就在顶部这段 */
+    /* 头像框：★ 2026-11-20 作者「立绘放大一倍然后只截取上半部分当头像，谁让你用整个立绘当头像」。
+       做法 = 先把立绘铺满框并顶到最上面（cover + object-position 顶部），
+       再用 transform:scale(2) 以「顶边中点」为原点放大一倍 ——
+       等于在已经取到的上半身上再放大一倍，最后落在框里的就是头/脸那一段。
+       框本身 overflow:hidden，放大不会溢出去。 */
     '.thdl-ava{flex:0 0 auto;width:56px;height:56px;border-radius:12px;overflow:hidden;',
     'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);',
     'box-shadow:0 2px 8px rgba(0,0,0,.35);position:relative;}',
-    '.thdl-ava img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block;}',
+    '.thdl-ava img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block;',
+    'transform:scale(2);transform-origin:50% 0;image-rendering:auto;}',
     /* 没头像的人（苦主/玩家）：用首字母占位，保持左边距一致不跳动 */
     '.thdl-ava.is-ph{display:flex;align-items:center;justify-content:center;',
     'font-size:15px;font-weight:600;color:rgba(255,255,255,.72);letter-spacing:.5px;}',

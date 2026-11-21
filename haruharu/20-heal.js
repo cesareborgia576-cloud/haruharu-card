@@ -22,9 +22,23 @@ var MvuSelfHealing = (function() {
      这条判据在每一个真实玩家身上都成立 ⇒ 一上线全服白屏。**不要再加回来。**
      理由详见 10-core.js 文件头那段回滚说明。 */
 
+  /* ★ 2026-11-20：**先宿主、后自己**。
+     作者：「文字版的格式补全 / 变量补全两个按钮点不开」。
+     真因：这个脚本跑在酒馆助手给的**隐藏 iframe** 里，而旧版这里第一句就 `return document`
+     ⇒ 面板（th-mvu-suspend-modal）建在那个看不见的 iframe 里 ⇒ 玩家点什么都没反应。
+     现在优先用宿主（top / parent）那份有 body 的 document，自己的只当最后兜底。 */
   function getDoc() {
+    try {
+      if (window.top && window.top !== window && window.top.document && window.top.document.body) {
+        return window.top.document;
+      }
+    } catch (eTop) {}
+    try {
+      if (window.parent && window.parent !== window && window.parent.document && window.parent.document.body) {
+        return window.parent.document;
+      }
+    } catch (ePar) {}
     try { if (document && document.body) return document; } catch (e0) {}
-    try { if (window.top && window.top.document) return window.top.document; } catch (e) {}
     return document;
   }
 
@@ -293,6 +307,95 @@ var MvuSelfHealing = (function() {
       /* allowEmpty：格式校验时 [] 是完全合法的（本轮确实没变化） */
       return Array.isArray(arr) && (allowEmpty ? true : arr.length > 0);
     } catch (e) { return false; }
+  }
+
+  /* ═══ ★ 2026-11-18 20:1x：**宽松取块 + 宽松解析** ═══════════════════════
+     作者原话：「变量补全脚本有严重大问题，根本就不补……我在后台都看到输出了
+               6000 token 了，到底咋回事」。
+
+     ── 原来那条链为什么必死 ───────────────────────────────────────────
+     runRepair 里取块用的是 `/<(?:JSONPatch|json_?patch)>/`：**零容错**。
+       · 模型写 `<JSONPatch >` / `<JSONPatch\n>` / `<JSONPatch type="x">` → 取不到
+       · 模型把块写在 ```json 围栏里                        → 取不到
+       · 块没闭合（max_tokens 截断）                        → 取不到
+     取不到就抛「模型未返回合规的 <JSONPatch> 标签」——
+     而模型其实回了满满一大段。作者看到的就是「后台 6000 token，界面一条不补」。
+
+     这里把"取块"和"解析"都放宽：
+       ① 闭合块：允许属性、空白、大小写，取**最后**一块（最后一块最可能是定稿）
+       ② 未闭合块：把开标签之后的全部当正文，尽力配平括号再解析
+       ③ 整段裸 JSON：也认
+       ④ 解析层：去尾逗号；截断的数组砍掉最后那个残缺对象再补括号
+     全都失败才返回 why，由调用方把模型回复的开头印出来 —— 不许再让人猜。 */
+  function parseJsonLoose(s) {
+    var t = String(s == null ? "" : s).trim();
+    if (!t) return null;
+    /* 从第一个 [ 开始做括号配平；被截断就**退到最后一个完整的元素边界**再补 ']'。
+       ⚠ 不要试图"补引号再补括号" —— 截断点常落在字符串中间，补引号会把 JSON 弄得更坏。
+         退到顶层逗号处最稳：那里之前的所有元素一定都是完整的。 */
+    function balance(body) {
+      var depth = 0, inStr = false, esc = false, lastTopComma = -1, k, ch;
+      for (k = 0; k < body.length; k++) {
+        ch = body.charAt(k);
+        if (inStr) {
+          if (esc) esc = false;
+          else if (ch === "\\") esc = true;
+          else if (ch === '"') inStr = false;
+          continue;
+        }
+        if (ch === '"') { inStr = true; continue; }
+        if (ch === "[" || ch === "{") depth++;
+        else if (ch === "]" || ch === "}") {
+          depth--;
+          if (depth === 0) return body.slice(0, k + 1);   /* 已配平：后面是废话，砍掉 */
+        } else if (ch === "," && depth === 1) lastTopComma = k;
+      }
+      /* 没配平 = 被截断。退到最后一个顶层逗号，前面的元素都是完整的 */
+      if (lastTopComma > 0) return body.slice(0, lastTopComma) + "]";
+      return null;
+    }
+    var i0 = t.indexOf("[");
+    var cands = [t, t.replace(/,\s*([\]}])/g, "$1")];
+    if (i0 >= 0) {
+      var body = t.slice(i0);
+      cands.push(body);
+      cands.push(balance(body));
+      cands.push(balance(body).replace(/,\s*([\]}])/g, "$1"));
+    }
+    for (var i = 0; i < cands.length; i++) {
+      var c = cands[i];
+      if (!c) continue;
+      try {
+        var v = JSON.parse(c);
+        if (Array.isArray(v) && v.length) return v;
+      } catch (e) {}
+    }
+    return null;
+  }
+  function pickPatchLoose(text) {
+    var raw = String(text == null ? "" : text)
+      .replace(/```(?:json)?/gi, "").replace(/```/g, "");
+    if (!raw.trim()) return { arr: null, why: "模型回复是空的" };
+    /* ① 闭合块：全收集，取最后一块 */
+    var re = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>([\s\S]*?)<\s*\/\s*(?:JSONPatch|json_?patch)\s*>/ig;
+    var last = null, m;
+    while ((m = re.exec(raw)) !== null) last = m[1];
+    if (last != null) {
+      var a1 = parseJsonLoose(last);
+      if (a1) return { arr: a1, why: "" };
+      return { arr: null, why: "有闭合的 <JSONPatch> 块，但里面的 JSON 解析不出来" };
+    }
+    /* ② 未闭合块（被截断）：开标签之后整段当正文 */
+    var open = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>([\s\S]*)$/i.exec(raw);
+    if (open) {
+      var a2 = parseJsonLoose(open[1]);
+      if (a2) return { arr: a2, why: "块没闭合（多半被截断），按已给出的部分解析" };
+      return { arr: null, why: "块没闭合，且截断处也拼不出合法数组" };
+    }
+    /* ③ 裸 JSON（没有标签） */
+    var a3 = parseJsonLoose(raw);
+    if (a3) return { arr: a3, why: "没有 <JSONPatch> 标签，按裸数组解析" };
+    return { arr: null, why: "回复里既没有 <JSONPatch> 标签，也没有能解析的数组" };
   }
 
   /* ═══ 变量块判定 —— 只查「格式」，不查「缺哪个变量」═══
@@ -1184,7 +1287,12 @@ var MvuSelfHealing = (function() {
           model: cfg.model,
           messages: allMsgs,
           temperature: 0.3,
-          max_tokens: 1500
+          /* ★★★ 2026-11-18 20:1x：1500 → 8000。
+             作者：「后台都看到输出了 6000 token，界面一条不补」——
+             完整变量块（15 个角色 + 时间 + 在场状态 + 分析段）轻松超过 1500，
+             到 1500 就被硬切断在半截 JSON 里 ⇒ 解析必失败 ⇒ 一条都不写。
+             这不是"模型没输出"，是**我们自己把它的嘴堵住了**。 */
+          max_tokens: 8000
         })
       });
 
@@ -1232,7 +1340,7 @@ var MvuSelfHealing = (function() {
       "  {\"op\":\"replace\",\"path\":\"/主要角色列表/某某/在场状态\",\"value\":true}\n" +
       "]\n</JSONPatch>\n</UpdateVariable>\n\n" +
       "【规则铁律与禁令】：\n" +
-      "1. 【严禁更新地点】：绝不输出 /地点 或 /主角信息/地点 操作！地点由正文剧情自然锚定，变量补丁严禁修改地点！\n" +
+      "1. 【地点必须跟随剧情】：正文里 {{user}} 走到哪儿，就用 replace 把 /主角信息/地点 写成哪儿，值必须是三张《地点总表》里的固值原词。玩家在输入里说了要去某处、而正文已经走过去，就必须补一条。禁止输出不存在的 /地点 字段。\n" +
       "2. 【严禁清空列表】：严禁 replace 整块主要角色列表，必须使用精准原子操作路径。\n" +
       "3. 【时间流逝】：自然推进 10~20 分钟（格式 HH:mm）。\n" +
       "4. 【当前篇章】：" + curArc + "。同场主要角色：" + roster.roles + "；苦主角色：" + roster.victims + "。\n" +
@@ -1390,8 +1498,15 @@ var MvuSelfHealing = (function() {
       if (!op || !op.path) { dropped.push("缺 path"); return; }
       var p = String(op.path).trim();
       if (p.charAt(0) !== "/") p = "/" + p;
-      if (p === "/玩家位置" || p === "/地点" || p.indexOf("/主角信息/地点") === 0) {
-        dropped.push(p + "（地点由正文锚定，补丁不许改）");
+      /* ★★★ 2026-11-18 20:4x 作者：「user 的位置必须随剧情而实时更新改变」。
+         ── 以前这里是反的 ──
+         `/主角信息/地点` 被当成"由正文锚定、补丁不许改"，一律丢掉。
+         于是补算出来的位置更新被自己吃掉 —— 正文里人已经走到便利店，
+         变量里还站在原地。作者看到的就是「说了去哪，人还在原地」。
+         ⇒ 现在放行 `/主角信息/地点`（它才是真字段）；
+           只丢不存在的 `/地点` 和老的 `/玩家位置`（两个都不在变量表里，写了也没用）。 */
+      if (p === "/玩家位置" || p === "/地点") {
+        dropped.push(p + "（变量表里没有这个字段，写了也没用）");
         return;
       }
       var topSeg = p.split("/")[1];
@@ -1676,11 +1791,25 @@ var MvuSelfHealing = (function() {
       /* ★ v140：只有一种补算口径 —— 完整版（完整规则 + 往前 16 楼上下文） */
       var reply = await callRewriteApi(ctx, targetIdx, proseForAi);
 
-      var match = reply.match(/<(?:JSONPatch|json_?patch)>([\s\S]*?)<\/(?:JSONPatch|json_?patch)>/i);
-      if (!match) throw new Error("模型未返回合规的 <JSONPatch> 标签");
-      var jsonStr = match[1].replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-      var arr = JSON.parse(jsonStr);
-      if (!Array.isArray(arr) || !arr.length) throw new Error("解析出空的补丁数组");
+      /* ★★★ 2026-11-18 20:1x：作者原话「变量补全脚本有严重大问题，根本就不补，
+         不可能是截断或掉格式了，因为我在后台都看到输出了 6000 token 了」。
+         ── 这条链上有三个"看着没事、实际必死"的地方，一起修 ──
+         ① 取块用的是 `/<(?:JSONPatch|json_?patch)>/` —— **一点容错都没有**：
+            模型写 `<JSONPatch >`、`<JSONPatch\n>`、`<JSONPatch type="...">` 全部取不到，
+            明明输出了一大段，这里直接抛「未返回合规标签」。
+         ② 取到的 JSON 直接 JSON.parse —— 模型最常见的两种手滑（尾逗号、被 max_tokens
+            截断在半截）会让它整块作废，一条都不写。
+         ③ 失败时只报一句「未返回合规标签」，谁也看不出到底回了什么。
+         ⇒ 现在：宽松取块（带属性/空白/未闭合都认）→ 宽松解析（去尾逗号、补未闭合）
+            → 还失败就把模型回来的前 120 字印在状态里，别再让人猜。 */
+      var picked = pickPatchLoose(reply);
+      if (!picked || !picked.arr || !picked.arr.length) {
+        var _snip = String(reply || "").replace(/\s+/g, " ").slice(0, 120);
+        throw new Error("没从模型回复里取到可用的 <JSONPatch> 数组"
+          + (picked && picked.why ? "（" + picked.why + "）" : "")
+          + "｜回复 " + String(reply || "").length + " 字，开头：" + (_snip || "（空）"));
+      }
+      var arr = picked.arr;
 
       /* 白名单过滤与「只补格式」共用同一份判断（sanitizeRepairOps），不许各写一套 */
       var cleanOps = sanitizeRepairOps(arr);
@@ -1693,7 +1822,9 @@ var MvuSelfHealing = (function() {
       var cleanBlock = buildFullUpdateVariableBlock(reply, validOps);
       await writeBackPatch(targetIdx, cleanBlock, validOps, preservedProse);
 
-      setStatus("✅ " + _currentTaskName + "成功！已安全生成完整的 &lt;Analysis&gt; 与 &lt;JSONPatch&gt;，MVU 数据已全量驱动写入，正在恢复游玩...", false);
+      setStatus("✅ " + _currentTaskName + "成功！写入 " + validOps.length + " 条变量"
+        + (cleanOps.dropped && cleanOps.dropped.length ? "（挡掉 " + cleanOps.dropped.length + " 条违规）" : "")
+        + "，MVU 数据已全量驱动写入，正在恢复游玩...", false);
 
       var btn = _topbarBtn || getDoc().querySelector(".mvu-heal-btn") || getDoc().querySelector(".th-gal-btn-mvu-heal");
       if (btn) {
@@ -2151,15 +2282,44 @@ var MvuSelfHealing = (function() {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     } catch (eVEH) {}
   }
-  /* 「这一楼有没有正文」的唯一判据（与 10-core 的 lcsProseEmpty 逐条一致） */
+  /* 「这一楼有没有正文」的唯一判据（与 10-core 的 lcsProseEmpty 逐条一致）
+     ══ ★ 2026-11-21 重写：修「明明有 <content> 却弹回空了」 ══════════════
+     旧实现用 stripThinkForVar / stripAllVariableBlocks，这两个函数对未闭合的
+     <thinking> / <UpdateVariable> / <Analysis> 会一路砍到结尾 ⇒ 正文被一起吃掉。
+     现在只认真的一个字都没有：只剥成对闭合块，未闭合的开标签不砍内容。 */
+  /* ★ 2026-11-21（作者口径）：任何正文标签都算「有正文」，不弹回空。
+     与 10-core 的 V147_TEXT_TAGS 同序同源；文字版不加载 10-core，所以必须自带一份。 */
+  var LCS_BODY_TAGS = ["content", "对话框显示", "gametext", "game", "maintext",
+    "正文", "正文内容", "text", "galgame", "game_text", "narrative", "story", "对话"];
+  function lcsHasBodyTag(s) {
+    try {
+      var t = String(s == null ? "" : s)
+        .replace(/<\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\b[^>]*>[\s\S]*?<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi, "");
+      return new RegExp("<(?:" + LCS_BODY_TAGS.join("|") + ")(?=[\\s>])", "i").test(t);
+    } catch (e) { return false; }
+  }
   function lcsProseEmpty(raw) {
-    var s = String(raw == null ? '' : raw);
-    if (!s) return true;
-    try { s = stripThinkForVar(s); } catch (e0) {}
-    try { s = stripAllVariableBlocks(s); } catch (e1) {}
-    s = s.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ')
-         .replace(/[\s\u3000\u00a0\u200b\ufeff]/g, '');
-    return s.length === 0;
+    var s = String(raw == null ? "" : raw);
+    if (!s.trim()) return true;
+    /* ★★ 作者补充：有正文标签 ⇒ 绝不判回空（不只 content） */
+    if (lcsHasBodyTag(s)) return false;
+    /* ① 主核心若暴露了解析器就直接用（同页加载时能拿到） */
+    try {
+      if (typeof parseContentWithLayer === "function" && parseContentWithLayer(s).text) return false;
+    } catch (eP) {}
+    try {
+      if (typeof renderedProseFromDom === "function" && renderedProseFromDom()) return false;
+    } catch (eD) {}
+    /* ② 只剥成对闭合块；未闭合的开标签不许砍到结尾 */
+    var t = s.replace(/<!--[\s\S]*?-->/g, "");
+    t = t.replace(/<\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\b[^>]*>[\s\S]*?<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi, "");
+    t = t.replace(/<UpdateVariable\b[^>]*>[\s\S]*?<\/UpdateVariable\s*>/gi, "");
+    t = t.replace(/<(?:JSONPatch|json_?patch)\b[^>]*>[\s\S]*?<\/(?:JSONPatch|json_?patch)\s*>/gi, "");
+    t = t.replace(/<Analysis\b[^>]*>[\s\S]*?<\/Analysis\s*>/gi, "");
+    /* ③ 剥掉所有标签后还剩任何可见字 ⇒ 不空 */
+    t = t.replace(/<[^>]*>/g, "").replace(/&nbsp;/gi, " ")
+         .replace(/[\s\u3000\u00a0\u200b\ufeff]/g, "");
+    return t.length === 0;
   }
 
   function hideVarBanner() {
@@ -2474,4 +2634,21 @@ try { window.__openMvuPanel = function() { MvuSelfHealing.openManualPanel(); }; 
       }
     } catch (eDoc) {}
   });
+
+  /* ★ 2026-11-21 热更链路测试标记（仅 dev 通道；测完删除） */
+  try {
+    setTimeout(function () {
+      try {
+        var T = window.top || window;
+        if (String(T.__SPR_HOT_CHAN__ || "") !== "dev") return;
+        var seq = T.__SPR_SEQ__ || T.__CQ_OSS_SEQ__ || "?";
+        var msg = "🔧 热更测试标记 · dev 脚本已更新 · seq " + seq;
+        var tt = T.toastr || window.toastr;
+        if (tt && tt.info) { tt.info(msg, "热更测试", { timeOut: 9000 }); return; }
+        if (tt && tt.success) { tt.success(msg, "热更测试", { timeOut: 9000 }); return; }
+        try { if (typeof showToast === "function") showToast(msg, 9000); } catch (eS) {}
+        try { console.info("[热更测试] " + msg); } catch (eC) {}
+      } catch (e2) {}
+    }, 3200);
+  } catch (e1) {}
 })();

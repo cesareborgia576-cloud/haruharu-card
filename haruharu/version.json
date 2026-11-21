@@ -1,9 +1,9 @@
 {
-  "version": "v10.6",
-  "seq": 137,
-  "fixNo": 68,
-  "label": "v1.26（第 68 次修复更新） · seq 137",
-  "stableRef": "0562af98dd3e7552200c9a438ee0c241abb1bbd6",
+  "version": "v1.56（第 1 次更新 · stable）",
+  "seq": 138,
+  "fixNo": 1,
+  "label": "v1.56（第 1 次更新 · stable）",
+  "stableRef": "",
   "updated": "2026-11-17T12:31:54.624Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
@@ -17,8 +17,7 @@
       "10-core.js",
       "11-fullscreen.js",
       "12-arc.js",
-      "13-gal.js",
-      "14-format.js"
+      "13-gal.js"
     ],
     "text": [
       "20-heal.js",
