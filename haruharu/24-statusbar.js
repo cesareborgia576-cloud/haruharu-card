@@ -230,7 +230,8 @@
       '<span class="ver-v" id="sb-fn-bubble-v">开</span>',
       '<button type="button" class="ver-btn" id="sb-fn-bubble">关闭</button></div>',
       /* ★ 2026-11-19：作者「新增一个修改器在文字版的功能分页里」 */
-      /* ★ 2026-11-20 作者：「搬，包括回忆」—— 历史 / 回忆 / 自愈 / 补全 / 重载图 */
+      /* ★ 2026-11-20 作者：「搬，包括回忆」—— 历史 / 回忆 / 自愈 / 重载图
+         ★ 2026-11-21：格式补全已彻底下架，对应行整条删除。 */
       '<div class="ver-row"><span class="ver-k">历史楼层</span>',
       '<span class="ver-v">查看 / 跳转</span>',
       '<button type="button" class="ver-btn" id="sb-fn-floors">打开</button></div>',
@@ -240,9 +241,6 @@
       '<div class="ver-row"><span class="ver-k">变量自愈</span>',
       '<span class="ver-v">读 MVU 修补</span>',
       '<button type="button" class="ver-btn" id="sb-fn-heal">打开</button></div>',
-      '<div class="ver-row"><span class="ver-k">格式补全</span>',
-      '<span class="ver-v">重写楼层</span>',
-      '<button type="button" class="ver-btn" id="sb-fn-fmtfix">打开</button></div>',
       '<div class="ver-row"><span class="ver-k">重载图片</span>',
       '<span class="ver-v">清失败缓存</span>',
       '<button type="button" class="ver-btn" id="sb-fn-reloadimg">重载</button></div>',
@@ -831,12 +829,6 @@
           var err = '';
           try { err = sbOpenHeal('openManualPanel'); } catch (e5) { err = '变量自愈打不开'; }
           try { showToast(err || '已打开变量自愈', err ? 3000 : 1800); } catch (e6) {}
-        };
-        var b4 = d.getElementById('sb-fn-fmtfix');
-        if (b4) b4.onclick = function () {
-          var err = '';
-          try { err = sbOpenHeal('openFormatPanel'); } catch (e7) { err = '格式补全打不开'; }
-          try { showToast(err || '已打开格式补全', err ? 3000 : 1800); } catch (e8) {}
         };
         var b5 = d.getElementById('sb-fn-reloadimg');
         if (b5) b5.onclick = function () {

@@ -5104,31 +5104,6 @@ var STYLE = `<style id="th-gal-shell-style">
     box-shadow: 0 0 8px rgba(245, 158, 11, 0.4) !important;
   }
 
-  /* ★ v115：格式补全按钮（与变量自愈并排，青色系区分） */
-  .th-gal-btn-format-fix {
-    background: rgba(34, 211, 238, 0.16) !important;
-    border: 1px solid rgba(34, 211, 238, 0.5) !important;
-    color: #67e8f9 !important;
-    border-radius: 4px !important;
-    padding: 2px 7px !important;
-    font-size: calc(9px * var(--ui-scale, 1)) !important;
-    cursor: pointer !important;
-    font-weight: 700 !important;
-    flex-shrink: 0 !important;
-    white-space: nowrap !important;
-    transition: all 0.2s ease !important;
-  }
-  .th-gal-btn-format-fix:hover {
-    background: rgba(34, 211, 238, 0.34) !important;
-    color: #ffffff !important;
-    box-shadow: 0 0 8px rgba(34, 211, 238, 0.45) !important;
-  }
-  .th-gal-btn-format-fix.is-hinted { animation: thFmtBtnPulse 1.1s ease-in-out 2 !important; }
-  @keyframes thFmtBtnPulse {
-    0%, 100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
-    50% { box-shadow: 0 0 12px rgba(34, 211, 238, 0.9); }
-  }
-
   /* ★ v116：篇章扁框 —— 原来那个 position:fixed 的紫色悬浮胶囊，内置到顶栏右侧。
      三篇章各有自己的配色，一眼看出现在在哪一篇（和原来那套配色保持一致，玩家不用重新认）。 */
   .th-gal-btn-arc {
@@ -9098,7 +9073,6 @@ var STYLE = `<style id="th-gal-shell-style">
   /* 全屏容器激活时：所有 body 级弹层与壳内弹层统一压到最顶，
      无论用户用的是新版(1000000)还是旧版(2147483640)全屏容器都生效。 */
   body.th-stage-portal-on #th-deduce-panel,
-  body.th-stage-portal-on #th-fmt-modal,
   body.th-stage-portal-on #th-mvu-suspend-modal,
   body.th-stage-portal-on .th-gal-sheet,
   body.th-stage-portal-on .th-gal-char-menu,
@@ -12976,10 +12950,6 @@ function buildShellDOM() {
         '<button type="button" class="th-gal-btn-bag" title="打开背包">🎒 背包</button>' +
         '<div class="th-gal-energy-indicator">⚡ 精力: <span class="th-gal-energy-val">100</span>/100</div>' +
         '<button type="button" class="th-gal-btn-mvu-heal" title="MVU 变量自愈监控：实时嗅探，点击可查看状态或手动补算">🩺 变量自愈</button>' +
-        /* ★ v115：正文修复单独一颗，紧挨变量自愈（用户要求「放在变量补全的旁边」）
-           ★ 2026-11-18：名字从「格式补全」改成「正文修复」——作者要求。
-             功能没变（本楼读不出正文时调 AI 补 &lt;content&gt;），只是名字讲人话。 */
-        '<button type="button" class="th-gal-btn-format-fix" title="正文修复：本楼读不出正文时，点这里调 AI 补上 &lt;content&gt;">🩹 正文修复</button>' +
         '<button type="button" class="th-gal-btn-home" title="直接回家（免消耗）">🏠 回家</button>' +
         /* ★ 2026-11-18：全屏按钮（作者要求）——「全屏」两个字、圆角正方形、契合主题金棕色。
            以前功能面板里那颗 ⛶ 全屏 已删除，只留这一颗常驻入口。 */
@@ -23021,6 +22991,46 @@ function showDialogueBrokenNote() {
   return false;
 }
 
+/* ══ ★ 2026-11-21：无正文标签时的**提示条**（作者要求）═══════════════════
+   作者原话：「没检测到content直接贴原文就行，显示没有正文标签，已展示原文，
+             不影响游玩」。
+   setRawText 的兜底分支已经把原文铺进对话框了；这里只额外挂一条**不挡字**的
+   细提示，告诉玩家发生了什么、以及这不影响继续玩。
+   ⚠ 不是 showDialogueBrokenNote：那个是 inset:0 的大遮罩，已被物理删除。
+     这条只是一个普通流内 div，跟着正文一起滚，不覆盖任何内容。 */
+var DLG_FALLBACK_NOTE_ID = 'th-gal-dlg-fallback-note';
+var DLG_FALLBACK_NOTE_TEXT = '没有正文标签，已展示原文，不影响游玩';
+function showDialogueFallbackNote() {
+  try {
+    var doc = getDoc();
+    var stage = doc ? doc.querySelector('#th-gal-shell-root .th-gal-dialogue-stage') : null;
+    if (!stage) return false;
+    var old = doc.getElementById(DLG_FALLBACK_NOTE_ID);
+    if (old && old.parentNode === stage) return true;
+    if (!old) {
+      old = doc.createElement('div');
+      old.id = DLG_FALLBACK_NOTE_ID;
+      old.setAttribute('style',
+        'margin:0 0 6px;padding:3px 8px;border-radius:6px;' +
+        'background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);' +
+        'color:#fcd34d;font-size:11px;line-height:1.5;text-align:center;' +
+        'letter-spacing:.01em;flex:0 0 auto;');
+      old.textContent = DLG_FALLBACK_NOTE_TEXT;
+    }
+    var body = stage.querySelector('.th-gal-dialogue-body');
+    if (body && body.parentNode === stage) stage.insertBefore(old, body);
+    else stage.appendChild(old);
+    return true;
+  } catch (e) { return false; }
+}
+function hideDialogueFallbackNote() {
+  try {
+    var old = getDoc().getElementById(DLG_FALLBACK_NOTE_ID);
+    if (old && old.parentNode) { old.parentNode.removeChild(old); return true; }
+  } catch (e) {}
+  return false;
+}
+
 function hideDialogueBrokenNote() {
   try {
     var doc = getDoc();
@@ -23030,28 +23040,6 @@ function hideDialogueBrokenNote() {
   return false;
 }
 
-function openDialogueHealPanel(msg) {
-  try {
-    var doc = getDoc();
-    var shell = doc && doc.querySelector ? doc.querySelector('#th-gal-shell-root') : null;
-    if (shell && typeof MvuSelfHealing !== 'undefined' && MvuSelfHealing
-        && typeof MvuSelfHealing.openManualPanel === 'function') {
-      MvuSelfHealing.openManualPanel(shell);
-      /* ★ v115：「对话框不显示点我」已搬到格式补全面板，原按钮 id 不存在了。
-         这里改为高亮格式面板里那颗 th-fmt-btn-fix-dialogue（找不到就静默跳过）。 */
-      var btn = doc.getElementById('th-fmt-btn-fix-dialogue');
-      if (btn) {
-        try {
-          btn.classList.add('is-hinted');
-          setTimeout(function () { try { btn.classList.remove('is-hinted'); } catch (eH) {} }, 2600);
-        } catch (eH2) {}
-      }
-      if (typeof popToast === 'function') popToast('💬 ' + (msg || '这一楼没有 <对话框显示>，已打开补全面板'));
-      return true;
-    }
-  } catch (eP) {}
-  return false;
-}
 
 /* ══ ★ v116：说话立绘的**唯一**刷新入口 ══════════════════════════════════
    谁该站着 = 当前这一页的说话人（DialogReader.speakers[currentIndex]）。
@@ -23436,6 +23424,8 @@ var DialogueReader = {
           if (_fbShell) _fbShell.classList.add('th-gal-dlg-fallback');
         } catch (eFb2) {}
         this.isOpen = true;
+        /* ★ 2026-11-21：这是「没有正文标签、铺原文」的唯一分支 —— 挂提示条 */
+        try { showDialogueFallbackNote(); } catch (eFbN) {}
         try { this.render(); } catch (eFb3) {}
         return;
       }
@@ -23603,21 +23593,22 @@ var DialogueReader = {
         try { _rawHasBody = !!renderedProseFromDom(); } catch (eDomOpen) {}
       }
       if (!_rawHasBody) {
-        /* ★ v115：无标签时**不再清空后静默/弹面板**，而是照常开框、框里报明白。
-           pages 仍然清干净（契约不越权：绝不把上一楼的旧正文顶上来）。 */
+        /* ★ 2026-11-21：没有正文标签 ≠ 没有内容。
+           先把上一楼的旧 pages 清干净（契约不越权），再把这一楼自己的原文
+           交给 setRawText 的兜底铺进对话框 + 挂「已展示原文」提示条；
+           只有真·回空（原文一个字都没有）才留空框。格式补全已下架，不再弹面板。 */
         this.pages = [];
         this.speakers = [];
         this.currentIndex = 0;
         this.lastSig = '';
         this.isOpen = true;
-        showDialogueBrokenNote();
-        this.render();
-        /* ★ v111：v110 这里只是「清干净然后静默 return」——
-           而底部「📜 对话框」按钮走的正是 reopen()，
-           于是玩家点了完全没反应，补全面板永远弹不出来。
-           现在：清干净（契约不越权，一个字都不显示）
-                + 打开补全面板（把玩家送到能补救的地方）
-                + 高亮那颗真正会调 API 的按钮 + 说明原因。 */
+        try { hideDialogueBrokenNote(); } catch (eNoteX) {}
+        if (lcsProseEmpty(_raw)) {
+          try { hideDialogueFallbackNote(); } catch (eFbX) {}
+          this.render();
+        } else {
+          try { this.setRawText(String(_raw || ''), false); } catch (eRS) { this.render(); }
+        }
         return;
       }
     } catch (eR) {
@@ -23642,7 +23633,10 @@ var DialogueReader = {
       this.isOpen = true;
       this.render();
     } else {
-      openDialogueHealPanel('这一楼没有可读的正文，点「对话框不显示点我」让 AI 重新补一遍');
+      /* ★ 2026-11-21：格式补全已下架 —— 没有正文时不再把玩家送进补全面板。
+         原文兜底由 setRawText 负责；这里只把对话框打开，让玩家看到真实状态。 */
+      this.isOpen = true;
+      this.render();
     }
   },
   next: function() {
@@ -23742,6 +23736,7 @@ var DialogueReader = {
            所以走到这里绝不会画出上一楼正文 —— 那正是作者说的「很误导玩家」。 */
       stage.removeAttribute('hidden');
       this.isOpen = true;
+      try { hideDialogueFallbackNote(); } catch (eFbEH) {}
       try { fitDialogueStage(shell); } catch (eFitE) {}
       try {
         body.innerHTML = '<div style="color:#ff6b6b;font-weight:700;font-size:12.5px;line-height:1.8;letter-spacing:.02em;">'
@@ -23764,6 +23759,7 @@ var DialogueReader = {
     if (this.pages.length === 0 && _noteOn) {
       /* 没有正文可画，但玩家必须看见「为什么没字」——只亮框、不碰 body */
       stage.removeAttribute('hidden');
+      try { hideDialogueFallbackNote(); } catch (eFbNH) {}
       try { fitDialogueStage(shell); } catch (eFitN) {}
       try { hideDialogueBrokenNote(); showDialogueBrokenNote(); } catch (eReNote) {}
       syncChoiceOverlayWithDialogue(false);
@@ -23783,6 +23779,8 @@ var DialogueReader = {
       return;
     }
     stage.removeAttribute('hidden');
+    /* ★ 2026-11-21：走正常正文路径 → 撤掉「已展示原文」提示条 */
+    try { hideDialogueFallbackNote(); } catch (eFbHN) {}
     /* ★ v115：有正文要画 → 说明条必须撤掉。
        它挂在 stage 上、不在 body 里，不清的话会叠在新正文上面赖着不走。
        （重 roll 出新楼走的是 setRawText → 本函数，根本不经 reopen()。） */
@@ -24533,8 +24531,8 @@ function thBuildHudPanel(shell) {
     /* ★ v150 新增：原顶栏按钮（篇章 / 季节 / 天气 / 插图 / 地图 / 村历 / 背包 / 回家） */
     { t: '世界', keys: ['th-gal-btn-arc', 'th-gal-btn-season', 'th-gal-btn-weather', 'th-gal-btn-art',
                         'th-gal-btn-map', 'th-gal-btn-calendar', 'th-gal-btn-bag', 'th-gal-btn-home'] },
-    /* ★ v150 新增：原顶栏急救键（重载图片 / 变量自愈 / 格式补全） */
-    { t: '修复', keys: ['th-gal-btn-reloadimg', 'th-gal-btn-mvu-heal', 'th-gal-btn-format-fix'] }
+    /* ★ v150 新增：原顶栏急救键（重载图片 / 变量自愈） */
+    { t: '修复', keys: ['th-gal-btn-reloadimg', 'th-gal-btn-mvu-heal'] }
   ];
   var used = {};
   /* ★ 2026-11-18：功能页顶部常驻「本局模式」（作者要求「牛头模式新增显示在功能页」）。
@@ -25636,14 +25634,6 @@ function setupInteractions(shell) {
       MvuSelfHealing.openManualPanel(shell);
     };
   }
-  /* ★ v115：格式补全独立入口（用户要求单独一颗按钮、独立界面） */
-  var btnFormatFix = shell.querySelector('.th-gal-btn-format-fix');
-  if (btnFormatFix) {
-    btnFormatFix.onclick = function(e) {
-      e.stopPropagation();
-      MvuSelfHealing.openFormatPanel(shell);
-    };
-  }
   /* ★ v109：点对话框本体 → 有<对话框显示> 就展开，没有就打开补全面板。
      用 capture + 且只在 target 落在对话框可视区时才拦，避免抢走翻页/关闭的点击。 */
   try {
@@ -25653,7 +25643,7 @@ function setupInteractions(shell) {
     if (dlgHit && !dlgHit.__thDlgClickBound) {
       dlgHit.__thDlgClickBound = true;
       dlgHit.style.cursor = 'pointer';
-      dlgHit.title = '点击：有正文就展开；没检测到就打开补全面板';
+      dlgHit.title = '点击：有正文就展开；没检测到正文就展示原文';
       dlgHit.addEventListener('click', onDialogueBodyClick);
     }
   } catch (eDlg) {}
@@ -27439,9 +27429,6 @@ var MvuSelfHealing = (function() {
     }
   }
 
-  /* ══ ★ v115：格式补全独立面板（与变量面板共用 API 配置） ═══════════════ */
-  var _fmtModalEl = null;
-
   /* ══ ★ v129：面板按钮的「抗重建」点击绑定 ══════════════════════════════
      问题：以前是 modalEl.addEventListener('click', ...)。
        modal 元素一旦被替换 / 重画（换壳、热更、脚本重跑 ensureModal），
@@ -27485,294 +27472,6 @@ var MvuSelfHealing = (function() {
     } catch (eB) {}
   }
 
-  function ensureFormatModal(shell) {
-    var doc = getDoc();
-    var old = doc.getElementById('th-fmt-modal');
-    if (old) { _fmtModalEl = old; return old; }
-
-    var m = doc.createElement('div');
-    m.id = 'th-fmt-modal';
-    m.className = 'th-gal-mvu-suspend-modal';
-    m.innerHTML = '<div class="th-gal-mvu-box" id="th-fmt-box">' +
-        '<div class="th-gal-mvu-badge" style="background:rgba(34,211,238,.2);color:#67e8f9;">🩹 正文修复</div>' +
-        '<div class="th-gal-mvu-title">正文标签自检</div>' +
-        '<div class="th-gal-mvu-desc" id="th-fmt-status-desc">正在检查最新楼层…</div>' +
-        '<div class="th-gal-mvu-spinner" id="th-fmt-spinner" style="display:none;"></div>' +
-        '<div class="th-gal-mvu-actions">' +
-          '<button type="button" class="th-gal-mvu-btn th-gal-mvu-btn-fixdlg" data-fmt="fix-dialogue" id="th-fmt-btn-fix-dialogue" title="本楼没有 &lt;content&gt; 正文时，点这个调 AI 自动识别正文并补上">💬 对话框不显示点我</button>' +
-          '<button type="button" class="th-gal-mvu-btn th-gal-mvu-btn-sec" data-fmt="toggle-api" id="th-fmt-btn-toggle-api">⚙️ API 设置</button>' +
-          '<button type="button" class="th-gal-mvu-btn th-gal-mvu-btn-sec" data-fmt="close" id="th-fmt-btn-close">✖ 关闭</button>' +
-        '</div>' +
-
-        '<div id="th-fmt-api-wrap" style="display:none;margin-top:14px;border-top:1px solid rgba(148,163,184,.25);padding-top:12px;">' +
-          '<div class="th-gal-mvu-title" style="font-size:13px;">补全通道（与变量补全共用同一套配置）</div>' +
-          '<div class="th-gal-mvu-tabs">' +
-            '<button type="button" class="th-gal-mvu-tab active" data-fmttab="deduce">🎮 后台推演</button>' +
-            '<button type="button" class="th-gal-mvu-tab" data-fmttab="main">🍺 酒馆主模型</button>' +
-            '<button type="button" class="th-gal-mvu-tab" data-fmttab="custom">✏️ 另选专属</button>' +
-          '</div>' +
-          '<div class="th-gal-mvu-tab-panel" id="th-fmt-panel-deduce">' +
-            '<div class="th-gal-mvu-hint" style="font-size:11px;color:#94a3b8;margin:6px 0;">复用卡内《后台推演外置AI》已配置的中转地址与密钥。</div>' +
-            '<div class="th-gal-mvu-info-card" id="th-fmt-deduce-info">正在读取后台推演配置...</div>' +
-          '</div>' +
-          '<div class="th-gal-mvu-tab-panel" id="th-fmt-panel-main" style="display:none;">' +
-            '<div class="th-gal-mvu-hint" style="font-size:11px;color:#94a3b8;margin:6px 0;">直接通过酒馆内部中继接口，让当前主模型参与补全。无需额外配置 Key。</div>' +
-            '<div class="th-gal-mvu-info-card">已就绪：将调用 SillyTavern 当前激活的主会话模型与预设</div>' +
-          '</div>' +
-          '<div class="th-gal-mvu-tab-panel" id="th-fmt-panel-custom" style="display:none;">' +
-            '<div class="th-gal-mvu-hint" style="font-size:11px;color:#94a3b8;margin:6px 0;">为此功能独立配置专用轻量中转端（如 gpt-4o-mini / deepseek-chat）。<br>⚠ 与变量补全共用：这里改完，变量补全也用这一套。</div>' +
-            '<div class="th-gal-mvu-form">' +
-              '<div class="th-gal-mvu-form-row"><label>接口地址 (Base URL):</label><input type="text" id="th-fmt-inp-base" placeholder="https://api.openai.com/v1" /></div>' +
-              '<div class="th-gal-mvu-form-row"><label>接口密钥 (API Key):</label><input type="password" id="th-fmt-inp-key" placeholder="sk-..." /></div>' +
-              '<div class="th-gal-mvu-form-row"><label>模型名称 (Model):</label><div style="display:flex;gap:4px;"><input type="text" id="th-fmt-inp-model" placeholder="gpt-4o-mini" style="flex:1;" /><button type="button" class="th-gal-mvu-btn-sub" data-fmt="fetch-models">🔍 获取模型</button></div><select id="th-fmt-sel-model" style="display:none;width:100%;margin-top:4px;"></select></div>' +
-              '<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;"><button type="button" class="th-gal-mvu-btn-sub" data-fmt="test-api">🎲 测试连通性</button><button type="button" class="th-gal-mvu-btn" data-fmt="save-custom">💾 保存并选用</button></div>' +
-              '<div id="th-fmt-test-res" style="font-size:11px;margin-top:6px;min-height:16px;"></div>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-      '</div>';
-
-    (shell || doc.body).appendChild(m);
-    _fmtModalEl = m;
-
-    /* ★ v129：同变量面板，改 document 捕获委托，抗面板重建 */
-    bindPanelClicks(m, '[data-fmt],[data-fmttab]', function (btn, e) {
-      var tab = btn.getAttribute('data-fmttab');
-      if (tab) { fmtSwitchTab(tab); return; }
-      var act = btn.getAttribute('data-fmt');
-      if (act === 'fix-dialogue') {
-        runDialogueFormatFix();
-      } else if (act === 'toggle-api') {
-        var w = doc.getElementById('th-fmt-api-wrap');
-        if (w) {
-          var on = w.style.display !== 'none';
-          w.style.display = on ? 'none' : 'block';
-          if (!on) fmtRefreshApiView();
-        }
-      } else if (act === 'close') {
-        closeFormatPanel();
-      } else if (act === 'test-api') {
-        fmtTestApi();
-      } else if (act === 'fetch-models') {
-        fmtFetchModels();
-      } else if (act === 'save-custom') {
-        fmtSaveCustom();
-      }
-    });
-
-    return m;
-  }
-
-  function fmtSwitchTab(tabName) {
-    var doc = getDoc();
-    setApiMode(tabName);
-    doc.querySelectorAll('#th-fmt-modal .th-gal-mvu-tab').forEach(function(t) {
-      if (t.getAttribute('data-fmttab') === tabName) t.classList.add('active');
-      else t.classList.remove('active');
-    });
-    var a = doc.getElementById('th-fmt-panel-deduce');
-    var b = doc.getElementById('th-fmt-panel-main');
-    var c = doc.getElementById('th-fmt-panel-custom');
-    if (a) a.style.display = (tabName === 'deduce') ? 'block' : 'none';
-    if (b) b.style.display = (tabName === 'main') ? 'block' : 'none';
-    if (c) c.style.display = (tabName === 'custom') ? 'block' : 'none';
-    fmtRefreshApiView();
-  }
-
-  function fmtRefreshApiView() {
-    var doc = getDoc();
-    var cur = getApiMode();
-    doc.querySelectorAll('#th-fmt-modal .th-gal-mvu-tab').forEach(function(t) {
-      if (t.getAttribute('data-fmttab') === cur) t.classList.add('active');
-      else t.classList.remove('active');
-    });
-    var a = doc.getElementById('th-fmt-panel-deduce');
-    var b = doc.getElementById('th-fmt-panel-main');
-    var c = doc.getElementById('th-fmt-panel-custom');
-    if (a) a.style.display = (cur === 'deduce') ? 'block' : 'none';
-    if (b) b.style.display = (cur === 'main') ? 'block' : 'none';
-    if (c) c.style.display = (cur === 'custom') ? 'block' : 'none';
-
-    /* 回填已存的专属配置（与变量面板同一份，绝不另存一套） */
-    var iB = doc.getElementById('th-fmt-inp-base');
-    var iK = doc.getElementById('th-fmt-inp-key');
-    var iM = doc.getElementById('th-fmt-inp-model');
-    try {
-      if (iB && !iB.value) iB.value = localStorage.getItem('thGalMvuCustomBase') || '';
-      if (iK && !iK.value) iK.value = localStorage.getItem('thGalMvuCustomKey') || '';
-      if (iM && !iM.value) iM.value = localStorage.getItem('thGalMvuCustomModel') || '';
-    } catch (eLS) {}
-
-    var info = doc.getElementById('th-fmt-deduce-info');
-    if (info) {
-      try {
-        var s = localStorage.getItem('thGalDeduceSettings');
-        var p = s ? JSON.parse(s) : null;
-        info.textContent = (p && p.base && p.key)
-          ? ('✅ 已读取：' + String(p.base) + ' ／ 模型 ' + (p.model || 'gpt-4o-mini'))
-          : '⚠ 后台推演里还没配地址/密钥，去《后台推演外置AI》面板填一次即可。';
-      } catch (eD) { info.textContent = '⚠ 读取后台推演配置失败'; }
-    }
-  }
-
-  async function fmtTestApi() {
-    var doc = getDoc();
-    var resEl = doc.getElementById('th-fmt-test-res');
-    var base = (doc.getElementById('th-fmt-inp-base') || {}).value || '';
-    var key = (doc.getElementById('th-fmt-inp-key') || {}).value || '';
-    var model = (doc.getElementById('th-fmt-inp-model') || {}).value || 'gpt-4o-mini';
-    if (!base || !key) { if (resEl) resEl.innerHTML = '<span style="color:#ef4444;">请先填写地址与密钥</span>'; return; }
-    if (resEl) resEl.innerHTML = '<span style="color:#fbbf24;">正在测试…</span>';
-    /* 铁律九：模板字符串会吃掉反斜杠 ⇒ 这里的尾部斜杠一律用 while 剥，不写正则 */
-    var ep = String(base).trim();
-    while (ep.length && ep.charAt(ep.length - 1) === '/') ep = ep.slice(0, -1);
-    if (ep.indexOf('/chat/completions', ep.length - 17) !== ep.length - 17) ep += '/chat/completions';
-    try {
-      var res = await fetch(ep, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key.trim() },
-        body: JSON.stringify({ model: model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 4 })
-      });
-      if (res.ok) { if (resEl) resEl.innerHTML = '<span style="color:#22c55e;">✅ 连通成功</span>'; }
-      else {
-        var t = await res.text();
-        if (resEl) resEl.innerHTML = '<span style="color:#ef4444;">❌ HTTP ' + res.status + '：' + String(t).slice(0, 80) + '</span>';
-      }
-    } catch (err) {
-      if (resEl) resEl.innerHTML = '<span style="color:#ef4444;">❌ ' + (err.message || err) + '</span>';
-    }
-  }
-
-  async function fmtFetchModels() {
-    var doc = getDoc();
-    var resEl = doc.getElementById('th-fmt-test-res');
-    var base = (doc.getElementById('th-fmt-inp-base') || {}).value || '';
-    var key = (doc.getElementById('th-fmt-inp-key') || {}).value || '';
-    var sel = doc.getElementById('th-fmt-sel-model');
-    if (!base || !key) { if (resEl) resEl.innerHTML = '<span style="color:#ef4444;">请先填写地址与密钥</span>'; return; }
-    /* 同铁律九：不写正则，字符串剥 */
-    var ep = String(base).trim();
-    while (ep.length && ep.charAt(ep.length - 1) === '/') ep = ep.slice(0, -1);
-    var SUF = '/chat/completions';
-    if (ep.length >= SUF.length && ep.slice(ep.length - SUF.length) === SUF) {
-      ep = ep.slice(0, ep.length - SUF.length);
-    }
-    ep += '/models';
-    if (resEl) resEl.innerHTML = '<span style="color:#fbbf24;">正在获取模型列表…</span>';
-    var list = null;
-    /* ★ v129：先走酒馆同源中转（浏览器直连 base/models 会被 CORS 拦） */
-    try {
-      list = await fetchModelsViaTavern(String(base).trim(), key.trim());
-      if (!list || !list.length) throw new Error('中转回了空列表');
-    } catch (errMid) {
-      /* 中转没通 → 退回直连兜底 */
-      try {
-        var res = await fetch(ep, { headers: { 'Authorization': 'Bearer ' + key.trim() } });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var j = await res.json();
-        var rawF = Array.isArray(j.data) ? j.data : (Array.isArray(j.models) ? j.models : []);
-        var liveF = [], deadF = [], seenF = {};
-        for (var kf = 0; kf < rawF.length; kf++) {
-          var itf = rawF[kf] || {};
-          var nmf = itf.id || itf.name || itf.model || '';
-          if (!nmf) continue;
-          nmf = String(nmf);
-          if (seenF[nmf]) continue;
-          seenF[nmf] = true;
-          var stf = itf.status || '';
-          var badf = (stf === 'Shutdown' || stf === 'Retiring' || stf === 'Deprecated');
-          (badf ? deadF : liveF).push({ id: nmf, status: stf, bad: badf });
-        }
-        list = liveF.concat(deadF);
-        if (!list.length) throw new Error('未获取到模型列表');
-      } catch (err) {
-        if (resEl) resEl.innerHTML = '<span style="color:#ef4444;">获取模型失败：' + (errMid && errMid.message ? errMid.message : errMid) + ' / ' + (err.message || err) + '（中转与直连都失败，检查地址是否可从浏览器访问）</span>';
-        return;
-      }
-    }
-    try {
-      var nLiveF = 0;
-      for (var nf = 0; nf < list.length; nf++) { if (!list[nf].bad) nLiveF++; }
-      var optsF = '<option value="">-- 选择模型 --</option>';
-      for (var qf = 0; qf < list.length; qf++) {
-        var itq = list[qf];
-        var tagF = itq.bad ? '（' + itq.status + '，别选）' : '';
-        var preF = (qf === 0 && !itq.bad) ? '⭐ ' : (itq.bad ? '⛔ ' : '');
-        optsF += '<option value="' + itq.id + '"' + (itq.bad ? ' style="color:#94a3b8;"' : '') + '>' + preF + itq.id + tagF + '</option>';
-      }
-      if (sel) {
-        sel.innerHTML = optsF;
-        sel.style.display = 'block';
-        sel.onchange = function() {
-          var inp = doc.getElementById('th-fmt-inp-model');
-          if (inp && sel.value) inp.value = sel.value;
-        };
-      }
-      if (resEl) resEl.innerHTML = '<span style="color:#22c55e;">✅ ' + nLiveF + ' 个可用（共 ' + list.length + ' 个，⛔ 是已停服的）</span>';
-    } catch (err) {
-      if (resEl) resEl.innerHTML = '<span style="color:#ef4444;">列表已拿到但渲染失败：' + (err.message || err) + '</span>';
-    }
-  }
-
-  function fmtSaveCustom() {
-    var doc = getDoc();
-    var resEl = doc.getElementById('th-fmt-test-res');
-    var base = (doc.getElementById('th-fmt-inp-base') || {}).value || '';
-    var key = (doc.getElementById('th-fmt-inp-key') || {}).value || '';
-    var model = (doc.getElementById('th-fmt-inp-model') || {}).value || 'gpt-4o-mini';
-    /* ⚠ 与变量补全**同一套 key** —— 用户选的是「两边共用一套」 */
-    localStorage.setItem('thGalMvuCustomBase', String(base).trim());
-    localStorage.setItem('thGalMvuCustomKey', String(key).trim());
-    localStorage.setItem('thGalMvuCustomModel', String(model).trim());
-    setApiMode('custom');
-    if (resEl) resEl.innerHTML = '<span style="color:#22c55e;">💾 已保存，变量补全与正文修复共用这一套</span>';
-  }
-
-  function fmtSetStatus(html, busy) {
-    var el = getDoc().getElementById('th-fmt-status-desc');
-    if (el) el.innerHTML = html;
-    var sp = getDoc().getElementById('th-fmt-spinner');
-    if (sp) sp.style.display = busy ? 'block' : 'none';
-  }
-
-  function openFormatPanel(shell) {
-    try {
-      var doc = getDoc();
-      var m = ensureFormatModal(shell);
-      var idx = getLatestAIMessageIndex();
-      /* ★ v140：第 0 层开场白不参与格式校验（它没有契约块，也不该被补算改写） */
-      var greetingOnly = (idx <= 0);
-      var raw = greetingOnly ? '' : getMsgRawText(idx);
-      var has = greetingOnly ? true : false;
-      try { has = greetingOnly ? true : !!parseContentWithLayer(String(raw || '')).text; } catch (eH) {}
-
-      fmtSetStatus(greetingOnly
-        ? '🟢 <b>还在开场白，尚未开局</b><br>第 0 层是开场白正文，不是 AI 回复，本来就不带 &lt;content&gt; 契约标签。<br>补全脚本已跳过这一层，不会再误报。正式开局后再来查看或补全。'
-        : has
-        ? '🟢 <b>本楼正文标签正常</b><br>已经检测到 &lt;content&gt; 正文，正常情况下不需要补全。<br>如果对话框还是空的，先点「🕘 查看历史楼层」看这一楼是不是被截断了。'
-        : '🔴 <b style="color:#ef4444;">本楼没有 &lt;content&gt; 正文</b><br>所以对话框里没字。<br>先点「🕘 查看历史楼层」：<b>空的或写一半 → 重 roll</b>；<b>正文完整 → 点下面的按钮补全</b>。', false);
-
-      fmtRefreshApiView();
-      m.style.display = 'flex';
-      paintProbe();
-      /* 玩家已经点进来了 → 红条先收掉，别挡着面板。还坏着的话关面板后它会自己回来。 */
-      hideVarBanner();
-      if (shell) shell.classList.add('th-gal-mvu-suspended');
-      _isSuspended = true;
-      return true;
-    } catch (eOFP) { return false; }
-  }
-
-  function closeFormatPanel() {
-    try {
-      if (_fmtModalEl) _fmtModalEl.style.display = 'none';
-      var shell = getDoc().querySelector('#th-gal-shell-root');
-      if (shell) shell.classList.remove('th-gal-mvu-suspended');
-      _isSuspended = false;
-      return true;
-    } catch (eCFP) { return false; }
-  }
-
   function ensureModal(shell) {
     var doc = getDoc();
     var existing = doc.getElementById('th-mvu-suspend-modal');
@@ -27798,7 +27497,7 @@ var MvuSelfHealing = (function() {
                   **一个数值都不动、不调模型**。 */
           '<button type="button" class="th-gal-mvu-btn th-gal-mvu-btn-deep" data-act="rewrite-repair">🧠 按正文重写（完整版·默认）</button>' +
           '<button type="button" class="th-gal-mvu-btn" data-act="format-repair">🩹 只补格式（不动内容·本地）</button>' +
-          '<button type="button" class="th-gal-mvu-btn th-gal-mvu-btn-sec" data-act="open-format-panel">⚙️ API 设置 / 正文修复 ▸</button>' +
+          '<button type="button" class="th-gal-mvu-btn th-gal-mvu-btn-sec" data-act="open-api-cfg">⚙️ API 设置 ▸</button>' +
           '<button type="button" class="th-gal-mvu-btn th-gal-mvu-btn-sec" data-act="recheck">🔄 重新检测</button>' +
           '<button type="button" class="th-gal-mvu-btn th-gal-mvu-btn-sec" data-act="close" id="th-mvu-btn-close-main">✖ 关闭</button>' +
         '</div>' +
@@ -27844,10 +27543,6 @@ var MvuSelfHealing = (function() {
     (shell || doc.body).appendChild(m);
     _modalEl = m;
 
-    /* ★ v115：格式补全的**独立**面板。用户要求「点开就是单独的界面」。
-       用同一个 modal 容器、另一个 view，避免两套挂起逻辑打架。 */
-    try { ensureFormatModal(shell); } catch (eFM0) {}
-
     /* ★ v129：不再往 m 上挂 click —— 挂 m 上的话，只要面板被重建（换壳、热更、
        别处 innerHTML 重画），监听就丢了，按钮变成「点了没反应」。
        改成 document 捕获阶段委托：只在 target 确实落在这个面板里时才管，天然抗重建。 */
@@ -27860,22 +27555,9 @@ var MvuSelfHealing = (function() {
         return;
       }
 
-      if (act === 'open-format-panel') {
-        /* ★ v115：跳转到格式补全面板（API 设置和对话框补全都在那边） */
-        try {
-          var _shell2 = getDoc().querySelector('#th-gal-shell-root');
-          closeManualPanelQuiet();
-          ensureFormatModal(_shell2);
-          var _fm = getDoc().getElementById('th-fmt-modal');
-          if (_fm) {
-            _fm.style.display = 'flex';
-            try {
-              var _w = getDoc().getElementById('th-fmt-api-wrap');
-              if (_w) { _w.style.display = 'block'; fmtRefreshApiView(); }
-              fmtSetStatus('⚙️ <b>API 设置</b><br>这里配好的接口，变量补全和正文修复**共用同一套**。', false);
-            } catch (eFmt0) {}
-          }
-        } catch (eJump) {}
+      if (act === 'open-api-cfg') {
+        showView('cfg');
+        try { refreshCfgView(); } catch (eCfg0) {}
       } else if (act === 'rewrite-repair' || act === 'deep-repair' || act === 'fast-repair') {
         /* ★ v140：老的 fast / deep 两个 act 名只做**兼容映射** ——
            页面里若还挂着旧面板（热更中途、老 HTML 缓存），点「精简」也一律走完整版，
@@ -27900,24 +27582,6 @@ var MvuSelfHealing = (function() {
     });
 
     return m;
-  }
-
-  /* ══ ★ v109：把《09-格式补全v1.0》的补全能力接过来 ══════════════
-     那个脚本挂在 HOST.__galFormatFixRun 上；它在不在都不该让面板崩掉。 */
-  function runDialogueFormatFix() {
-    try {
-      var fn = (typeof HOST !== 'undefined' && HOST && HOST.__galFormatFixRun) || null;
-      if (typeof fn !== 'function') {
-        popToast('⚠️ 正文修复脚本没装上（09-格式补全v1.0 可能被禁用了）');
-        return false;
-      }
-      popToast('📐 正在调用 API 进行补全…');
-      fn();
-      return true;
-    } catch (eF) {
-      popToast('❌ 补全失败：' + (eF && eF.message ? eF.message : eF));
-      return false;
-    }
   }
 
   /* ══ ★ v109：点对话框本体 = 按「有没有 <对话框显示>」分流 ══════════
@@ -27964,11 +27628,10 @@ var MvuSelfHealing = (function() {
         return;
       }
 
-      /* ★ v115：没标签 → **照常展开对话框，框里显示为什么会这样 + 怎么验证 + 下一步点哪**。
-         绝不再把玩家甩到一个「变量补全」面板里（那是旧交互，玩家根本不知道自己掉格式了）。 */
+      /* ★ 2026-11-21：没标签 → 照常展开对话框；原文由 setRawText 的兜底铺进来，
+         并挂「没有正文标签，已展示原文，不影响游玩」提示条。格式补全已下架。 */
       try {
         DialogueReader.isOpen = true;
-        showDialogueBrokenNote();
         DialogueReader.render();
       } catch (eNote) {}
     } catch (e) {}
@@ -29296,15 +28959,35 @@ var MvuSelfHealing = (function() {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     } catch (eVEH) {}
   }
-  /* 「这一楼有没有正文」的唯一判据（回空提示与变量提示共用它，不许各写一份） */
+  /* 「这一楼有没有正文」的唯一判据（回空提示与变量提示共用它，不许各写一份）
+     ══ ★ 2026-11-21 重写：修「明明有 <content> 却弹回空了」 ══════════════
+     旧实现先调 stripThinkForVar / stripAllVariableBlocks，而这两个函数对
+     **未闭合的 <thinking> / <UpdateVariable> / <Analysis>** 是「从这里一路砍到
+     结尾」的；模型只要把其中任意一个闭标签写漏（或标签名不配对），
+     <content> 及其后面整段正文就会被一起吃掉 ⇒ 判成回空、弹「无法破甲」。
+     玩家原话：「明明有content，根本没回空。」
+
+     现在只认**真的一个字都没有**：
+       ① 解析器能读出正文（含已闭合的 <content> 等） ⇒ 绝不判空；
+       ② 只剥**成对闭合**的思维链 / 变量块，未闭合的开标签一律不砍内容；
+       ③ 剥完标签还剩任何可见字 ⇒ 不空。
+     ⚠ 空 <content></content> 仍然算空 —— 那确实没有可读的正文。 */
   function lcsProseEmpty(raw) {
     var s = String(raw == null ? '' : raw);
-    if (!s) return true;
-    try { s = stripThinkForVar(s); } catch (e0) {}
-    try { s = stripAllVariableBlocks(s); } catch (e1) {}
-    s = s.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ')
+    if (!s.trim()) return true;
+    /* ① 解析器/投影能读出正文 ⇒ 不是回空（content 已闭合时这一条直接放行） */
+    try { if (parseContentWithLayer(s).text) return false; } catch (eP) {}
+    try { if (typeof renderedProseFromDom === 'function' && renderedProseFromDom()) return false; } catch (eD) {}
+    /* ② 只剥成对闭合块；未闭合的开标签**不许**砍到结尾 */
+    var t = s.replace(/<!--[\s\S]*?-->/g, '');
+    t = t.replace(/<\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\b[^>]*>[\s\S]*?<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi, '');
+    t = t.replace(/<UpdateVariable\b[^>]*>[\s\S]*?<\/UpdateVariable\s*>/gi, '');
+    t = t.replace(/<(?:JSONPatch|json_?patch)\b[^>]*>[\s\S]*?<\/(?:JSONPatch|json_?patch)\s*>/gi, '');
+    t = t.replace(/<Analysis\b[^>]*>[\s\S]*?<\/Analysis\s*>/gi, '');
+    /* ③ 剥掉所有标签后还剩任何可见字 ⇒ 不空 */
+    t = t.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ')
          .replace(/[\s\u3000\u00a0\u200b\ufeff]/g, '');
-    return s.length === 0;
+    return t.length === 0;
   }
 
   function hideVarBanner() {
@@ -29482,9 +29165,6 @@ var MvuSelfHealing = (function() {
     /* ★ v94~v97：切聊天时清掉去重键、待确认状态与红标，免得换聊天后同楼层号漏查 */
     resetChat: function() { _sniffedKey = ''; _pendingKey = ''; _pendingAt = 0; _hasIssue = false; _lcsArmed = false; _pollAt = 0; hideVarBanner(); try { hideEmptyBanner(); } catch (eRE) {} },
     markInterrupted: function() { lcsMarkInterrupted(); },
-    /* ★ v115：格式补全独立面板（顶栏「📐 格式补全」按钮走这里） */
-    openFormatPanel: function(shell) { return openFormatPanel(shell); },
-    closeFormatPanel: function() { return closeFormatPanel(); },
     openManualPanel: function(shell) {
       var targetIdx = getLatestAIMessageIndex();
       /* ★ v140：只有开场白时不判定变量格式（开场白不是 AI 楼层） */

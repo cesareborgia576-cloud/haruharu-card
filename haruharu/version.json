@@ -1,9 +1,9 @@
 {
   "version": "v1.55（第 173 次修复更新 · 开发者通道）",
-  "seq": 900045,
+  "seq": 900046,
   "fixNo": 173,
   "label": "v1.55（第 173 次修复更新 · 开发者通道）",
-  "stableRef": "995c1b1a81bb1a84db4e6067b3c928bb32143701",
+  "stableRef": "",
   "updated": "2026-11-21T10:50:02.210Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
@@ -17,8 +17,7 @@
       "10-core.js",
       "11-fullscreen.js",
       "12-arc.js",
-      "13-gal.js",
-      "14-format.js"
+      "13-gal.js"
     ],
     "text": [
       "20-heal.js",

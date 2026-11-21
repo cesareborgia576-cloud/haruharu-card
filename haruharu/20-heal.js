@@ -2282,15 +2282,31 @@ var MvuSelfHealing = (function() {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     } catch (eVEH) {}
   }
-  /* 「这一楼有没有正文」的唯一判据（与 10-core 的 lcsProseEmpty 逐条一致） */
+  /* 「这一楼有没有正文」的唯一判据（与 10-core 的 lcsProseEmpty 逐条一致）
+     ══ ★ 2026-11-21 重写：修「明明有 <content> 却弹回空了」 ══════════════
+     旧实现用 stripThinkForVar / stripAllVariableBlocks，这两个函数对未闭合的
+     <thinking> / <UpdateVariable> / <Analysis> 会一路砍到结尾 ⇒ 正文被一起吃掉。
+     现在只认真的一个字都没有：只剥成对闭合块，未闭合的开标签不砍内容。 */
   function lcsProseEmpty(raw) {
-    var s = String(raw == null ? '' : raw);
-    if (!s) return true;
-    try { s = stripThinkForVar(s); } catch (e0) {}
-    try { s = stripAllVariableBlocks(s); } catch (e1) {}
-    s = s.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ')
-         .replace(/[\s\u3000\u00a0\u200b\ufeff]/g, '');
-    return s.length === 0;
+    var s = String(raw == null ? "" : raw);
+    if (!s.trim()) return true;
+    /* ① 主核心若暴露了解析器就直接用（同页加载时能拿到） */
+    try {
+      if (typeof parseContentWithLayer === "function" && parseContentWithLayer(s).text) return false;
+    } catch (eP) {}
+    try {
+      if (typeof renderedProseFromDom === "function" && renderedProseFromDom()) return false;
+    } catch (eD) {}
+    /* ② 只剥成对闭合块；未闭合的开标签不许砍到结尾 */
+    var t = s.replace(/<!--[\s\S]*?-->/g, "");
+    t = t.replace(/<\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\b[^>]*>[\s\S]*?<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi, "");
+    t = t.replace(/<UpdateVariable\b[^>]*>[\s\S]*?<\/UpdateVariable\s*>/gi, "");
+    t = t.replace(/<(?:JSONPatch|json_?patch)\b[^>]*>[\s\S]*?<\/(?:JSONPatch|json_?patch)\s*>/gi, "");
+    t = t.replace(/<Analysis\b[^>]*>[\s\S]*?<\/Analysis\s*>/gi, "");
+    /* ③ 剥掉所有标签后还剩任何可见字 ⇒ 不空 */
+    t = t.replace(/<[^>]*>/g, "").replace(/&nbsp;/gi, " ")
+         .replace(/[\s\u3000\u00a0\u200b\ufeff]/g, "");
+    return t.length === 0;
   }
 
   function hideVarBanner() {
