@@ -12978,7 +12978,8 @@ function buildShellDOM() {
         /* ★ v153：标题页固定用神社篇最漂亮那张（神龛佛堂外·前庭正殿）。
            以前这张会被 seasonSceneUrl('开场白') 覆盖成村里四季图，
            于是「开局图放错了」。现在写死神社，并且 thUpdateSeasonHud 不再动它。 */
-        '<img class="th-gal-title-bg-img" src="https://a.imgckr.com/2026/10/10/XwSMu.jpg" alt="神龛佛堂外·神社前庭" data-title-bg="shrine" />' +
+        /* ★ 2026-11-22 热更验证：标题图换乡村篇（作者要求测试热更真的会改；验证完可改回 shrine） */
+        '<img class="th-gal-title-bg-img" src="https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022588.jpg" alt="夏越村·乡村小路" data-title-bg="village" />' +
         '<div class="th-gal-title-mask"></div>' +
         '<div class="th-gal-title-inner">' +
           '<div class="th-gal-title-logo-wrap">' +
@@ -14993,9 +14994,11 @@ function thImgReloadAll(silent) {
     if (tbg) {
       var tu = '';
       try {
-        tu = tbg.getAttribute('data-title-bg') === 'shrine'
-          ? 'https://a.imgckr.com/2026/10/10/XwSMu.jpg'
-          : (seasonSceneUrl('开场白') || 'https://a.imgckr.com/2026/10/10/XwSMu.jpg');
+        tu = tbg.getAttribute('data-title-bg') === 'village'
+          ? 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022588.jpg'
+          : (tbg.getAttribute('data-title-bg') === 'shrine'
+            ? 'https://a.imgckr.com/2026/10/10/XwSMu.jpg'
+            : (seasonSceneUrl('开场白') || 'https://a.imgckr.com/2026/10/10/XwSMu.jpg'));
       } catch (eT) {}
       if (tu) { tbg.__thImgUrl = ''; thImgBind(tbg, tu, { silent: true, fresh: true }); }
     }
@@ -15698,9 +15701,11 @@ function thUpdateSeasonHud() {
        不再跟着季节图变 —— 否则玩家每换一季，开局画面就变成村里的图。 */
     var tbg = doc.querySelector('.th-gal-title-bg-img');
     if (tbg) {
-      var want = tbg.getAttribute('data-title-bg') === 'shrine'
-        ? 'https://a.imgckr.com/2026/10/10/XwSMu.jpg'
-        : (seasonSceneUrl('开场白') || 'https://a.imgckr.com/2026/10/10/XwSMu.jpg');
+      var want = tbg.getAttribute('data-title-bg') === 'village'
+        ? 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022588.jpg'
+        : (tbg.getAttribute('data-title-bg') === 'shrine'
+          ? 'https://a.imgckr.com/2026/10/10/XwSMu.jpg'
+          : (seasonSceneUrl('开场白') || 'https://a.imgckr.com/2026/10/10/XwSMu.jpg'));
       if (tbg.getAttribute('src') !== want) tbg.setAttribute('src', want);
     }
   } catch (e) {}
