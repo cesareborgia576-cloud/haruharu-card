@@ -25044,6 +25044,7 @@ function thBuildHudPanel(shell) {
     }
     /* 打开版本页立刻嗅一次，不等 20 秒那一拍 */
     try { __thLiveVerTick(true); } catch (eTick0) {}
+  try { thLocalTagProbe(); } catch (eLp0) {}
     /* ★ v167：打开版本页顺便读一次世界书版本号。
        ★ 2026-11-18：这里原来是 false（走缓存）—— 缓存空着时界面就一直是
          「世界书 未知」，而作者看到的四项「未知 / 未取到」里就有它。
@@ -32791,7 +32792,8 @@ function thHotBranchRef() {
   try { br = String(window.__SPR_HOT_BRANCH__ || (HOST && HOST.__SPR_HOT_BRANCH__) || ''); } catch (eBr) {}
   if (br === 'dev' || br === 'main') return br;
   var c = '';
-  try { c = String(window.__SPR_HOT_CHAN__ || (HOST && HOST.__SPR_HOT_CHAN__) || ''); } catch (e0) {}
+  try { c = String(window.__SPR_HOT_CHAN__ || (HOST && HOST.__SPR_HOT_CHAN__)
+    || window.__SPR_LOCAL_CHAN__ || (HOST && HOST.__SPR_LOCAL_CHAN__) || ''); } catch (e0) {}
   if (!c) {
     /* loader 没广播通道（旧卡）：从自己脚本地址里认 —— dev 脚本的路径带 -dev
        或 @dev，玩家脚本是 @main。认不出就当玩家通道，最保守。 */
@@ -32877,6 +32879,8 @@ function __thLiveVerState() {
   try { cardSeq = Number(pick(['__SPR_CARD_SEQ__', '__SPR_CARD_SEQ']) || 0) || 0; } catch (e1b) {}
   try { runVer = String(pick(['__SPR_HOT_VER__', '__SPR_RUN_VER__', '__SPR_HOT_LABEL__']) || ''); } catch (e2) {}
   try { runSeq = Number(pick(['__SPR_SEQ__', '__SPR_SEQ', '__SPR_RUN_SEQ__']) || 0) || 0; } catch (e3) {}
+  /* ★ 本地卡没有 loader：用出卡时注入的构建序号当「运行中」，线上比较才有意义 */
+  try { if (!runSeq) runSeq = Number(pick(['__SPR_LOCAL_CARD_SEQ__']) || 0) || 0; } catch (e3L) {}
   try { runSeqSrc = String(pick(['__SPR_RUN_SEQ_SRC__', '__SPR_RUN_SEQ_SRC']) || ''); } catch (e3b) {}
   try { ossVer = String(pick(['__CQ_OSS_VER__', '__SPR_LIVE_VER__']) || ''); } catch (e4) {}
   try { ossSeq = Number(pick(['__CQ_OSS_SEQ__', '__SPR_LIVE_SEQ__']) || 0) || 0; } catch (e5) {}
@@ -33789,6 +33793,76 @@ function thWbDoSync(btn) {
   });
 }
 
+/* ══ ★ 2026-11-22：本地模式卡的「线上」探测 ═══════════════════════════════
+   本地卡没有 loader，没人广播线上；作者要求「开发者版本的卡也要有线上显示」。
+   同步时在 10-core 前面注入了 __SPR_LOCAL_CHAN__ / __SPR_LOCAL_CARD_SEQ__。
+   这里按 tag 直探（新 tag = 新 URL，不吃缓存）：
+     dev 卡 → dev-<seq+1>…；玩家卡 → 由 EXPECT_VER 往上探 vX.Y。
+   只影响「线上」显示与「有新更新」提示，绝不改本地已内联的脚本。 */
+var _localProbeAt = 0;
+function thLocalTagProbe() {
+  try {
+    var chan = ''; try { chan = String(window.__SPR_LOCAL_CHAN__ || (HOST && HOST.__SPR_LOCAL_CHAN__) || ''); } catch (e0) {}
+    var base = 0; try { base = Number(window.__SPR_LOCAL_CARD_SEQ__ || (HOST && HOST.__SPR_LOCAL_CARD_SEQ__) || 0) || 0; } catch (e1) {}
+    if (!chan) return;
+    var now = Date.now();
+    if (now - _localProbeAt < 60000) return;
+    _localProbeAt = now;
+    var cands = [], i;
+    if (chan === 'dev') {
+      if (!base) return;
+      for (i = 1; i <= 12; i++) cands.push('dev-' + (base + i));
+    } else {
+      var mv = /v(\d+)\.(\d+)/.exec(String(thWbWantLabel() || ''));
+      if (!mv) return;
+      for (i = 1; i <= 12; i++) cands.push('v' + mv[1] + '.' + (Number(mv[2]) + i));
+    }
+    var best = '', left = cands.length, fired = false;
+    function pick(tag) {
+      if (!best) { best = tag; return; }
+      if (/^dev-/.test(best)) {
+        if (/^dev-/.test(tag) && Number(tag.slice(4)) > Number(best.slice(4))) best = tag;
+      } else if (__thLiveVerCmp(tag, best) > 0) { best = tag; }
+    }
+    function fin() {
+      if (fired) return; fired = true;
+      if (!best) {
+        /* 没有更新的 tag ⇒ 线上就是这张卡自己；这样本地卡不会显示空 */
+        try {
+          if (base) { window.__SPR_LIVE_SEQ__ = base; if (window.top && window.top !== window) window.top.__SPR_LIVE_SEQ__ = base; }
+          var _wl = String(thWbWantLabel() || '');
+          if (_wl) { window.__SPR_LIVE_LABEL__ = _wl; if (window.top && window.top !== window) window.top.__SPR_LIVE_LABEL__ = _wl; }
+        } catch (eF1) {}
+        try { __thVlogRedraw(); } catch (eF0) {}
+        return;
+      }
+      fetch('https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@' + best
+        + '/haruharu/ver.js?lprobe=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.text() : ''; })
+        .then(function (t) {
+          var sq = Number((/__CQ_OSS_SEQ__=(\d+)/.exec(t) || [])[1] || 0) || 0;
+          var ml = t.match(/__CQ_OSS_LABEL__=("(?:[^"\\]|\\.)*")/);
+          var mvv = t.match(/__CQ_OSS_VER__=("(?:[^"\\]|\\.)*")/);
+          try { if (sq) { window.__SPR_LIVE_SEQ__ = sq; if (window.top && window.top !== window) window.top.__SPR_LIVE_SEQ__ = sq; } } catch (e2) {}
+          try { if (ml) { var lb = JSON.parse(ml[1]); window.__SPR_LIVE_LABEL__ = lb; if (window.top && window.top !== window) window.top.__SPR_LIVE_LABEL__ = lb; } } catch (e3) {}
+          try { if (mvv) { var vv = JSON.parse(mvv[1]); window.__SPR_LIVE_VER__ = vv; if (window.top && window.top !== window) window.top.__SPR_LIVE_VER__ = vv; } } catch (e4) {}
+          try { __thVlogRedraw(); } catch (e5) {}
+        })
+        .catch(function () { try { __thVlogRedraw(); } catch (e6) {} });
+    }
+    setTimeout(fin, 2500);
+    for (i = 0; i < cands.length; i++) (function (tag) {
+      try {
+        fetch('https://fastly.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@' + tag
+          + '/haruharu/ver.js?lprobe=' + Date.now(), { cache: 'no-store' })
+          .then(function (r) { if (r.ok) pick(tag); })
+          .catch(function () {})
+          .then(function () { if (--left <= 0) fin(); });
+      } catch (eX) { if (--left <= 0) fin(); }
+    })(cands[i]);
+  } catch (eP) {}
+}
+
 function __thVerInfoHtml() {
   var _vs = __thLiveVerState();
   function esc(s) {
@@ -33841,8 +33915,15 @@ function __thVerInfoHtml() {
     /* ★ 2026-11-18 21:1x：内嵌版没有 loader，没人广播 __SPR_CARD_VER ⇒ 卡版本永远「未知」。
        但期望号（__TH_WB_EXPECT_VER__）就是这张卡打出来时的版本号 —— 直接拿它当卡版本。 */
     var _cvLocal = String(_vs.card || '') || String(thWbWantLabel() || '');
+    var _onLocal = _vs.ossLabel ? _shortVer(_vs.ossLabel)
+      : (_vs.ossVer ? _shortVer(_vs.ossVer) : '（检查中…）');
+    var _cmpLocal = _vs.newer
+      ? '<span style="color:#fca5a5;font-weight:700;">↑ 有新版本（需重新导入卡）</span>'
+      : '<span style="color:#86efac;">已是最新</span>';
     return '卡版本 <b style="color:#c9bfae;">' + esc(_shortVer(_cvLocal) || '（未知）') + '</b>'
-      + '<span style="opacity:.65;">（内嵌版 · 同步以卡内包为准，无线上）</span>'
+      + ' · 运行中 <b style="color:#c9bfae;">' + esc(_shortVer(_cvLocal) || '（未知）') + '</b>'
+      + '<br>线上 <b style="color:' + (_vs.newer ? '#f0a95c' : '#86efac') + ';">' + esc(_onLocal) + '</b> ' + _cmpLocal
+      + '<span style="opacity:.65;">（内嵌版）</span>'
       + thWbVerLine()
       + thWbSyncDiagLine()
       + thVarDriveLine()
@@ -34577,6 +34658,7 @@ try {
 } catch (eBoot) {}
 
 try { setTimeout(__thLiveVerTick, 4000); } catch (eLv) {}
+try { setTimeout(thLocalTagProbe, 6000); } catch (eLp1) {}
 
 /* ============================================================
    ★★ 关系网预览（2026-11-16）
