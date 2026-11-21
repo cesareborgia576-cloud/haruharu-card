@@ -1,9 +1,9 @@
 {
-  "version": "v1.56（第 5 次更新 · dev）",
-  "seq": 900062,
-  "fixNo": 5,
-  "label": "v1.56（第 5 次更新 · dev）",
-  "stableRef": "c53f0c543fcb1a55e300be922340472d6ee464c2",
+  "version": "v1.57（第 1 次更新 · dev）",
+  "seq": 900063,
+  "fixNo": 1,
+  "label": "v1.57（第 1 次更新 · dev）",
+  "stableRef": "",
   "updated": "2026-11-21T10:50:02.210Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
@@ -27,6 +27,6 @@
       "24-statusbar.js"
     ]
   },
-  "verBase": "v1.56",
-  "lastPushedFixNo": 4
+  "verBase": "v1.57",
+  "lastPushedFixNo": 0
 }
