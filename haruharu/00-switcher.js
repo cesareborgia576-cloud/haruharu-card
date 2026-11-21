@@ -2467,6 +2467,8 @@
   function wbEntryProtected(wbName, nm, curContent) {
     try {
       if (!nm) return false;
+      /* ★ 2026-11-22：版本号是系统条目，永远不许被玩家保护挡住（否则书会停在旧标签） */
+      if (nm === WB_VER_ENTRY) return false;
       var lg = wbLedgerLoad();
       if (!lg || lg.wb !== wbName) return false;
       var rec = lg.hash ? lg.hash[nm] : null;
@@ -3383,6 +3385,8 @@
         if (!n) return;
         var want = String(x.content == null ? '' : x.content);
         if (!Object.prototype.hasOwnProperty.call(have, n)) { out.missing++; return; }
+        /* 版本号是系统条目：永远按包更新，不参与玩家保护 */
+        if (n === WB_VER_ENTRY) { if (have[n] !== want) out.diff++; return; }
         /* ★ 玩家修改保护：书里这条和账本对不上 = 玩家改过 ⇒ 不算差异，也不许写 */
         if (_lgOk && _lg0.hash[n] != null && wbHash(have[n]) !== _lg0.hash[n]) {
           out.protected = (out.protected || 0) + 1;
