@@ -2634,4 +2634,21 @@ try { window.__openMvuPanel = function() { MvuSelfHealing.openManualPanel(); }; 
       }
     } catch (eDoc) {}
   });
+
+  /* ★ 2026-11-21 热更链路测试标记（仅 dev 通道；测完删除） */
+  try {
+    setTimeout(function () {
+      try {
+        var T = window.top || window;
+        if (String(T.__SPR_HOT_CHAN__ || "") !== "dev") return;
+        var seq = T.__SPR_SEQ__ || T.__CQ_OSS_SEQ__ || "?";
+        var msg = "🔧 热更测试标记 · dev 脚本已更新 · seq " + seq;
+        var tt = T.toastr || window.toastr;
+        if (tt && tt.info) { tt.info(msg, "热更测试", { timeOut: 9000 }); return; }
+        if (tt && tt.success) { tt.success(msg, "热更测试", { timeOut: 9000 }); return; }
+        try { if (typeof showToast === "function") showToast(msg, 9000); } catch (eS) {}
+        try { console.info("[热更测试] " + msg); } catch (eC) {}
+      } catch (e2) {}
+    }, 3200);
+  } catch (e1) {}
 })();
