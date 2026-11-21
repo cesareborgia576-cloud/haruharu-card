@@ -3673,6 +3673,15 @@
       try { live = Number(HW.__SPR_LIVE_SEQ__ || 0) || 0; } catch (e2) {}
       try { run = Number(HW.__SPR_SEQ__ || 0) || 0; } catch (e3) {}
       try { label = String(HW.__SPR_LIVE_LABEL__ || HW.__SPR_LIVE_VER__ || ''); } catch (e4) {}
+      /* loader 内嵌的旧提示条（卡里改不掉）已经显示时，这条让路，避免出现两个 */
+      try {
+        var _lb = d.getElementById('spr-newver-bar');
+        if (_lb && _lb.parentNode) {
+          var _me = d.getElementById(NVB_ID);
+          if (_me && _me.parentNode) _me.parentNode.removeChild(_me);
+          return;
+        }
+      } catch (eL) {}
       var el = d.getElementById(NVB_ID);
       var newer = (live > 0 && run > 0 && live > run);
       if (!newer) {
@@ -3698,6 +3707,7 @@
         (d.body || d.documentElement).appendChild(el);
       }
       var sv = String(label || '');
+      try { if (!/v\d+\.\d+/.test(sv)) sv = String(HW.__SPR_LIVE_VER__ || '') + ' ' + sv; } catch (eV) {}
       var mv = /v(\d+)\.(\d+)/.exec(sv);
       var mn = /第\s*(\d+)\s*次/.exec(sv);
       var txt = '📦 新版本';
