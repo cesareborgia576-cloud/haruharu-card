@@ -12,7 +12,10 @@
 
   /* ────────────── 默认设置 ────────────── */
   var DEFAULTS = {
-    enabled: true,            /* 总开关 */
+    /* ★ 2026-11-18 19:5x 作者命令：「后台推演改为默认关」。
+       以前默认开 —— 新玩家一进游戏就在后台拿真 API 花钱推演（还容易 402 报错）。
+       现在默认关，要玩的人在面板上自己勾「启用」。 */
+    enabled: false,           /* 总开关（默认关） */
     injectOn: true,           /* ★ v1.8：把结果注入给正文 AI（只注入，不提取） */
     memoryToast: false,       /* ★ v1.23：收录重要记忆时要不要弹提示（默认关，免得挡画面） */
     memMax: 5,                /* ★ 重要记忆保留条数：默认 5 条，可在面板调整 */
@@ -200,6 +203,18 @@
     }
     /* ★ v1.3：老设置里那个 900 会把输出截断（看起来就像「模型没吐闭合标签」），自动抬到 2000 */
     if (!(Number(out.maxTokens) >= 1200)) { out.maxTokens = DEFAULTS.maxTokens; saveSettingsSoon(out); }
+    /* ★ 2026-11-20：作者「开发者模式默认关上、不开启」。
+       老设置里可能还留着 true（之前点开过就一直开），这里**一次性**压回 false；
+       用独立的 localStorage 键记「已经压过」，之后玩家自己想开就尊重他的选择。
+       ⚠ 不能把这个标记塞进 settings 里 —— 上面那个拷贝循环只认 DEFAULTS 的键，
+         标记会被丢掉，于是每次进游戏都会再把开发者模式关一次。 */
+    try {
+      if (store('thGalDeduceDevOff') !== 'v146') {
+        out.devMode = false;
+        store('thGalDeduceDevOff', 'v146');
+        saveSettingsSoon(out);
+      }
+    } catch (eDv) {}
     S.settings = out;
     return out;
   }
@@ -282,14 +297,28 @@
     return merged || {};
   }
   /* ★ v1.24：同一宅邸（不同房间也算）或同一个户外地名 = 同一场；缺信息时保守算同一场。 */
+  /* ★★ 2026-11-20：推演侧的「同一地点」以前要求**逐字相等**（户外地名）。
+     于是变量里写「乡村公园」、主角写「公寓对面公园」时，**实际在场的人被判成「已经走了」**，
+     被塞进推演名单 ⇒ 推演去写他的行踪 ⇒ 与变量打架。现在和游戏版同一套四道判据。 */
+  function normPlace(x) {
+    return String(x == null ? '' : x)
+      .replace(/[\u00b7\u30fb\u2022\u2027\uFF65]/g, '-')
+      .replace(/[\uFF0D\u2010-\u2015\u2212]/g, '-')
+      .replace(/\s+/g, '')
+      .trim();
+  }
   function sameScene(a, b) {
     var x = String(a || '').trim();
     var y = String(b || '').trim();
     if (!x || !y) return true;
     if (x === y) return true;
-    var hx = x.split('·')[0];
-    var hy = y.split('·')[0];
+    var nx = normPlace(x), ny = normPlace(y);
+    if (nx === ny) return true;
+    var hx = x.split(/[·・]/)[0];
+    var hy = y.split(/[·・]/)[0];
     if (x.indexOf('·') > 0 && y.indexOf('·') > 0 && hx === hy) return true;
+    if (nx.length >= 2 && ny.indexOf(nx) >= 0) return true;
+    if (ny.length >= 2 && nx.indexOf(ny) >= 0) return true;
     return false;
   }
   function presentList(sd) {
@@ -300,7 +329,9 @@
       Object.keys(table).forEach(function (name) {
         var row = table[name] || {};
         out.rows[name] = row;
-        var flag = row.在场状态 === true || String(row.在场状态).toLowerCase() === 'true';
+        var _fv = row.在场状态;
+        var flag = (_fv === true || _fv === 1) ||
+          (typeof _fv === 'string' && /^(true|1|yes|on|是|在场)$/i.test(_fv.trim()));
         if (flag) { if (out.on.indexOf(name) < 0) out.on.push(name); }
         else if (out.off.indexOf(name) < 0) out.off.push(name);
       });
@@ -376,6 +407,23 @@
   function loadMemory() {
     try {
       var raw = store(memoryKey());
+      /* ★ 2026-11-20：键里带了 @篇章 —— 篇章一变（或旧存档写的是无后缀键）就读不到。
+         这里补一次「同一个存档、任何篇章后缀」的回溯：找到就当本篇章的读，
+         并且顺手写回当前键（下次就命中）。不跨存档 —— 前缀必须是同一个 chatId。 */
+      if (!raw) {
+        try {
+          var pre = 'thGalMemory::' + chatId();
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (!k || k.indexOf(pre) !== 0 || k === memoryKey()) continue;
+            var v = localStorage.getItem(k);
+            if (!v) continue;
+            raw = v;
+            try { store(memoryKey(), v); } catch (eW) {}
+            break;
+          }
+        } catch (eScan) {}
+      }
       var arr = raw ? JSON.parse(raw) : [];
       return Array.isArray(arr) ? arr : [];
     } catch (e) { return []; }
@@ -416,6 +464,17 @@
      以前读的地方在 latestDeduction()、写的地方在 publish()，两处各拼一遍
      KEY_LAST + chatId()；加篇章维度时只要漏一处，写进去的读不出来（面板永远空着）。 */
   function lastKey() { return KEY_LAST + chatId() + arcSuffix(); }
+  /* ★ 2026-11-20：对外暴露键构造器 —— 10-core 要读同一份推演记录，
+     以前它自己拼 `'thGalDeduction::' + chatId`（**少了 @篇章**）⇒ 永远读不到。一份实现，两处引用。 */
+  try {
+    window.__thDeduceKeys = {
+      last: lastKey,
+      memory: memoryKey,
+      memorySeen: memorySeenKey,
+      chatId: chatId,
+      arcSuffix: arcSuffix
+    };
+  } catch (eK) {}
   /* 把一段文本里的 <重要记忆> 抽出来（一条一行），并返回去掉该标签的剩余文本 */
   function splitMemoryTag(text) {
     var raw = String(text || '');
@@ -451,6 +510,18 @@
       S.memoryFloor = { index: i, total: chat.length };   /* ★ v1.15：这一批记忆是从第几楼读的 */
       /* ★ v1.23：一轮只收一条，多的行一律不要；每条截到 50 字 */
       var oneItem = got.items.length ? String(got.items[0]).trim() : '';
+      /* ★ 2026-11-20：重要记忆**带时间**。以前只存一句话，回头看根本不知道是哪天说的。
+         格式：[7月30日 14:20] 内容 —— 取不到时间就不加前缀，不造假。 */
+      try {
+        var _sd0 = arcFilterState(readState()) || {};
+        var _tm = _sd0['时间'] || {};
+        var _day = String(_tm['第几天'] == null ? '' : _tm['第几天']).trim();
+        var _clk = String(_tm['精确时间'] || '').trim();
+        if (oneItem && (_day || _clk)) {
+          var _stamp = '[' + (_day ? (_day + '天') : '') + (_day && _clk ? ' ' : '') + _clk + '] ';
+          oneItem = _stamp + oneItem;
+        }
+      } catch (eStamp) {}
       if (oneItem.length > MEMORY_MAXLEN) oneItem = oneItem.slice(0, MEMORY_MAXLEN);
       if (oneItem) {
         var key = normKey(oneItem);
@@ -627,14 +698,14 @@
         aptLine = '神谷奈绪（203）、桃崎千鹤（303）、白坂结奈（201）、水野千晴（305）、藤宫紫苑（407）。';
       }
       /* ★ 只认「五位女主」这张名单，苦主表不进正文：
-         世界书《游戏模式》规定纯爱模式下苦主整体不存在，
+         苦主一律以变量 `苦主列表` 为准（模式概念已取消），
          而苦主表里可能还留着上个存档的残留（v165 补人只在牛头模式补，但老存档不一定）。
          所以这里只报女主，苦主一律交给《苦主阶段》与变量自己说话。 */
       lines.push('【当前篇章：公寓】{{user}} 是租住在 301 的普通上班族（社畜），**不是管理员**；管理员是位女性，住户叫她「管理员小姐」。'
         + aptLine
         + ' 不得再写浅间茉由、松本美咲，也不要凭空造出别的住户。**本篇章不许出现任何乡村地点与乡村人物**（没有小卖铺、没有春日家、没有乡村小路、没有村民），也不许出现神社与巫女。'
         + '所有人都是**双线同态**：好感度与恶堕值表现一致，只看较高的那一档（< 30 初识、30-60 心动、≥ 60 恋人）。'
-        + '**有没有苦主只看《游戏模式》**：纯爱模式下上面这些人全部单身，不许给谁安丈夫 / 男友。');
+        + '**有没有苦主只看变量 `苦主列表`**：以变量为准，不许给谁凭空安丈夫 / 男友。');
     } else {
       lines.push('【关系网】{{user}} 寄住在春日大平家，久美子是他的远房表姨；大平×久美子的女儿是静奈、葵；和也×椿芽的儿子是左寻；诚×百花（西村家）的儿子是太郎；宏×美穗的儿子是大田；香本家是小卖铺后面，千玲带弟弟悠。其他村民彼此都认识，不熟也不生。{{user}} 与女角色的关系先看她的好感度：不到 30 是客气（这时才看恶堕值：30-60 为难着照做、60-100 照做但躲你），30-60 她心甘情愿会自己找机会，60-100 她比你主动。');
     }
@@ -651,8 +722,8 @@
      v165：扩到 5 位女主，不再写「只有两位」。
      ★ 注意：这里**不写**苦主与女主的亲属关系 —— 世界书《人物总览》只定义了
      结奈的男友是智本大和，其余几位女住户的男伴关系**没有设定**，
-     纯爱模式更是「一律单身、无配偶」。苦主一律由变量里的 `苦主列表` 说话，
-     关系网这段不许自己编身份（编了会跟《游戏模式》打架）。 */
+     苦主一律由变量里的 `苦主列表` 说话，
+     关系网这段不许自己编身份（编了会跟变量打架）。 */
   var RELATION_FALLBACK_APARTMENT = ["## 公寓篇的人际关系（照这个写，别写成村里那一套）",
     "- {{user}} 是租住在 301 的普通上班族（社畜），每天早出晚归、经常加班，刚搬来没多久，**不是管理员**。",
     "- 公寓的管理员是一位四十来岁的女性（住户叫她「管理员小姐」），收租修东西都是她的事，不爱闲聊。",
@@ -663,7 +734,7 @@
     "- 千晴：住 305，温柔安静的持家型大姐姐，白天在家，声音轻、手很稳，习惯性多煮一份饭。",
     "- 紫苑：住 407，在家调香的调香师，寡言、眼睛厉害，看人像在试香。",
     "- 五位彼此只是邻居，来往不多；公寓篇没有亲戚、没有乡里乡亲。",
-    "- **有没有男伴、有没有苦主，只看《游戏模式》与本局变量里的 `苦主列表`**：纯爱模式下所有人都单身；这段不替谁安排关系。",
+    "- **有没有男伴、有没有苦主，只看本局变量里的 `苦主列表`**；这段不替谁安排关系。",
     "- 写她们对 {{user}} 的态度，只看她自己的好感度与恶堕值（双线同态，取较高那一档）：< 30 客气有分寸，30-60 开始找机会靠近，≥ 60 主动且直白。"].join('\n');
   /* ★ v98：神社篇人际关系（封闭秘境，三人之间是同事/姐妹，对外来者好奇） */
   var RELATION_FALLBACK_SHRINE = ["## 神社篇的人际关系（照这个写，别写成村里或公寓那一套）","- {{user}} 是误闯这里并顺着鸟居一路走进来的外来者，**发现自己出不去了**，一开始以为自己在做梦。","- 三位巫女（神代凛音、月读澪、斋宫若叶）一起住在这座神社里，彼此熟得很，谁也说不上是谁的下属与上级。","- 三人都没有丈夫、没有未婚夫、没有要瞒着的人，也没人跟外界有来往。","- 她们对一个留在神社里的男人并不排斥，也不害怕，只是好奇；除了{{user}}，这个篇章里没有任何别的人会推门进来。","- 写她们对 {{user}} 的态度，只看她自己的好感度与恶堕值（双线同态，取较高那一档）：< 30 客气而疏远，30-60 开始找理由靠近，≥ 60 不再掩饰。"].join('\n');
@@ -2948,13 +3019,77 @@
     } catch (e) {}
   }
   function renderPanel() {
+    /* ★ 2026-11-18：**每次渲染都补一次样式**。
+       以前只在 boot 里 injectStyle() 一次，而 boot 那一刻状态栏 iframe 可能还没建好，
+       doc() 就落到别的 document 上，样式注进去了、面板却长在另一份文档里
+       ⇒ 推演页整页裸 HTML（作者截图里就是那样）。injectStyle 自己按 id 幂等，
+       多调几次没有任何副作用。 */
+    try { injectStyle(); } catch (eSty) {}
     if (!S.settings) loadSettings();
     var p = S.panel || (doc() && doc().getElementById('th-deduce-panel'));
     if (!p || p.hidden) return;
     var st2 = S.settings;
     var hitLabel = S.lastParsed ? (S.lastParsed.path || '命中') + (S.lastParsed.soft ? ' ⚠' : ' ✅') + (S.lastParsed.attempts > 1 ? '（第 ' + S.lastParsed.attempts + ' 次）' : '') : '还没推演过';
+
+    /* ══ ★ 2026-11-20：作者定下的面板顺序 ══════════════════════════════
+       ① 有什么用
+       ② 第一步-填api
+       ③ 第二步-勾选启用与选择推进时机
+       ④ 重要记忆（满了从最远的开始删）
+       ⑤ 开发者模式（默认关）
+       每个 <h4> 会被 beautifyDeducePanel 裹成一张金线卡片 ⇒ 标题就是那行金字。
+       ⚠ 多行拼接绝对不要写成 `var html = '';`（带分号会让后面全变成独立表达式，
+         整块面板直接空白 —— 踩过一次）。 */
     var html = '';
-    html += '<h4>🎲 后台推演外置 AI</h4>';
+
+    /* ── ① 有什么用 ─────────────────────────────────────────────── */
+    html += '<h4>有什么用</h4>';
+    html += '<div class="stat">可以让不在场的人物动起来，不会卡死在原地，从而增强鲜活性。</div>';
+
+    /* ── ② 第一步-填api ─────────────────────────────────────────── */
+    html += '<h4>第一步-填api</h4>';
+    html += '<div class="row"><span class="muted">地址</span><input type="text" id="th-deduce-base" value="' + escapeHtml(st2.base) + '" placeholder="https://…/v1"></div>';
+    html += '<div class="row"><span class="muted">钥匙</span><input type="password" id="th-deduce-key" value="' + escapeHtml(st2.key) + '" placeholder="sk-…"></div>';
+    /* ★ 方案 A：一键用当前酒馆模型（懒得填 API 时勾这个） */
+    html += '<div class="row"><label><input type="checkbox" id="th-deduce-hostmodel"' + (st2.useHostModel ? ' checked' : '') + '> 🔌 用当前酒馆模型推演（不用填 API）</label></div>';
+    if (st2.devMode) {
+      html += '<div class="th-deduce-help">地点表：<b>' + (loadPlaces().length || 0) + ' 个固值</b>（来源：' + escapeHtml(PLACE_SOURCE || '还没读') + '）</div>';
+      html += '<div class="th-deduce-help">会打这个地址：<b>' + escapeHtml(endpoint() || '（还没填地址）') + '</b></div>';
+    }
+    if (S.lastTest) html += '<div class="stat">上次测试：' + escapeHtml(S.lastTest.msg) + '</div>';
+    html += '<div class="row"><button type="button" id="th-deduce-test">🔌 测试接口</button></div>';
+    html += '<div class="row"><span class="muted">模型</span><input type="text" id="th-deduce-model" value="' + escapeHtml(st2.model) + '">' +
+      '<button type="button" id="th-deduce-fetch-models">📥 拉取模型</button></div>';
+    /* ★ v1.28：这里原来还有个「保存」按钮。现在改规则的：改了就一直算数，
+       拉取 / 选模型都自动存，不需要手动保存。 */
+    html += '<div class="th-deduce-help">地址 / 钥匙 / 模型<b>改完就自动存</b>，不用点保存；点「拉取模型」会先把你刚填的收进去再拉。</div>';
+    if ((S.models || []).length) {
+      html += '<div class="row"><button type="button" id="th-deduce-models-toggle">'
+        + (S.modelsOpen ? '▲ 收起模型列表（' + S.models.length + ' 个）' : '▼ 展开模型列表（' + S.models.length + ' 个）') + '</button></div>';
+      if (S.modelsOpen) {
+        html += '<div class="row" style="flex-wrap:wrap;gap:4px">';
+        S.models.slice(0, 80).forEach(function (m) {
+          html += '<button type="button" class="th-deduce-model-pick" data-model="' + escapeHtml(m) + '">' + escapeHtml(m) + '</button>';
+        });
+        html += '</div>';
+      }
+    }
+    html += '<div class="row"><span class="muted">温度</span><input type="number" step="0.05" id="th-deduce-temp" value="' + st2.temperature + '" style="max-width:70px">' +
+      '<span class="muted">上限</span><input type="number" id="th-deduce-max" value="' + st2.maxTokens + '" style="max-width:80px">' +
+      (st2.devMode ? '<span class="muted">记忆楼数</span><input type="number" id="th-deduce-mem" value="' + st2.memory + '" style="max-width:60px">' : '') +
+      '</div>';
+
+    /* ── ③ 第二步-勾选启用与选择推进时机 ───────────────────────── */
+    html += '<h4>第二步-勾选启用与选择推进时机</h4>';
+    html += '<div class="row"><label><input type="checkbox" id="th-deduce-enabled"' + (st2.enabled ? ' checked' : '') + '> 启用</label>' +
+      '<label><input type="checkbox" id="th-deduce-inject"' + (st2.injectOn === false ? '' : ' checked') + '> 注入给正文 AI</label>' +
+      '<label><input type="checkbox" id="th-deduce-blurbs"' + (st2.useBlurbs === false ? '' : ' checked') + '> 带上人物速查</label>' +
+      '<label><input type="checkbox" id="th-deduce-memtoast"' + (st2.memoryToast === false ? '' : ' checked') + '> 收录记忆时提示</label></div>';
+    /* ★ 推演时机：两个按钮互斥（默认：每次推进推一次） */
+    html += '<div class="row" style="gap:6px"><span style="opacity:.8">推演时机：</span>' +
+      '<button type="button" id="th-deduce-tr-adv">▶ 每次推进推一次</button>' +
+      '<button type="button" id="th-deduce-tr-scene">🗺 每次切场景推一次</button></div>';
+    /* ── 状态（勾完就能在这里看到有没有真的在跑） ── */
     html += '<div class="stat">状态：' + escapeHtml(st2.enabled ? (S.statusText || '待机') : '已关闭') + '</div>';
     html += '<div class="stat">模型：' + escapeHtml(st2.model) + (st2.key ? '' : '（还没填钥匙）') + (S.usedStrict ? '　（上一轮走了严格模式）' : '') + '</div>';
     html += '<div class="stat">最多输出：' + escapeHtml(String(st2.maxTokens)) + ' token' + (Number(st2.maxTokens) < 4000 ? '　<b style="color:#e2b857">⚠ 偏小</b>' : '') + '</div>';
@@ -2965,10 +3100,6 @@
     if (S.lastParsed && S.lastParsed.truncated) {
       html += '<div class="stat">⚠ 上一次的输出被截断了' + (S.lastParsed.filled ? '，已经自动补写 ' + S.lastParsed.filled + ' 个人' : '')
         + '。人多的时候把「最多输出」调到 8000 更稳。</div>';
-    }
-    if (st2.devMode && S.lastParsed && S.lastParsed.thinking) {
-      html += '<details><summary>🧠 模型自带的思考（' + S.lastParsed.thinking.length + ' 字）</summary>'
-        + '<div class="out">' + escapeHtml(S.lastParsed.thinking) + '</div></details>';
     }
     html += '<div class="stat">上次：' + (S.lastAt ? new Date(S.lastAt).toLocaleTimeString() : '无')
       + '　耗时 ' + (S.lastMs ? (S.lastMs / 1000).toFixed(1) + 's' : '—')
@@ -2985,20 +3116,37 @@
           + '脚本会优先走那条能透传 thinking 的路。</div>';
       }
     } catch (eTO) {}
-    html += '<div class="row"><label><input type="checkbox" id="th-deduce-enabled"' + (st2.enabled ? ' checked' : '') + '> 启用</label>' +
-      '<label><input type="checkbox" id="th-deduce-inject"' + (st2.injectOn === false ? '' : ' checked') + '> 注入给正文 AI</label>' +
-      '<label><input type="checkbox" id="th-deduce-blurbs"' + (st2.useBlurbs === false ? '' : ' checked') + '> 带上人物速查</label>' +
-      '<label><input type="checkbox" id="th-deduce-memtoast"' + (st2.memoryToast === false ? '' : ' checked') + '> 收录记忆时提示</label></div>';
-    /* ★ 方案 A：一键用当前酒馆模型（懒得填 API 时勾这个） */
-    html += '<div class="row"><label><input type="checkbox" id="th-deduce-hostmodel"' + (st2.useHostModel ? ' checked' : '') + '> 🔌 用当前酒馆模型推演（不用填 API）</label></div>';
-    /* ★ 推演时机：两个按钮互斥（默认：每次推进推一次） */
-    html += '<div class="row" style="gap:6px"><span style="opacity:.8">推演时机：</span>' +
-      '<button type="button" id="th-deduce-tr-adv">▶ 每次推进推一次</button>' +
-      '<button type="button" id="th-deduce-tr-scene">🗺 每次切场景推一次</button></div>';
-    html += '<div class="row"><button type="button" id="th-deduce-dev">' + (st2.devMode ? '🛠 开发者模式：开' : '🛠 开发者模式：关') + '</button>'
+    html += '<div class="row"><button type="button" class="primary" id="th-deduce-run">🎲 立即推演</button>' +
+      '<button type="button" id="th-deduce-copy">复制上次输出</button>' +
+      '<button type="button" id="th-deduce-close">关闭面板</button></div>';
+    if (S.lastError) html += '<div class="out" style="border-color:#ef4444">错误：' + escapeHtml(S.lastError) + '</div>';
+
+    /* ── ④ 重要记忆 ─────────────────────────────────────────────── */
+    html += '<h4>重要记忆（满了从最远的开始删）</h4>';
+    html += '<div class="row" style="gap:6px"><span class="muted">保留条数</span><input type="number" id="th-deduce-memmax" min="1" max="20" value="' + memMax() + '" style="max-width:65px"><span class="muted">条（默认 5，可填 1~20）</span></div>';
+    html += '<div class="th-deduce-help">一轮只收一条、每条最多 <b>' + MEMORY_MAXLEN + ' 字</b>；自动收录默认不弹提示（上面那个勾可以打开）。</div>';
+    html += '<div class="th-deduce-help">只读<b>最新那一条 AI 回复</b>里的 &lt;重要记忆&gt;，更早的 AI 楼层不再回头看'
+      + (S.memoryFloor ? '。上一次收是第 ' + (S.memoryFloor.index + 1) + ' 楼（聊天一共 ' + S.memoryFloor.total + ' 楼）。' : '。')
       + '</div>';
+    html += '<div class="out">' + (((S.memory || []).length) ? escapeHtml((S.memory || []).map(function (x, i) { return (i + 1) + '. ' + x; }).join('\n')) : '<span class="muted">还没有。正文 AI 写 <重要记忆> 就会自动收录。</span>') + '</div>';
+    html += '<div class="row"><input type="text" id="th-deduce-mem-add" placeholder="手动加一条记忆，回车"><button type="button" id="th-deduce-mem-save">＋ 添加</button></div>';
+    html += '<div class="row"><button type="button" id="th-deduce-mem-harvest">📖 现在扫一遍正文里的 <重要记忆></button>'
+      + '<button type="button" id="th-deduce-mem-clear">清空全部记忆</button></div>';
+    html += '<div class="row"><span class="muted">删单条：点下面的编号</span>';
+    (S.memory || []).forEach(function (x, i) {
+      html += '<button type="button" class="th-deduce-mem-del" data-i="' + i + '">✕ ' + (i + 1) + '</button>';
+    });
+    html += '</div>';
+
+    /* ── ⑤ 开发者模式（默认关，要看得自己点开） ─────────────────── */
+    html += '<h4>开发者模式</h4>';
+    html += '<div class="row"><button type="button" id="th-deduce-dev">' + (st2.devMode ? '🛠 开发者模式：开' : '🛠 开发者模式：关') + '</button></div>';
     /* ★ v1.19：这些都给开发者模式看着用，平时收起来 */
     if (st2.devMode) {
+    if (S.lastParsed && S.lastParsed.thinking) {
+      html += '<details><summary>🧠 模型自带的思考（' + S.lastParsed.thinking.length + ' 字）</summary>'
+        + '<div class="out">' + escapeHtml(S.lastParsed.thinking) + '</div></details>';
+    }
     /* ★ v1.4：把「这一次到底发生了什么」全摊开 */
     html += '<h4>这一轮发生了什么（开发者）</h4>';
     /* ★ v1.12：没发过请求的时候，现算一份当预览（原来这里是一片空白，看着像坏了） */
@@ -3056,58 +3204,6 @@
     html += '<div class="row"><button type="button" id="th-deduce-wide">' + (S.wide ? '缩小面板' : '放大面板') + '</button></div>';
     }   /* /开发者：这一轮发生了什么 */
 
-    /* ★ v1.8：重要记忆 */
-    html += '<h4>重要记忆（只留最近 ' + memMax() + ' 条，满了从最旧的开始删）</h4>';
-    html += '<div class="row" style="gap:6px"><span class="muted">保留条数</span><input type="number" id="th-deduce-memmax" min="1" max="20" value="' + memMax() + '" style="max-width:65px"><span class="muted">条（默认 5，可填 1~20）</span></div>';
-    html += '<div class="th-deduce-help">一轮只收一条、每条最多 <b>' + MEMORY_MAXLEN + ' 字</b>；自动收录默认不弹提示（上面那个勾可以打开）。</div>';
-    html += '<div class="th-deduce-help">只读<b>最新那一条 AI 回复</b>里的 &lt;重要记忆&gt;，更早的 AI 楼层不再回头看'
-      + (S.memoryFloor ? '。上一次收是第 ' + (S.memoryFloor.index + 1) + ' 楼（聊天一共 ' + S.memoryFloor.total + ' 楼）。' : '。')
-      + '</div>';
-    html += '<div class="out">' + (((S.memory || []).length) ? escapeHtml((S.memory || []).map(function (x, i) { return (i + 1) + '. ' + x; }).join('\n')) : '<span class="muted">还没有。正文 AI 写 <重要记忆> 就会自动收录。</span>') + '</div>';
-    html += '<div class="row"><input type="text" id="th-deduce-mem-add" placeholder="手动加一条记忆，回车"><button type="button" id="th-deduce-mem-save">＋ 添加</button></div>';
-    html += '<div class="row"><button type="button" id="th-deduce-mem-harvest">📖 现在扫一遍正文里的 <重要记忆></button>'
-      + '<button type="button" id="th-deduce-mem-clear">清空全部记忆</button></div>';
-    html += '<div class="row"><span class="muted">删单条：点下面的编号</span>';
-    (S.memory || []).forEach(function (x, i) {
-      html += '<button type="button" class="th-deduce-mem-del" data-i="' + i + '">✕ ' + (i + 1) + '</button>';
-    });
-    html += '</div>';
-
-    html += '<h4>接口</h4>';
-    html += '<div class="row"><span class="muted">地址</span><input type="text" id="th-deduce-base" value="' + escapeHtml(st2.base) + '" placeholder="https://…/v1"></div>';
-    html += '<div class="row"><span class="muted">钥匙</span><input type="password" id="th-deduce-key" value="' + escapeHtml(st2.key) + '" placeholder="sk-…"></div>';
-    if (st2.devMode) {
-      html += '<div class="th-deduce-help">地点表：<b>' + (loadPlaces().length || 0) + ' 个固值</b>（来源：' + escapeHtml(PLACE_SOURCE || '还没读') + '）</div>';
-      html += '<div class="th-deduce-help">会打这个地址：<b>' + escapeHtml(endpoint() || '（还没填地址）') + '</b></div>';
-    }
-    if (S.lastTest) html += '<div class="stat">上次测试：' + escapeHtml(S.lastTest.msg) + '</div>';
-    html += '<div class="row"><button type="button" id="th-deduce-test">🔌 测试接口</button>'
-      + '</div>';
-    html += '<div class="row"><span class="muted">模型</span><input type="text" id="th-deduce-model" value="' + escapeHtml(st2.model) + '">' +
-      '<button type="button" id="th-deduce-fetch-models">📥 拉取模型</button></div>';
-    /* ★ v1.28：这里原来还有个「保存」按钮。现在改规则的：改了就一直算数，
-       拉取 / 选模型都自动存，不需要手动保存。 */
-    html += '<div class="th-deduce-help">地址 / 钥匙 / 模型<b>改完就自动存</b>，不用点保存；点「拉取模型」会先把你刚填的收进去再拉。</div>';
-    if ((S.models || []).length) {
-      html += '<div class="row"><button type="button" id="th-deduce-models-toggle">'
-        + (S.modelsOpen ? '▲ 收起模型列表（' + S.models.length + ' 个）' : '▼ 展开模型列表（' + S.models.length + ' 个）') + '</button></div>';
-      if (S.modelsOpen) {
-        html += '<div class="row" style="flex-wrap:wrap;gap:4px">';
-        S.models.slice(0, 80).forEach(function (m) {
-          html += '<button type="button" class="th-deduce-model-pick" data-model="' + escapeHtml(m) + '">' + escapeHtml(m) + '</button>';
-        });
-        html += '</div>';
-      }
-    }
-    html += '<div class="row"><span class="muted">温度</span><input type="number" step="0.05" id="th-deduce-temp" value="' + st2.temperature + '" style="max-width:70px">' +
-      '<span class="muted">上限</span><input type="number" id="th-deduce-max" value="' + st2.maxTokens + '" style="max-width:80px">' +
-      + (st2.devMode ? '<span class="muted">记忆楼数</span><input type="number" id="th-deduce-mem" value="' + st2.memory + '" style="max-width:60px">' : '')
-      + '</div>';
-    html += '<div class="row"><button type="button" class="primary" id="th-deduce-run">🎲 立即推演</button>' +
-      '<button type="button" id="th-deduce-copy">复制上次输出</button>' +
-      '<button type="button" id="th-deduce-close">关闭面板</button></div>';
-    /* ★ v1.7：这里原来还有「上次输出」和「模型原样返回（最后 N 字）」两块，跟上面的 📥 / ✅ 重复了，删掉。 */
-    if (S.lastError) html += '<div class="out" style="border-color:#ef4444">错误：' + escapeHtml(S.lastError) + '</div>';
     p.innerHTML = html;
     /* ★ v1.25：挂上之后再按结构裹卡片、点胶囊，不改动拼好的 html 字符串本身（字符串里的标签不一定闭合） */
     beautifyDeducePanel(p);

@@ -27,7 +27,7 @@
 
   var KEY = 'SPR_UNIFIED_MODE';
   var LOCK = '__SPR_SWITCHER_LOCK__';
-  var CFG = {"defaultMode":"game","gameFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","textFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","bookOffInText":["连携判定","内置思维链","格式","[mvu_update]变量更新规则","[mvu_update]变量输出格式"],"bookNonOnly":["内置思维链·文字版","格式·文字版"],"bookAlwaysOff":["[InitVar]初始变量"]};
+  var CFG = {"defaultMode":"game","gameFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","textFirstMes":"<content>\n【开局 · 春日狂想曲】\n</content>","bookOffInText":["连携判定","内置思维链","格式"],"bookAlwaysOn":["[mvu_update]变量更新规则","[mvu_update]变量输出格式"],"bookNonOnly":["内置思维链·文字版","格式·文字版"],"bookAlwaysOff":["[InitVar]初始变量"]};
   var GAME = 'game', TEXT = 'text';
 
   /* ── 宿主 window / document（脚本跑在酒馆助手 iframe 里） ────────── */
@@ -228,10 +228,20 @@
        于是不管在游戏版还是文字版，嗅探一律返回文字版（球显示错、加载错脚本）。
        现在：localStorage 优先；script_trees / 卡数据只在「确实存在启用的 [同层]」
        时才判 GAME，全禁用视为热更卡正常态，跳过不判。 */
-    try {
-      var vL = HW.localStorage.getItem(KEY);
-      if (vL === GAME || vL === TEXT) return vL;
-    } catch (eL) {}
+    var _vL = '';
+    try { _vL = String(HW.localStorage.getItem(KEY) || ''); } catch (eL) {}
+    if (_vL !== GAME && _vL !== TEXT) _vL = '';
+    /* ★★★ 2026-11-18 21:4x：作者「我他妈游戏版，一直显示已经是文字版了」。
+       ── 病根 ──
+       KEY（SPR_UNIFIED_MODE）是**跨聊天、跨卡**存在 localStorage 里的一个字符串，
+       只要它写着 text，这里第一句就直接 return —— 哪怕此刻跑的分明是游戏版
+       （[同层] 脚本全开、gal 壳都在）。切过模式、换过卡、导过新卡之后，
+       这个键就可能是上一次留下的陈旧值，于是「界面是游戏版、标签说文字版」。
+       ── 改法 ──
+       KEY 只当**没有证据时的默认值**；有证据（[同层] 脚本在启用 = 游戏版在跑）
+       就以证据为准，并顺手把 KEY 治好（写回证据值，下次不用再猜）。
+       热更卡那套（业务脚本全冷备）不受影响：那时没有证据，照旧用 KEY。 */
+    var _ev = null;   /* 嗅探证据：GAME / TEXT / null(无证据) */
 
     var TH = pickTH();
     if (TH && typeof TH.getScriptTrees === 'function') {
@@ -241,7 +251,11 @@
         var on0 = flat.filter(function (s) {
           return String(s.name || '').indexOf('[同层]') === 0 && s.enabled;
         });
-        if (on0.length) return GAME;
+        var off0 = flat.filter(function (s) {
+          return String(s.name || '').indexOf('[非同层]') === 0 && s.enabled;
+        });
+        if (on0.length) _ev = GAME;
+        else if (off0.length) _ev = TEXT;
       } catch (e0) {}
     }
     try {
@@ -253,10 +267,20 @@
           var on1 = ss0.some(function (s) {
             return String(s.name || '').indexOf('[同层]') === 0 && s.enabled;
           });
-          if (on1) return GAME;
+          var off1 = ss0.some(function (s) {
+            return String(s.name || '').indexOf('[非同层]') === 0 && s.enabled;
+          });
+          if (on1) _ev = GAME;
+          else if (off1) _ev = TEXT;
         }
       }
     } catch (e1) {}
+    /* 证据优先；没有证据才用 KEY；都没有才用默认值。 */
+    if (_ev) {
+      if (_vL !== _ev) { try { HW.localStorage.setItem(KEY, _ev); } catch (eHeal) {} }
+      return _ev;
+    }
+    if (_vL) return _vL;
     return CFG.defaultMode;
   }
   function flattenTrees(list, out) {
@@ -399,6 +423,11 @@
   function wantedBook(comment, mode, oldValue) {
     /* 强制命令：初始化变量恒关，优先级最高（理由见下方大段注释） */
     if (String(comment == null ? '' : comment).indexOf('[InitVar]') === 0) return false;
+    /* ★★★ 2026-11-18 21:5x：作者「切换文字怎么又他妈关变量更新规则和变量强调，你他妈再关一个试试看」。
+       这两条是**两种模式都要吃**的（变量怎么写、怎么强调），以前被塞进 bookOffInText，
+       一切文字版就整条关掉 ⇒ MVU 直接不更新。现在单开一张 ALWAYS_ON 名单，
+       排在最前面、谁也盖不掉（wantedBook / wantedBookPack / _wantOnPack 三处都拦）。 */
+    if ((CFG.bookAlwaysOn || []).indexOf(String(comment == null ? '' : comment).trim()) >= 0) return true;
     if (CFG.bookOffInText.indexOf(comment) >= 0) return mode === GAME;
     if (CFG.bookNonOnly.indexOf(comment) >= 0) return mode === TEXT;
     return !!oldValue;
@@ -449,6 +478,11 @@
   function wantedBookPack(comment, mode, oldValue, packEnabled) {
     /* 强制命令：初始化变量恒关。⚠ 必须内联，不许抽函数 —— 本函数会被单独切片运行 */
     if (String(comment == null ? '' : comment).indexOf('[InitVar]') === 0) return false;
+    /* ★★★ 2026-11-18 21:5x：作者「切换文字怎么又他妈关变量更新规则和变量强调，你他妈再关一个试试看」。
+       这两条是**两种模式都要吃**的（变量怎么写、怎么强调），以前被塞进 bookOffInText，
+       一切文字版就整条关掉 ⇒ MVU 直接不更新。现在单开一张 ALWAYS_ON 名单，
+       排在最前面、谁也盖不掉（wantedBook / wantedBookPack / _wantOnPack 三处都拦）。 */
+    if ((CFG.bookAlwaysOn || []).indexOf(String(comment == null ? '' : comment).trim()) >= 0) return true;
     if (CFG.bookOffInText.indexOf(comment) >= 0) return mode === GAME;
     if (CFG.bookNonOnly.indexOf(comment) >= 0) return mode === TEXT;
     if (packEnabled === true) return true;
@@ -680,17 +714,40 @@
              这里把**卡内 character_book 里存在、绑定书里却没有**的那几条补进去。
              只增不删、只碰这 21 个具名条目，不动玩家自己的条目。 */
           try {
-            var _wantAll = (window.__TH_WBPATCH__ || []).map(function (x) { return String(x.comment || ''); }).filter(Boolean);
+            /* ★★★ 2026-11-18 19:5x：**这里原来取的是整个条目包的名字，不是那 21 条。**
+               ── 作者原话：「模式切换有巨大bug，简直完全乱来。我文字版切换成游戏版，
+                  给他妈变量全关了是什么意思，给我他妈彻查」
+               ── 病根 ──────────────────────────────────────────────────
+               `_present` 只在那 21 条具名条目上被置 1（见上面 setBookEnabled 那段），
+               而 `_wantAll` 取的是 `window.__TH_WBPATCH__` 的**全部 100+ 条** ⇒
+               其余 80 多条每一条都 `_present[nm] === undefined` ⇒ 全被判成「书里缺这条」
+               ⇒ `_add` 装进 80 多个副本 ⇒ 副本的开关又是
+               `wantedBook(nm, mode, false)` = **关**（非 21 条的条目走 oldValue 分支）
+               ⇒ 每切一次模式，就往玩家的书里灌一遍**关着的**副本。
+               副本的 uid 与原条目相同，酒馆按 uid 落库时把原来那条一起改掉，
+               于是「一切模式，变量条目全关」—— 就是这个。
+               ── 现在 ──
+               · 候选名只取那 21 条（bookOffInText + bookNonOnly），与注释一致
+               · 补入的副本按 `wantedBook(nm, mode, true)` 给状态（这 21 条都有显式裁决，
+                 oldValue 传什么都不影响，但传 true 语义正确）
+               · 再加一道：书里**已经有同名条目**（不管在不在 21 条里）就绝不补 ——
+                 补入的唯一理由是"缺"，不是"开关不对"。 */
+            var _wantAll = CFG.bookOffInText.concat(CFG.bookNonOnly);
             var _embedded = (data.character_book && data.character_book.entries) || [];
+            /* 书里现存的全部条目名（补入前的那一份），用来兜住「21 条之外」的重名 */
+            var _existAll = {};
+            try {
+              (before || []).forEach(function (e) { var n = String(e.comment || ''); if (n) _existAll[n] = 1; });
+            } catch (eEx) {}
             var _add = [];
             var _missNames = [];
             _wantAll.forEach(function (nm) {
-              if (_present[nm]) return;
+              if (_present[nm] || _existAll[nm]) return;
               _missNames.push(nm);
               for (var i = 0; i < _embedded.length; i++) {
                 if (String(_embedded[i].comment || '') === nm) {
                   var cp = JSON.parse(JSON.stringify(_embedded[i]));
-                  setBookEnabled(cp, wantedBook(nm, mode, false));
+                  setBookEnabled(cp, wantedBook(nm, mode, true));
                   _add.push(cp);
                   break;
                 }
@@ -711,7 +768,9 @@
                   var nm = String(e.comment || '');
                   if (_missNames.indexOf(nm) < 0) return;
                   var cp = JSON.parse(JSON.stringify(e));
-                  setBookEnabled(cp, wantedBook(nm, mode, false));
+                  /* ★ 2026-11-18：补进去的条目按**该开的开**（以前一律 false，
+                     等于每次切模式都给书里塞一批关着的副本 —— 见上面那段长注释）。 */
+                  setBookEnabled(cp, wantedBook(nm, mode, true));
                   _add.push(cp);
                 });
                 oks.push('从本地包取回条目原文 ' + _add.length + ' 条');
@@ -1467,7 +1526,14 @@
       '精灵 御神木',
       '妖怪 白蔵主',
       '人物 御神木之灵',
-      '人物 白蔵主'
+      '人物 白蔵主',
+      /* ── 2026-11-18 20:5x：作者点名「神社设定这个条目和神社世界观冲突了，叫你删一个」──
+         《神社设定 山裾の神社》（constant 常驻）与《世界观 神社篇》重叠：
+         小路 / 神域 / 不许许愿 / 后山区别 / 结界，两份各讲一遍且口径不一。
+         留《世界观 神社篇》（有 keys、覆盖更全：院落结构 / 檐廊 / 温泉 / 季节 / 场景图），
+         它独有的两条细则（小路只在夏季午后出现 / 强行许愿的人会被留在里面）已并进去。
+         ⚠ 老玩家书里的实体必须删掉，否则冲突照旧。 */
+      '神社设定 山裾の神社'
     ];
     for (var i = 0; i < names.length; i++) m[names[i]] = 1;
     return m;
@@ -2272,6 +2338,17 @@
             }
           }
         }
+        if (!_want) {
+          /* ★ 2026-11-18：热更卡以内嵌条目包的版本号为准（书会被同步成它） */
+          try {
+            var _pk2 = window.__TH_WBPATCH__ || (HW && HW.__TH_WBPATCH__) || null;
+            for (var _pj = 0; _pj < (_pk2 || []).length; _pj++) {
+              if (String((_pk2[_pj] && (_pk2[_pj].comment || _pk2[_pj].name)) || '') === WB_VER_ENTRY) {
+                _want = String((_pk2[_pj] && _pk2[_pj].content) || '').trim(); break;
+              }
+            }
+          } catch (ePk2) {}
+        }
         if (!_want) { try { _want = String((window.__CQ_OSS_LABEL__ || (HW && HW.__CQ_OSS_LABEL__) || '')); } catch (eW1) {} }
         out.want = _want;
         if (_want && out.ver) {
@@ -2500,6 +2577,7 @@
       function _wantOnPack(nm, curOn, packEnabled) {
         var n = String(nm == null ? '' : nm);
         if (n.indexOf('[InitVar]') === 0) return false;
+        if ((CFG.bookAlwaysOn || []).indexOf(n) >= 0) return true;   /* 变量规则 / 变量强调：两种模式都开 */
         if (_offInText.indexOf(n) >= 0) return syncMode === 'game';
         if (_nonOnly.indexOf(n) >= 0) return syncMode === 'text';
         if (packEnabled === true) return true;
@@ -2732,6 +2810,27 @@
             e.content = src.content;
             c.changed++;
           }
+          /* ══ ★★★ 2026-11-20：EJS 开关 + 递归闸门，**每条每次同步都写** ══════
+             作者报「其他篇章的人物 / 心理阶段 / 苦主 / 苦主阶段条目全部触发了」。
+             两条独立的病，都出在「字段只写一次、后来再没人写」：
+               ① EJS 开关：ST 只认 `extensions.ejs === true`，否则 `<% %>` 原样当文本塞进
+                  prompt —— 我们写了上千字的闸门，模型看到的是 JS 代码。setBookEjs 那个函数
+                  写好了却**一次都没被调用**（和 11-18 那次「EJS 从来没打开」同一个病）。
+               ② 递归闸门：玩家那本书如果是旧版本导入的，条目上根本没有
+                  exclude_recursion / prevent_recursion ⇒ 只要酒馆开了「递归扫描」，
+                  常驻的《人物总览》《苦主阶段·总纲》（里面列着全部人名）就会把所有
+                  人物条目**递归带出来** —— 于是别的篇章的人也一起触发。
+             ⚠ 这一段必须**内联**：wbSyncOnly 会被 _t_wbswitch / _t_wbver 单独切片跑，
+               在里面调用外部函数会 ReferenceError（踩过）。 */
+          try {
+            if (!e.extensions || typeof e.extensions !== 'object') e.extensions = {};
+            var _eb = String(e.content == null ? '' : e.content);
+            if (_eb.indexOf('<%') >= 0) { e.extensions.ejs = true; e.ejs = true; }
+            /* 我们的正文一律不许去触发别的条目（名字/地名都写在 keys 里了） */
+            e.extensions.prevent_recursion = true;
+            /* 非常驻条目只认关键词，不许被递归带出来；常驻的本来每轮都进，无所谓 */
+            e.extensions.exclude_recursion = (e.constant === true) ? false : true;
+          } catch (eRec) {}
           /* ★ 00:28 作者要求重排条目。★ 00:35 修正：**顺序字段各家不同** ——
              ST 认 order（降序）、魔改版认 displayIndex / display_index，
              上一版只写 display_index，所以一条都没动，作者看到的就是「热更新是假的」。
@@ -3274,7 +3373,7 @@
         out.ok = true;
         out.skipped = true;
         out.same = list.length;
-        out.msg = '书与线上完全一致（' + pre.count + ' 条），没有需要改的';
+        out.msg = '书与卡完全一致（' + pre.count + ' 条），没有需要改的';
         try { HW.__thWbAutoTries = 0; } catch (eT2) {}
         try { out.at = Date.now(); HW.__thWbAutoResult = out; } catch (eR1) {}
         return out;

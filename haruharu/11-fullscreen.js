@@ -36,16 +36,20 @@ function toast(msg) {
 
 var STYLES = '<style id="' + STYLE_ID + '">' +
 '#' + TRIGGER_ID + ' {' +
-'  position: fixed !important; top: 68vh; right: 16px; width: 38px !important; height: 38px !important;' +
-'  border-radius: 50% !important; background: rgba(8, 14, 30, 0.9) !important;' +
-'  border: 1.5px solid rgba(56, 189, 248, 0.45) !important;' +
-'  box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 14px rgba(56,189,248,0.3) !important;' +
+'  position: fixed !important; top: 68vh; right: 16px; width: 40px !important; height: 40px !important;' +
+/* ★★★ 2026-11-18 21:5x：作者指的就是这颗球（截图：深蓝圆球 + 青色角标）——
+   它跟卡的金棕主题完全不搭，而且他说的「圆角正方形」也不是圆的。
+   改成：40×40 圆角方块（9px）+ 金棕渐变 + 细金边 + 米金字，和顶栏那颗「全屏」同色系。 */
+'  border-radius: 9px !important;' +
+'  background: linear-gradient(160deg, rgba(122,94,28,.92), rgba(58,44,12,.94)) !important;' +
+'  border: 1px solid rgba(226,184,87,.62) !important;' +
+'  box-shadow: 0 4px 16px rgba(0,0,0,.6), 0 0 14px rgba(226,184,87,.22) !important;' +
 '  z-index: 1000001 !important; cursor: grab; display: flex !important;' +
-'  align-items: center; justify-content: center; color: #38bdf8;' +
-'  touch-action: none; user-select: none; transition: transform 0.2s;' +
+'  align-items: center; justify-content: center; color: #fef3c7;' +
+'  touch-action: none; user-select: none; transition: transform .16s, border-color .16s, box-shadow .16s;' +
 '}' +
-'#' + TRIGGER_ID + ':hover { transform: scale(1.1); color: #fbbf24; }' +
-'#' + TRIGGER_ID + '.is-opened { color: #ef4444; border-color: rgba(239, 68, 68, 0.6); }' +
+'#' + TRIGGER_ID + ':hover { transform: translateY(-1px) scale(1.04); color: #fff; border-color: #fcd34d !important; box-shadow: 0 6px 18px rgba(0,0,0,.6), 0 0 16px rgba(252,211,77,.32) !important; }' +
+'#' + TRIGGER_ID + '.is-opened { color: #ffe4e6; background: linear-gradient(160deg, rgba(185,28,28,.95), rgba(127,29,29,.96)) !important; border-color: rgba(255,150,150,.72) !important; box-shadow: 0 4px 16px rgba(120,0,0,.6) !important; }' +
 '#' + PORTAL_ID + ' {' +
 '  position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100dvh !important;' +
 '  background: #000 !important; z-index: 1000000 !important;' +
