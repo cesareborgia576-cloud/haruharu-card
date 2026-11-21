@@ -21604,8 +21604,27 @@ function lcsPaintModeBtn() {
   } catch (e) {}
 }
 
-/* ★ v103：顶栏按钮已删，这里保留成 no-op（老存档里可能还挂着热键调用）。 */
-function lcsToggleBeautify() { return; }
+/* ★ v103：这里原来写成 no-op（`function lcsToggleBeautify() { return; }`），注释说
+   「顶栏按钮已删」—— 但**按钮没删**：`setupInteractions` 第 26536 行还在给
+   `.th-gal-btn-beautify` 绑 `lcsToggleBeautify()`。
+   ⇒ 玩家点「🎨 美化」按钮**一点反应都没有**，切不了模式。
+   这就是作者「我开启显示美化内容也是空的」的一半原因：
+   他以为切过去了，其实那次点击是个空函数，模式压根没变。
+   ── 现在：转调真正干活的那个（唯一实现，不许再分叉）──
+   `thToggleNativeProjectionMode()` 里做齐了：
+     setItem → LCS_BEAUTIFY_ENABLED 同步 → 清 _lcsProsePool → 清 TH_LAST_NATIVE_HTML
+     → 刷按钮文字 → 重置 DialogueReader 缓存 → 取最新原文重排 → toast 提示。
+   ⚠ 绝不要在这里再写一套「自己 setItem 再自己同步」——
+     同一个量两套算法必然不同步（LCS_BEAUTIFY_ENABLED 是模块加载时算的缓存值）。 */
+function lcsToggleBeautify() {
+  try {
+    var next = thToggleNativeProjectionMode();
+    try { injectHideCss(); } catch (eH) {}
+    try { lcsPaintModeBtn(); } catch (eP) {}
+    try { thUpdateNativeProjectionButton(); } catch (eU) {}
+    return next;
+  } catch (e) { return undefined; }
+}
 /* 旧实现（已熔断，保留仅供回溯参考）：
 function _lcsToggleBeautify_old() {
   var next = !lcsBeautifyOn();
@@ -22043,11 +22062,24 @@ var TH_LAST_NATIVE_HTML = '';
 function thNativeProjectionMode() {
   try {
     var m = String(localStorage.getItem(TH_NATIVE_MODE_KEY) || '').toLowerCase();
-    if (m === 'strip') return 'strip';
     if (m === 'beautify' || m === 'show' || m === '1') return 'beautify';
+    if (m === 'strip' || m === '0') return 'strip';
   } catch (e) {}
-  /* ★ 2026-11-19：作者要的就是投影 —— 默认显示美化（酒馆显示什么就显示什么）。 */
-  return 'beautify';
+  /* ══ ★★ 2026-11-21 第 172 次：默认改回「剔除美化」══
+     作者原话：「妈的，搞成默认剔除美化。」
+     ── 必须先说清改之前的实际状态，否则下次又会被注释带偏 ────────────
+     改之前 22050 行是 `return 'beautify'` ⇒ **默认显示美化**。
+     而上一行（22038）的注释却写着「默认剔除」—— 两处自相矛盾，
+     是 11-19 从 strip 改成 beautify 时只改了代码没改注释。
+     结果：玩家第一次进卡（localStorage 没有这个键）拿到的就是 beautify，
+     而 beautify 会整楼一页投影酒馆可见 DOM，正文/美化稍有不合就显示成空。
+     ── 现在的判据（顺序不能反）──────────────────────────────────
+       ① localStorage 明确写 beautify ⇒ 尊重玩家手动选择，保持 beautify
+       ② localStorage 明确写 strip/0  ⇒ strip
+       ③ **没有任何键**（新玩家 / 清了缓存）⇒ 'strip'
+     也就是：玩家的手选永远优先，只有「从没选过」才落到默认值。
+     ⚠ 别把默认写成 'beautify' 又只改注释 —— 代码才是唯一生效的东西。 */
+  return 'strip';
 }
 function thNativeProjectionLabel() {
   return thNativeProjectionMode() === 'beautify' ? '显示美化' : '剔除美化';
@@ -22234,6 +22266,106 @@ function thNativeCopyStyle(src, dst) {
     /* 不允许复制定位/尺寸/层级/指针属性，防止源内容覆盖游戏 UI 或逃出对话框。 */
   } catch (e) {}
 }
+/* ══ 2026-11-21 第 172 次：投影路径补的两个判据 ══════════════════════
+   为什么需要它们：`thNativeProjection` 是 11-19 新写的投影路径，
+   `clean()` 里原来只有「forbidden 标签」+「details 整块扔」两条判据，
+   **完全没用** 老路径被验证过的 isInjectedEl / isHardHidden。
+   于是作者报的两种漏法都真实存在：
+     · div + class 模拟的折叠思维链 ⇒ 只删 class，字全留下 ⇒ 漏；
+     · 行动选择 / 选项按钮被预设包在带 class 的容器里 ⇒ 同样漏。
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ① 这个块看起来像「思维链 / 推演 / 思考过程」吗？
+   只认**特征词**，不认具体预设名。名字千奇百怪，但这几类词几乎必然出现。
+   ⚠ 必须在删 class 之前用（用活元素的 aria-label/title/class/id/name）。 */
+var TH_COT_HINT = /(?:^|[^a-z])(?:cot|chain[-_]?of[-_]?thought|reasoning|thinking|thought|scratchpad|inner[-_]?monologue|mind[-_]?read|analysis|deduce|deduction|inference)(?:[^a-z]|$)|思维链|思考过程|思考|推演|推理|内心独白|心理活动|分析过程|草稿/i;
+function thNativeCotLike(el) {
+  try {
+    if (!el || !el.getAttribute) return false;
+    var probe = [
+      el.getAttribute('class') || '',
+      el.getAttribute('id') || '',
+      el.getAttribute('data-name') || '',
+      el.getAttribute('data-type') || '',
+      el.getAttribute('aria-label') || '',
+      el.getAttribute('title') || '',
+      el.getAttribute('name') || ''
+    ].join(' ');
+    if (probe && TH_COT_HINT.test(probe)) return true;
+    /* details 里只要有 summary 且 summary 带「点开/展开/思考」之类提示，也算 */
+    var tag = String(el.tagName || '').toLowerCase();
+    if (tag === 'details' || tag === 'summary') {
+      var st = String(el.textContent || '').slice(0, 60);
+      if (/点(?:击)?(?:此|这里|这|展开)|展开|收起|思考|推演|推理|思维链/.test(st)) return true;
+    }
+    return false;
+  } catch (e) { return false; }
+}
+
+/* ② **元素自己被 CSS 藏起来**（不是「整层没渲染」）。
+   只读该元素自身的 display/visibility/opacity，不往上爬、不看 getClientRects。
+   为什么要单独一个：beautify 模式要保留美化样式，但「预设把它 display:none 藏起来的
+   折叠内容」不该显示 —— 那是思维链最典型的藏法。
+   ★ 另外补一条 HTML 原生事实：`<details>` 没有 open 属性时，除 summary 之外的内容
+     **按规范就是不可见的**（浏览器内建行为，根本不需要 CSS）。
+     所以「思考过程」那种折叠栏，即便没有任何自定义 CSS，
+     在 beautify 下也会原样把整段思维链漏出来 —— 必须在这里拦住。 */
+function thNativeHardHidden(el) {
+  try {
+    if (!el || el.nodeType !== 1) return false;
+    var tag = String(el.tagName || '').toLowerCase();
+    /* details 未展开 ⇒ 非 summary 的内容不可见 */
+    if (tag === 'details' && !el.hasAttribute('open')) return true;
+    var w = (el.ownerDocument && el.ownerDocument.defaultView) || window;
+    var cs = w.getComputedStyle ? w.getComputedStyle(el) : null;
+    if (!cs) return false;
+    if (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse') return true;
+    var op = parseFloat(cs.opacity);
+    if (!isNaN(op) && op <= 0.005) return true;
+    return false;
+  } catch (e) { return false; }
+}
+
+/* ③ 这个块里装着「行动选项」吗？——**玩法本体，绝不能剔**。
+   ★★ 2026-11-21 第 172 次，作者：「包括行动选择这种」。
+   实测（_probe_choice.mjs）：strip 模式下 `<div class="choice">① 上前拥抱她</div>`
+   会被「带 class 就剔」这条判据整块删掉 —— 选项直接消失，玩家没得选，游戏卡死。
+   这比思维链漏出来严重得多：漏出思维链只是难看，吞掉选项是玩法坏了。
+   判据：只看**块内文字**，不认 class 名（class 名千奇百怪，文字标记却高度稳定）：
+     · ①②③④… / ⑴⑵ / 1. 2. / 一、二、
+     · ▶ ► → ← ↑ ↓ / ＞ >
+     · 「上前 / 走向 / 前往 / 返回 / 进入 / 离开 / 拥抱 / 亲吻 / 说话 / 查看 / 使用」等动作词开头
+     · 问句式选项「要……吗？」「……吗？」
+   一旦命中，整块保留（连 class 一起，交给后面的属性清理决定去留）。
+   ⚠ 不受 25% 字数保护影响，也不受 CotLike 影响：选项优先于一切。 */
+var TH_CHOICE_HINT = /(?:^|[\s>])[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑴⑵⑶⑷⑸]|^\s*(?:\d{1,2}[.、)）]|[一二三四五六七八九十][、.]|[▶►→←↑↓＞>])|(?:上前|走向|走到|前往|返回|回到|进入|离开|推开|走向|拥抱|抱住|亲吻|牵手|搭话|开口|说点|询问|问道|查看|观察|使用|拿出|收起|坐下|站起|躺下|靠近|后退|点头|摇头|沉默|回答|答应|拒绝|跟上去|追上去|回头看)/;
+function thNativeChoiceLike(el) {
+  try {
+    if (!el || !el.getAttribute) return false;
+    var t = String(el.textContent || '').trim();
+    if (!t || t.length > 200) return false;   /* 太长的是正文，不是选项行 */
+    return TH_CHOICE_HINT.test(t);
+  } catch (e) { return false; }
+}
+
+/* ④ 这个块**装着**行动选项吗？（自己是装饰外壳，里面才是选项）
+   ★ 必须单独一条：`<div class="options"><div class="opt">① …</div></div>`
+   外层 options 自己不匹配选项标记，只有里面的 opt 匹配。
+   如果只判自身文字，外层会被「带 class 就剔」整块删掉 ⇒ 里面的选项一起没了。
+   判据：直接子元素里有没有命中选项特征的（只看两层，够用且不会误伤正文）。 */
+function thNativeHoldsChoice(el) {
+  try {
+    if (!el || !el.querySelectorAll) return false;
+    var kids = el.querySelectorAll('div, p, li, span, button, a, label');
+    var hit = 0;
+    for (var i = 0; i < kids.length && i < 40; i++) {
+      if (thNativeChoiceLike(kids[i])) { hit++; if (hit >= 2) return true; }
+    }
+    /* 只有一个子项也可能是选项（单选项场景），但至少要命中且它自己很短 */
+    return hit >= 1 && String(el.textContent || '').trim().length <= 200;
+  } catch (e) { return false; }
+}
+
 function thNativeProjection(box, mode) {
   var out = { text: '', html: '' };
   try {
@@ -22244,6 +22376,10 @@ function thNativeProjection(box, mode) {
     var live = box.querySelectorAll ? box.querySelectorAll('*') : [];
     var copy = clone.querySelectorAll ? clone.querySelectorAll('*') : [];
     var len = Math.min(live.length, copy.length);
+    /* ★ 2026-11-21：本楼总字数 —— 「这一定是正文容器」那条保护的基准。
+       必须在删任何东西之前算，否则越删基准越小、保护越失效。 */
+    var totalTextLen = 0;
+    try { totalTextLen = String(box.textContent || '').replace(/\s+/g, '').length; } catch (eTT) { totalTextLen = 0; }
     /* 在改动 clone 前按位置同步复制计算样式；只复制安全白名单。 */
     if (mode === 'beautify') {
       /* ★★ 2026-11-19 作者：「别穷举法啊，酒馆显示什么就显示什么」。
@@ -22271,11 +22407,70 @@ function thNativeProjection(box, mode) {
         var el = kids[i];
         if (!el || el.nodeType !== 1) continue;
         var tag = String(el.tagName || '').toLowerCase();
-        /* ★ 深度隐藏判定的上界 = **这条消息的 .mes_text**，不往上查 #chat 之类外层
-           （游戏里聊天区可能整体隐藏，那不代表正文不该显示）。 */
+        /* ★★ 2026-11-21 第 172 次：这条判据原来只认 `<details>`，害死人。
+           ── 作者原话 ──────────────────────────────────────────────
+           「剔除美化有问题，没有成功。比如说，思维链折叠美化，是剔除了，
+             但是，思维链也漏出来了。包括行动选择这种。」
+           ── 为什么漏 ──────────────────────────────────────────────
+           折叠在 HTML 里只有两种实现：
+             ① 原生 <details>/<summary> —— 以前只认这一种；
+             ② **div + class + 预设 CSS（display:none / max-height:0 / 手动 JS 折叠）**
+                —— 占据现实的绝大多数，以前完全没认。
+           而这一层的判断发生在「class 已经被删掉之后」的链路上也无所谓，
+           因为这里用的是**活元素 el 的属性**，此时 class 还在。
+           判据（与老路径 buildCleanProseClone 完全一致，那条路已经验证过）：
+             · 带 class 或 id 的块 ⇒ 是美化容器 ⇒ 整块剔（连字一起丢）
+             · 但**装着本楼 ≥25% 文字**的块例外 —— 那是正文的分段容器，不是美化。
+               阈值 0.25 是老路径调过的（预设常把正文切成好几个 div，每段只占
+               全楼 10~20%；按 0.55 判会把正文全剔掉，还会触发保险阀把思维链放回来）。
+             · 例外里的例外：class 命中「推演/思维链」字样的，即使是正文容器也剔。 */
         var drop = !!forbidden[tag];
         if (mode !== 'beautify') {
           drop = drop || !thNativeVisible(el, rootVisible) || thNativeHiddenDeep(el, box);
+          if (!drop) {
+            try {
+              var _ownText = String(el.textContent || '').replace(/\s+/g, '');
+              var _ownLen = _ownText.length;
+              var _isProseHost = totalTextLen > 0 && _ownLen >= totalTextLen * 0.25;
+              /* ★★ 顺序极重要：**选项 > 思维链 > 正文容器保护 > 带 class 就剔**
+                 选项是玩法本体，一旦被吞玩家就没法玩，优先级必须最高。 */
+              if (thNativeChoiceLike(el) || thNativeHoldsChoice(el)) {
+                /* 行动选项（自身是选项，或外层装着选项）—— 无条件保留 */
+                drop = false;
+              } else if (thNativeCotLike(el)) {
+                /* 思维链/推演/思考过程 —— 无条件剔，不受正文容器保护 */
+                drop = true;
+              } else if ((el.getAttribute('class') || el.getAttribute('id')) && !_isProseHost) {
+                /* 带 class/id 但不是正文容器 ⇒ 美化装饰块 ⇒ 剔 */
+                drop = true;
+              }
+            } catch (eCls) {}
+          }
+        } else {
+          /* ★ beautify 模式：酒馆里看不见的（预设自己 CSS 藏起来的折叠内容）
+             也该剔 —— 以前这里完全不做隐藏判定，于是 details 里的思维链
+             在「显示美化」下原样漏出来。隐藏判据照搬，但**只认元素自身的
+             display/visibility/opacity**（thNativeHiddenDeep），
+             不用 getClientRects（整层不可见时那条判据会把正文全判没）。 */
+          if (!drop) {
+            try {
+              if (thNativeHardHidden(el)) drop = true;
+              /* ★★ 顺序同 strip 分支：**选项 > 思维链**。选项是玩法本体。 */
+              if (drop) {
+                /* 已被判为隐藏，但若是行动选项（自身或外层装着选项）仍要救回来 */
+                if (thNativeChoiceLike(el) || thNativeHoldsChoice(el)) drop = false;
+              }
+              /* ★ beautify 模式下**明确是思维链的块无条件剔**。
+                 作者要的是「显示美化」，不是「显示思维链」—— 思维链在酒馆原生
+                 界面里本来也是折叠着的（看不到内容），投影把它铺开成正文就是错。
+                 ★★ 这里**不受「正文容器 ≥25% 字数」保护**（与 strip 分支不同）：
+                 作者原话「思维链折叠美化，是剔除了，但是，思维链也漏出来了」——
+                 说明他要的是思维链一定消失。若一块占了大半楼，说明这楼根本就是
+                 推演内容而不是剧情正文，那也不该铺进对话框。
+                 只认特征词、不认预设名。 */
+              if (!drop && thNativeCotLike(el)) drop = true;
+            } catch (eBh) {}
+          }
         }
         if (!drop && unwrap[tag]) {
           /* 拆壳留字：按钮/输入框的可见文字原样带走 */
@@ -22373,8 +22568,25 @@ function listTextFromMes(mes) {
         try { window.__thProseFail = ''; } catch (eNF) {}
         return np.text;
       }
-      TH_LAST_NATIVE_HTML = '';
-      return '';
+      /* ══ ★★ 2026-11-21 第 172 次：**投影剔空了必须兜底，绝不能返回空串** ══
+         作者原话：「玩家反应都没正文」「我怀疑是默认是显示美化，我开启显示美化
+         内容也是空的」。
+         ── 原来这条路 ─────────────────────────────────────────────
+           投影返回 < 12 字 ⇒ 直接 `return ''` ⇒ 玩家对话框一个字都没有。
+           这一句是**单点失败**：只要投影的判据、或某个预设的 DOM 结构让它
+           判错一次，整楼正文就永久空白，而且没有任何回退。
+         ── 现在 ───────────────────────────────────────────────────
+           投影拿不到字（或不足 12 字）⇒ 记个诊断标记 ⇒ **落到下面的老路径**
+           （buildCleanProseClone + 锚点裁切 + 保险阀），那条路已经跑了很久、
+           有「剔太狠就整条退回」的保险。等于把投影降级成「优先尝试」，
+           而不是「唯一来源」。
+         ⚠ 顺序不能反：老路径是 fallback，只有当投影确实给不出字时才走，
+           否则会把「显示美化」的效果覆盖掉。
+         ⚠ 也不能在这里直接 `return box.textContent` —— 那会把思维链一起吐出去
+           （这正是本轮要修的另一个问题）。必须走带剔除判据的老路径。 */
+      try { window.__thProseFail = 'projection-empty(' + String(np.text || '').length + ')'; } catch (ePF) {}
+      try { console.warn('[th] 投影没取到正文（' + String(np.text || '').length + ' 字），回退到净化路径'); } catch (ePW) {}
+      /* 不 return —— 继续往下走老路径 */
     }
 
     var rawLen = plainLenOf(box);
