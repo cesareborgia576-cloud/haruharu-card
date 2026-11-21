@@ -3654,7 +3654,63 @@
     if (HD && HD.readyState === 'loading') {
       HD.addEventListener('DOMContentLoaded', boot, { once: true });
     } else {
-      boot();
+    
+  /* ══ ★ 2026-11-22：新版本提示条（热更即可更新本条，不用重导卡）══════════
+     数据来源：loader 的 checkNewTag 每 60 秒探一次新 tag，把结果写在
+       __SPR_LIVE_SEQ__（线上 seq）/ __SPR_LIVE_LABEL__（线上标签）。
+     这里**只读全局、画条**，零网络请求（限流压力为零）：
+       线上 seq > 运行中 seq ⇒ 右上角弹「📦 新版本 vX.Y · 第 N 次更新 · 点此刷新」
+       位置对齐「全屏按钮」（右上角）；点击刷新页面，loader 开机探到新 tag 自动换。
+     没有更新时不画（不碍事）。 */
+  var NVB_ID = 'spr-nvbar-switcher';
+  function thNvBarTick() {
+    try {
+      var d = null;
+      try { if (HD && HD.body) d = HD; } catch (e0) {}
+      if (!d) { try { d = document; } catch (e1) {} }
+      if (!d || !d.body) return;
+      var live = 0, run = 0, label = '';
+      try { live = Number(HW.__SPR_LIVE_SEQ__ || 0) || 0; } catch (e2) {}
+      try { run = Number(HW.__SPR_SEQ__ || 0) || 0; } catch (e3) {}
+      try { label = String(HW.__SPR_LIVE_LABEL__ || HW.__SPR_LIVE_VER__ || ''); } catch (e4) {}
+      var el = d.getElementById(NVB_ID);
+      var newer = (live > 0 && run > 0 && live > run);
+      if (!newer) {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+        return;
+      }
+      if (!el) {
+        el = d.createElement('div');
+        el.id = NVB_ID;
+        el.setAttribute('style',
+          'position:fixed;right:12px;top:calc(12px + env(safe-area-inset-top,0px));' +
+          'z-index:2147483646;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
+          'padding:7px 12px;border-radius:16px;cursor:pointer;' +
+          'background:linear-gradient(160deg,#8a5a12,#5f3c07);border:1px solid rgba(255,205,120,.75);' +
+          'color:#fff6e2;font-size:12px;font-weight:700;line-height:1.3;' +
+          'box-shadow:0 6px 18px rgba(90,50,0,.5);' +
+          'font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif;');
+        el.onclick = function (ev) {
+          try { ev.preventDefault(); ev.stopPropagation(); } catch (eC) {}
+          try { if (TOP.location) { TOP.location.reload(); return; } } catch (eR) {}
+          try { location.reload(); } catch (eR2) {}
+        };
+        (d.body || d.documentElement).appendChild(el);
+      }
+      var sv = String(label || '');
+      var mv = /v(\d+)\.(\d+)/.exec(sv);
+      var mn = /第\s*(\d+)\s*次/.exec(sv);
+      var txt = '📦 新版本';
+      if (mv) txt += ' v' + mv[1] + '.' + mv[2];
+      if (mn) txt += ' · 第 ' + mn[1] + ' 次更新';
+      txt += ' · 点此刷新';
+      el.textContent = txt;
+    } catch (eB) {}
+  }
+  try { setInterval(thNvBarTick, 15000); } catch (eI0) {}
+  try { setTimeout(thNvBarTick, 6000); } catch (eT0) {}
+
+  boot();
     }
   } catch (eBoot) {
     try { boot(); } catch (eB2) {}
