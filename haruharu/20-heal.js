@@ -2287,9 +2287,22 @@ var MvuSelfHealing = (function() {
      旧实现用 stripThinkForVar / stripAllVariableBlocks，这两个函数对未闭合的
      <thinking> / <UpdateVariable> / <Analysis> 会一路砍到结尾 ⇒ 正文被一起吃掉。
      现在只认真的一个字都没有：只剥成对闭合块，未闭合的开标签不砍内容。 */
+  /* ★ 2026-11-21（作者口径）：任何正文标签都算「有正文」，不弹回空。
+     与 10-core 的 V147_TEXT_TAGS 同序同源；文字版不加载 10-core，所以必须自带一份。 */
+  var LCS_BODY_TAGS = ["content", "对话框显示", "gametext", "game", "maintext",
+    "正文", "正文内容", "text", "galgame", "game_text", "narrative", "story", "对话"];
+  function lcsHasBodyTag(s) {
+    try {
+      var t = String(s == null ? "" : s)
+        .replace(/<\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\b[^>]*>[\s\S]*?<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi, "");
+      return new RegExp("<(?:" + LCS_BODY_TAGS.join("|") + ")(?=[\\s>])", "i").test(t);
+    } catch (e) { return false; }
+  }
   function lcsProseEmpty(raw) {
     var s = String(raw == null ? "" : raw);
     if (!s.trim()) return true;
+    /* ★★ 作者补充：有正文标签 ⇒ 绝不判回空（不只 content） */
+    if (lcsHasBodyTag(s)) return false;
     /* ① 主核心若暴露了解析器就直接用（同页加载时能拿到） */
     try {
       if (typeof parseContentWithLayer === "function" && parseContentWithLayer(s).text) return false;

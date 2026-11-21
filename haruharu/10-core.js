@@ -28975,7 +28975,18 @@ var MvuSelfHealing = (function() {
   function lcsProseEmpty(raw) {
     var s = String(raw == null ? '' : raw);
     if (!s.trim()) return true;
-    /* ① 解析器/投影能读出正文 ⇒ 不是回空（content 已闭合时这一条直接放行） */
+    /* ★★ 2026-11-21（作者补充口径）：**只要存在正文标签，就绝不弹「回空了」**。
+       不只 <content> —— 对话框显示 / gametext / game / maintext / 正文 /
+       正文内容 / text / galgame / game_text / narrative / story / 对话 全算。
+       作者原话：「不只是content，我只是举个例子，实际上我要的是有正文标签的
+       情况下，不要弹那个回空了。」
+       先在「剥掉成对思维链」的文本上判：模型在思考里写标签示例时不算数。 */
+    try {
+      var _noThink = s.replace(/<\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\b[^>]*>[\s\S]*?<\s*\/\s*(?:think(?:[_-][a-z]+)?|thinking|reasoning|thought|scratchpad)\s*>/gi, '');
+      var _alt = V147_TEXT_TAGS.join('|');
+      if (new RegExp('<(?:' + _alt + ')(?=[\\s>])', 'i').test(_noThink)) return false;
+    } catch (eBT) {}
+    /* ① 解析器/投影能读出正文 ⇒ 不是回空 */
     try { if (parseContentWithLayer(s).text) return false; } catch (eP) {}
     try { if (typeof renderedProseFromDom === 'function' && renderedProseFromDom()) return false; } catch (eD) {}
     /* ② 只剥成对闭合块；未闭合的开标签**不许**砍到结尾 */
