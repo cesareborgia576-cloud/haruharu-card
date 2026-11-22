@@ -36,10 +36,7 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱前夕_08.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__足交_12.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__足交_13.png"
-  ],
-  "吉川美穗|口交": [
-    "https://a.imgckr.com/2026/10/13/XVJ3G.png"
-  ],
+  ],'吉川美穗|口交': [], /* imgckr 已死，待补图（原 1 张） */
   "吉川美穗|手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__授乳+手交_11.png"
   ],
@@ -56,11 +53,8 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱_05.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱尾声_09.png"
   ],
-  "春日久美子|口交": [
-    "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_001.png",
-    "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_002.png",
-    "https://a.imgckr.com/2026/10/13/XGQBU.png"
-  ],
+  "春日久美子|口交": ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_001.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_002.png"],
   "春日久美子|手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__手交_21.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__授乳+手交_22.png"
@@ -116,10 +110,7 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱前夕_12.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__足交_24.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__足交前夕+做爱前夕_25.png"
-  ],
-  "春日葵|口交": [
-    "https://a.imgckr.com/2026/10/13/XVPJ0.png"
-  ],
+  ],'春日葵|口交': [], /* imgckr 已死，待补图（原 1 张） */
   "春日葵|授乳手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__授乳+手交_22.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__授乳_23.png"
@@ -209,16 +200,9 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_09.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_10.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱尾声_14.png"
-  ],
-  "月读澪|手交": [
-    "https://a.imgckr.com/2026/10/13/XVYFe.png"
-  ],
-  "月读澪|乳交": [
-    "https://a.imgckr.com/2026/10/13/XVUYl.png"
-  ],
-  "月读澪|做爱": [
-    "https://a.imgckr.com/2026/10/13/XVigS.png"
-  ],
+  ],'月读澪|手交': [], /* imgckr 已死，待补图（原 1 张） */
+  '月读澪|乳交': [], /* imgckr 已死，待补图（原 1 张） */
+  '月读澪|做爱': [], /* imgckr 已死，待补图（原 1 张） */
   "神代凛音|手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__手交_22.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__手交_23.png",
@@ -239,12 +223,7 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_13.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱尾声_18.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱结尾_19.png"
-  ],
-  "斋宫若叶|口交": [
-    "https://a.imgckr.com/2026/10/13/XVOLv.png",
-    "https://a.imgckr.com/2026/10/13/XVemd.png",
-    "https://a.imgckr.com/2026/10/13/XVTtF.png"
-  ],
+  ],'斋宫若叶|口交': [], /* imgckr 已死，待补图（原 3 张） */
   "斋宫若叶|手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__手交_16.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__授乳+手交_18.png"
@@ -262,10 +241,7 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱尾声_11.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱尾声_12.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__授乳+做爱_17.png"
-  ],
-  "西村百花|口交": [
-    "https://a.imgckr.com/2026/10/13/XVFx7.png"
-  ],
+  ],'西村百花|口交': [], /* imgckr 已死，待补图（原 1 张） */
   "西村百花|乳交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__乳交_02.png"
   ],
