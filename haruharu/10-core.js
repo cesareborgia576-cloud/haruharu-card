@@ -1543,9 +1543,9 @@ var CHAR_STANDINGS = {
        神谷奈绪 / 桃崎千鹤 / 吉川美穗 / 春日静奈 / 香本千玲 / 月读澪 / 斋宫若叶
        删了就是「所有人物全部消失」（这个坑踩过两次）。 */
   /* ★ 公寓篇：神谷奈绪（透明背景立绘） */
-  '神谷奈绪': 'https://a.imgckr.com/2026/10/10/Xlbes.png',
+  '神谷奈绪': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/avatar/%E7%A5%9E%E8%B0%B7%E5%A5%88%E7%BB%AA.webp',
   /* ★ v98：公寓篇新增角色 —— 桃崎千鹤 */
-  '桃崎千鹤': 'https://a.imgckr.com/2026/10/10/XlmES.png',
+  '桃崎千鹤': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/avatar/%E6%A1%83%E5%B4%8E%E5%8D%83%E9%B9%A4.webp',
   /* ★ v133：松本美咲 / 朝仓茜野留档不上场，立绘原样留在下面这个注释块里。
      白坂结奈现住 201，别再把 201 当成松本美咲的房间。 */
   /*
@@ -1565,9 +1565,9 @@ var CHAR_STANDINGS = {
   '吉川美穗': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/mihou/mihou__%E7%AB%8B%E7%BB%98_01.png',
   /* ★ 2026-11-16：山上椿芽 / 春日久美子 / 春日葵 的旧图已删（三位都有新立绘了，
      见 CHAR_STANDINGS_MULTI）。作者规矩：有新的就不要旧的。 */
-  '春日静奈': 'https://a.imgckr.com/2026/10/10/XlnOh.png',
+  '春日静奈': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/avatar/%E6%98%A5%E6%97%A5%E9%9D%99%E5%A5%88.webp',
   /* ★ v98：香本千玲（小卖铺看店人）—— 本次新增立绘 */
-  '香本千玲': 'https://a.imgckr.com/2026/10/10/XlW8R.png',
+  '香本千玲': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/avatar/%E9%A6%99%E6%9C%AC%E5%8D%83%E7%8E%B2.webp',
   /* ★ v165j：志藤理惠**不给立绘**（玩家 2026-11-11 明确：她已下架，不用管）。
      立绘位保持空白，不写空串（空 src 会画出坏图）——
      thStandingUrl 返回空串时界面按「没有立绘」处理，不会出问题。
@@ -1575,8 +1575,8 @@ var CHAR_STANDINGS = {
   /* ══ ★ v98：神社篇三位巫女的立绘 ══
      ★ 2026-11-16：神代凛音的旧图已删（她有新立绘：rinne 三张）。
        月读澪 / 斋宫若叶**没有**新图，旧图保留 —— 删了她们就没立绘了。 */
-  '月读澪': 'https://a.imgckr.com/2026/10/10/Xl1QG.png',
-  '斋宫若叶': 'https://a.imgckr.com/2026/10/10/XlsZX.png',
+  '月读澪': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/avatar/%E6%9C%88%E8%AF%BB%E6%BE%AA.webp',
+  '斋宫若叶': 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/avatar/%E6%96%8B%E5%AE%AB%E8%8B%A5%E5%8F%B6.webp',
   /* ★ v139：两位神社非人的立绘位 —— 玩家稍后给链接，直接把下面两行取消注释并换成 URL 即可。
      没给之前**不要**写空串（空 src 会画出坏图），界面按「没有立绘」处理，正文也不提「立绘」。
      白蔵主：温柔又妩媚的好妖，白狐 / 女子人影；御神木之灵：温柔带着母性的树灵。

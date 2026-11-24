@@ -1228,6 +1228,8 @@
        状态栏现在挂在 .mes_text 外面，只看 .mes_text 内部会每轮都判「没有」，
        于是每轮新建一个、再被去重删掉 ⇒ 一闪一闪。 */
     if (mesEl.querySelector('.haru-sb-host')) return;
+    /* ★ 双保险：整个文档里已有状态栏就不再建（防任何路径重复挂载导致闪烁） */
+    try { if (doc.getElementById('haru-sb-dock') || (doc.querySelectorAll('.haru-sb-host').length > 0)) return; } catch (eOnce) {}
     var doc = hostDoc(); if (!doc) return;
     var host = doc.createElement('div');
     host.className = 'haru-sb-host';
