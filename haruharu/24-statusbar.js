@@ -1053,38 +1053,7 @@
 
   var TEXT_SKIN_CSS = "/* ══ 正文纸（文字版）：深红樱花边 + 深红字 + 浅和纸底 ══════════════════\n   底色必须是浅的：作者要「正文深红」，深红压在深色底上必然糊成一片。\n   所以纸用暖白（#fffdf9→#f3e6d7），字用 #7a1f2b，对比度 8:1 以上。 */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text {\n  position: relative;\n  margin: 12px 2px;\n  padding: 18px 22px 16px !important;\n  border-radius: 13px;\n  color: #7a1f2b !important;\n  background: radial-gradient(130% 100% at 50% -10%, #fffdf9 0%, #faf2e7 48%, #f3e6d7 100%) !important;\n  border: 1px solid rgba(140, 43, 52, .55) !important;\n  border-top: 14px solid transparent !important;\n  border-bottom: 14px solid transparent !important;\n  border-image: url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='14'%3E%3Cg fill='%238c2b34' fill-opacity='.42'%3E%3Cellipse cx='9' cy='5' rx='3.2' ry='2' transform='rotate(-25 9 5)'/%3E%3Cellipse cx='13.4' cy='4' rx='3.2' ry='2' transform='rotate(25 13.4 4)'/%3E%3Cellipse cx='11.2' cy='7.6' rx='2.2' ry='2.6'/%3E%3Cellipse cx='31' cy='5' rx='2.4' ry='1.6' transform='rotate(20 31 5)'/%3E%3Cellipse cx='34.4' cy='6.4' rx='2.4' ry='1.6' transform='rotate(-20 34.4 6.4)'/%3E%3C/g%3E%3Cg stroke='%238c2b34' stroke-opacity='.30' stroke-width='1'%3E%3Cpath d='M0 12.5H44'/%3E%3C/g%3E%3C/svg%3E\") 14 0 round !important;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7), inset 0 0 26px rgba(140, 43, 52, .06), 0 5px 16px rgba(90, 20, 28, .10) !important;\n  font-size: 15px;\n  line-height: 1.95;\n  letter-spacing: .02em;\n  overflow: visible !important;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::before,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::after {\n  content: \"❀\";\n  position: absolute;\n  font-size: 15px;\n  line-height: 1;\n  color: rgba(140, 43, 52, .38);\n  pointer-events: none;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::before { top: 2px; left: 6px; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::after { bottom: 2px; right: 6px; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text p,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text span,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text div { color: inherit; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text b,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text strong { color: #5e1620; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text em,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text i { color: #8c2b34; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text a { color: #a0313d; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text hr { border: 0; border-top: 1px solid rgba(140, 43, 52, .22); }\n/* ── 兼容插图：不裁切、不撑破，圆角跟着纸走 ── */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text img,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text video,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text canvas {\n  max-width: 100% !important;\n  height: auto !important;\n  border-radius: 9px;\n  border: 1px solid rgba(140, 43, 52, .28);\n  box-shadow: 0 3px 12px rgba(90, 20, 28, .14);\n  background: #fffdf8;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text iframe { max-width: 100% !important; }\n/* ── 兼容对话气泡：气泡自己留白底，字仍是深红 ── */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .bubble,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .dialogue,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .chat-bubble,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text blockquote {\n  background: #fffdf8 !important;\n  border: 1px solid rgba(140, 43, 52, .22) !important;\n  border-left: 3px solid rgba(140, 43, 52, .55) !important;\n  border-radius: 10px;\n  padding: 8px 12px;\n  margin: 8px 0;\n  color: #6f1b26 !important;\n  box-shadow: 0 2px 8px rgba(90, 20, 28, .08);\n}\nbody.haru-txt-mode #chat .mes[is_user=\"true\"] .mes_text { color: #2f3a46; }\n/* ══ ★ 2026-11-19：两颗开关以前只加 class、**没有任何 CSS 消费它** ⇒ 纯摆设。\n   这里补上真正的「关」：正文美化关 → 纸/边/樱花/字色全回原样；气泡美化关 → 气泡回原样。 */\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text {\n  background: none !important; border: 0 !important; border-image: none !important;\n  box-shadow: none !important; border-radius: 0 !important; padding: 0 !important;\n  margin: 0 !important; color: inherit !important; font-size: inherit !important;\n  line-height: inherit !important; letter-spacing: normal !important;\n}\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text::before,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text::after { content: none !important; }\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text img,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text video,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text canvas {\n  border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: none !important;\n}\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .bubble,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .dialogue,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .chat-bubble,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text blockquote {\n  background: none !important; border: 0 !important; border-left: 0 !important;\n  border-radius: 0 !important; padding: 0 !important; margin: 0 !important;\n  box-shadow: none !important; color: inherit !important;\n}";
 
-  /* ★ 2026-11-20：深色版正文美化（默认）—— 状态栏是深色就深色，是日光才用上面的浅纸。
-     用 \n 拼进同一个变量，避免把裸换行写进字符串字面量（那会直接语法错误）。 */
-  try {
-    TEXT_SKIN_CSS += [
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text {',
-      '  color: #f4d9e4 !important;',
-      '  background: radial-gradient(130% 100% at 50% -10%, #221d2b 0%, #1b1822 52%, #171420 100%) !important;',
-      '  border: 1px solid rgba(226,184,87,.42) !important;',
-      '  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04), inset 0 0 26px rgba(0,0,0,.45), 0 5px 16px rgba(0,0,0,.38) !important;',
-      '}',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text::before,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text::after { color: rgba(244,114,182,.55) !important; }',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text b,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text strong { color: #ffd9e8 !important; }',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text em,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text i { color: #f0a8c6 !important; }',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text a { color: #f4b8d0 !important; }',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text hr { border-top-color: rgba(226,184,87,.28) !important; }',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text img,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text video,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text canvas {',
-      '  border-color: rgba(226,184,87,.3) !important; background: #171420 !important; box-shadow: 0 3px 12px rgba(0,0,0,.45) !important;',
-      '}',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .bubble,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .dialogue,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .chat-bubble,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text blockquote {',
-      '  background: rgba(255,255,255,.05) !important; border: 1px solid rgba(226,184,87,.3) !important;',
-      '  border-left: 3px solid rgba(244,114,182,.6) !important; color: #f4d9e4 !important;',
-      '}'
-    ].join('\n');
-  } catch (eDark) {}
+  /* ★ 2026-11-25（作者：粉色的不要了）：深色樱整块删除，默认暗金。 */
 
   /* ══ 2026-11-20：正文美化三套皮肤（浅纸 / 深色樱 / 暗金）═══════════════════
      作者：① 深色下气泡对话框看不见（本来就透明）；② 再来一套暗金色；③ 四角必须圆角。
@@ -1106,6 +1075,7 @@
       '}',
       /* ── 暗金皮肤 ── */
       'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text {',
+      '  padding: 18px 20px !important; margin: 12px 0 !important;',
       '  color: #f0dfb8 !important;',
       '  background: radial-gradient(130% 100% at 50% -10%, #241d10 0%, #1a150c 52%, #14100a 100%) !important;',
       '  border: 1px solid rgba(212,175,55,.62) !important;',
