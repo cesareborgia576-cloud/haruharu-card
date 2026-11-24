@@ -1224,7 +1224,10 @@
     try { if (mesEl.getAttribute && mesEl.getAttribute('is_user') === 'true') return; } catch (e) {}
     var mt = mesEl.querySelector('.mes_text');
     if (!mt) return;
-    if (mt.querySelector('.haru-sb-host')) return;   /* 已在：不重复挂 */
+    /* ★ 2026-11-25（作者：状态栏一直闪）：判断范围改成整个 .mes ——
+       状态栏现在挂在 .mes_text 外面，只看 .mes_text 内部会每轮都判「没有」，
+       于是每轮新建一个、再被去重删掉 ⇒ 一闪一闪。 */
+    if (mesEl.querySelector('.haru-sb-host')) return;
     var doc = hostDoc(); if (!doc) return;
     var host = doc.createElement('div');
     host.className = 'haru-sb-host';
