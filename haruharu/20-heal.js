@@ -95,7 +95,19 @@ var MvuSelfHealing = (function() {
 
   function messageTextOf(m) {
     if (!m) return "";
-    return typeof m.mes === "string" ? m.mes : (typeof m.message === "string" ? m.message : "");
+    /* ★ 2026-11-24：与 10-core 的 messageTextOf 对齐 —— m.mes 空掉时还要看 swipe。
+       以前这里只看 m.mes / m.message：玩家 swipe 过、或 mes 没同步时读到空串，
+       面板就误报「本楼完全没有变量块」（作者原话：「这不他妈有吗」）。 */
+    if (typeof m.mes === "string" && m.mes) return m.mes;
+    if (typeof m.message === "string" && m.message) return m.message;
+    var swId = m.swipe_id != null ? m.swipe_id : 0;
+    if (m.swipe_info && m.swipe_info[swId] && typeof m.swipe_info[swId].mes === "string") return String(m.swipe_info[swId].mes);
+    if (m.swipes && m.swipes.length) {
+      var cur = m.swipes[swId];
+      if (cur && typeof cur === "object") return String(cur.mes != null ? cur.mes : "");
+      return String(cur == null ? "" : cur);
+    }
+    return "";
   }
 
   var _cssInjected = false;
@@ -449,7 +461,8 @@ var MvuSelfHealing = (function() {
     if (!raw.trim()) { problems.push('本楼完全没有变量块'); return problems; }
 
     var s = stripThinkForVar(raw);
-    if (!s.trim()) { problems.push('本楼完全没有变量块'); return problems; }
+    /* ★ 2026-11-24：不再在 s 为空时直接判「完全没有变量块」——
+       先按下面的顺序扫一遍：剥完的 s 没有 → 回原文 raw 再找。 */
 
     /* ★ 23:10【口径变更】以前按「世界书约定的三层格式」判，外壳缺失也报。
        作者决定改成**只看 MVU 实际会执行什么** —— 也就是只看 <JSONPatch>…</JSONPatch>。
@@ -468,6 +481,20 @@ var MvuSelfHealing = (function() {
       else bad++;
     }
     if (good > 0) return problems;                    /* 至少一块能执行 → MVU 会写进去 */
+    /* ★ 2026-11-24：s 里没有 → 回原文再找一次。
+       模型常把变量块写进未闭合的 think 段（预设把闭合标签吃了），
+       stripThinkForVar 会把整段删光 ⇒ 玩家明明看得见块，却判「完全没有变量块」。 */
+    if (String(s) !== String(raw)) {
+      var reR = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>([\s\S]*?)<\s*\/\s*(?:JSONPatch|json_?patch)\s*>/gi;
+      var rGood = 0, rClosed = 0, rBad = 0, mr;
+      while ((mr = reR.exec(raw)) !== null) {
+        rClosed++;
+        if (lcsParsePatch(String(mr[1] || ''), true)) rGood++;
+        else rBad++;
+      }
+      if (rGood > 0) return problems;
+      if (closed === 0 && rClosed > 0) { closed = rClosed; bad = rBad; }
+    }
     if (closed > 0) {
       problems.push('&lt;JSONPatch&gt; 里的 JSON 不是合法数组（' + bad + ' 块都解析失败）');
       return problems;

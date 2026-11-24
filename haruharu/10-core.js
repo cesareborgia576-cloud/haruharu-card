@@ -24317,7 +24317,7 @@ function thDlgNum(key, dflt, min, max) {
 function thApplyDlgSize() {
   try {
     var fs = thDlgNum('SPR_DLG_FS', 12, 9, 22);
-    var hh = thDlgNum('SPR_DLG_H', 0, 0, 0);   /* 0 = 用默认比例 */
+    var hh = thDlgNum('SPR_DLG_H', 0, 0, 560);   /* 0 = 用默认比例；上限 560 —— 以前写成 0,0 把玩家调的值钳成 0，按钮永远没反应 */
     var st = getDoc().querySelector('.th-gal-dialogue-stage');
     var bodyEl = getDoc().querySelector('.th-gal-dialogue-body');
     var o0 = thDlgLook();
@@ -24392,7 +24392,7 @@ function thBindDlgLookButtons(shell) {
           localStorage.setItem('SPR_DLG_FS', String(Math.min(22, Math.max(9, fs))));
         } else {
           var st0 = doc.querySelector('.th-gal-dialogue-stage');
-          var cur = thDlgNum('SPR_DLG_H', 0, 0, 0);
+          var cur = thDlgNum('SPR_DLG_H', 0, 0, 560);   /* ★ 2026-11-24：0,0 会把已存的高度钳成 0 → 高度按钮无反应 */
           if (!cur) { try { cur = (st0 && st0.getBoundingClientRect().height) || 160; } catch (eH) { cur = 160; } }
           localStorage.setItem('SPR_DLG_H', String(Math.min(560, Math.max(72, Math.round(cur + d * 20)))));
         }
@@ -27229,7 +27229,8 @@ var MvuSelfHealing = (function() {
     if (!raw.trim()) { problems.push('本楼完全没有变量块'); return problems; }
 
     var s = stripThinkForVar(raw);
-    if (!s.trim()) { problems.push('本楼完全没有变量块'); return problems; }
+    /* ★ 2026-11-24：不再在 s 为空时直接判「完全没有变量块」——
+       先按下面的顺序扫一遍：剥完的 s 没有 → 回原文 raw 再找。 */
 
     /* ★ 23:10【口径变更】以前按「世界书约定的三层格式」判，外壳缺失也报。
        作者决定改成**只看 MVU 实际会执行什么** —— 也就是只看 <JSONPatch>…</JSONPatch>。
@@ -27248,6 +27249,20 @@ var MvuSelfHealing = (function() {
       else bad++;
     }
     if (good > 0) return problems;                    /* 至少一块能执行 → MVU 会写进去 */
+    /* ★ 2026-11-24：s 里没有 → 回原文再找一次。
+       模型常把变量块写进未闭合的 think 段（预设把闭合标签吃了），
+       stripThinkForVar 会把整段删光 ⇒ 玩家明明看得见块，却判「完全没有变量块」。 */
+    if (String(s) !== String(raw)) {
+      var reR = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>([\s\S]*?)<\s*\/\s*(?:JSONPatch|json_?patch)\s*>/gi;
+      var rGood = 0, rClosed = 0, rBad = 0, mr;
+      while ((mr = reR.exec(raw)) !== null) {
+        rClosed++;
+        if (lcsParsePatch(String(mr[1] || ''), true)) rGood++;
+        else rBad++;
+      }
+      if (rGood > 0) return problems;
+      if (closed === 0 && rClosed > 0) { closed = rClosed; bad = rBad; }
+    }
     if (closed > 0) {
       problems.push('&lt;JSONPatch&gt; 里的 JSON 不是合法数组（' + bad + ' 块都解析失败）');
       return problems;
