@@ -1223,10 +1223,24 @@
     var doc = hostDoc(); if (!doc) return;
     var host = doc.createElement('div');
     host.className = 'haru-sb-host';
-    host.style.cssText = 'margin:10px 0;clear:both;';
+    /* ★★ 2026-11-25（作者：状态栏要常驻显示在下面）：不再塞在消息里，改成**固定在屏幕底部** */
+    host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:900;'
+      + 'height:42vh;min-height:240px;max-height:60vh;margin:0;padding:0;'
+      + 'background:#12100c;border-top:1px solid rgba(200,164,92,.35);'
+      + 'box-shadow:0 -8px 24px rgba(0,0,0,.55);';
     var f = doc.createElement('iframe');
     f.className = 'haru-sb-frame';
-    f.setAttribute('style', 'width:100%;border:0;background:transparent;height:600px;');
+    f.setAttribute('style', 'width:100%;height:100%;border:0;background:#12100c;display:block;');
+    /* 给聊天区留出底部空间，别被状态栏盖住 */
+    try {
+      if (!doc.getElementById('haru-sb-dock-pad')) {
+        var st = doc.createElement('style');
+        st.id = 'haru-sb-dock-pad';
+        st.textContent = 'body.haru-txt-mode{padding-bottom:44vh !important;}'
+          + '@media (max-height:700px){body.haru-txt-mode{padding-bottom:46vh !important;}}';
+        (doc.head || doc.documentElement).appendChild(st);
+      }
+    } catch (ePad) {}
     f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
     f.srcdoc = SB_HTML;
     host.appendChild(f);
@@ -1235,7 +1249,7 @@
     else mesEl.appendChild(host);
     try {
       f.addEventListener('load', function () {
-        try { var bd = f.contentDocument && f.contentDocument.body; if (bd) f.style.height = '600px'; } catch (e2) {}
+        try { var bd = f.contentDocument && f.contentDocument.body; if (bd) f.style.height = '100%'; } catch (e2) {}
         try { injectChg(f); } catch (e4) {}
         try { injectFunc(f); } catch (e5) {}
       });
