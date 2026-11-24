@@ -624,11 +624,11 @@
       '#' + STYLE_ID + ' { display: none; }',
       '#' + HOST_ID + ' { margin: 12px auto 6px; max-width: min(760px, 96vw); }',
       /* v1.2 日光配色：白底 + 深墨字 + 蓝灰主色（原夜樱深紫粉在白底上浅粉字看不清） */
-      '.thso-card { background: linear-gradient(170deg, #ffffff, #f7f9fb) !important; border: 1px solid #d8dde3 !important; border-radius: 12px !important; padding: 14px 16px 13px !important; color: #23272c !important; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif !important; font-size: 13px !important; line-height: 1.6 !important; box-shadow: 0 10px 30px rgba(40,50,60,.10) !important; box-sizing: border-box !important; text-align: left !important; }',
-      '.thso-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 2px 8px !important; margin-bottom: 8px !important; border-bottom: 1px solid #e6eaee !important; background: transparent !important; }',
+      '.thso-card { background: linear-gradient(170deg, #221d15, #1a1610) !important; border: 1px solid rgba(200,164,92,.28) !important; border-radius: 12px !important; padding: 14px 16px 13px !important; color: #f0e6d2 !important; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif !important; font-size: 13px !important; line-height: 1.6 !important; box-shadow: 0 10px 30px rgba(0,0,0,.45) !important; box-sizing: border-box !important; text-align: left !important; }',
+      '.thso-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 2px 8px !important; margin-bottom: 8px !important; border-bottom: 1px solid rgba(200,164,92,.22) !important; background: transparent !important; }',
       '.thso-sakura { flex: 0 0 auto !important; display: block !important; }',
-      '.thso-title { font-size: 15px !important; font-weight: 800 !important; color: #23272c !important; letter-spacing: 1px !important; line-height: 1.2 !important; }',
-      '.thso-sub { font-size: 10.5px !important; color: #7b838c !important; letter-spacing: .4px; margin-left: auto !important; }',
+      '.thso-title { font-size: 15px !important; font-weight: 800 !important; color: #f0e6d2 !important; letter-spacing: 1px !important; line-height: 1.2 !important; }',
+      '.thso-sub { font-size: 10.5px !important; color: #b3a68c !important; letter-spacing: .4px; margin-left: auto !important; }',
       /* ★ v1.27：文字版面板顶上的「想玩 Galgame 版点我」。
          文字版没有壳、没有标题屏，这条是文字版玩家唯一能看到的「换模式」入口，
          所以做成整行醒目按钮，不做成角落里的小链接。
@@ -647,19 +647,19 @@
            主标题要能换行，所以 body 那块给 min-width:0，否则 flex 子项
            不会缩，长文案照样顶出去。 */
       '.thso-playtip { margin: 0 0 12px !important; }',
-      '.thso-playbtn { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; box-sizing: border-box !important; padding: 9px 12px !important; border-radius: 10px !important; border: 1px solid #c6d8e6 !important; background: linear-gradient(135deg, #f4f9fd, #e9f2f9) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; transition: border-color .15s, background .15s, box-shadow .15s, transform .15s !important; }',
-      '.thso-playbtn:hover { border-color: #3d6f9e !important; background: #e4eff8 !important; box-shadow: 0 4px 14px rgba(61,111,158,.16) !important; }',
+      '.thso-playbtn { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; box-sizing: border-box !important; padding: 9px 12px !important; border-radius: 10px !important; border: 1px solid rgba(200,164,92,.38) !important; background: linear-gradient(135deg, #26211a, #1e1a13) !important; cursor: pointer !important; text-align: left !important; font-family: inherit !important; transition: border-color .15s, background .15s, box-shadow .15s, transform .15s !important; }',
+      '.thso-playbtn:hover { border-color: #c8a45c !important; background: #2b251c !important; box-shadow: 0 4px 14px rgba(200,164,92,.18) !important; }',
       '.thso-playbtn:active { transform: scale(.99) !important; }',
       '.thso-playbtn.is-busy { opacity: .55 !important; pointer-events: none !important; }',
       /* 图标装进白色小盒子里 —— 光一个 emoji 漂在彩色底上会显得脏 */
-      '.thso-playbtn-ico { flex: 0 0 auto !important; width: 32px !important; height: 32px !important; border-radius: 9px !important; display: flex !important; align-items: center !important; justify-content: center !important; background: #ffffff !important; border: 1px solid #d8e4ee !important; font-size: 16px !important; line-height: 1 !important; box-shadow: 0 1px 3px rgba(61,111,158,.08) !important; }',
+      '.thso-playbtn-ico { flex: 0 0 auto !important; width: 32px !important; height: 32px !important; border-radius: 9px !important; display: flex !important; align-items: center !important; justify-content: center !important; background: #2b251c !important; border: 1px solid rgba(200,164,92,.30) !important; font-size: 16px !important; line-height: 1 !important; box-shadow: 0 1px 3px rgba(61,111,158,.08) !important; }',
       /* 两行文字块：min-width:0 是关键，否则 flex 子项不肯缩、长文案顶出去 */
       '.thso-playbtn-body { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; gap: 2px !important; }',
-      '.thso-playbtn-txt { font-size: 12.5px !important; font-weight: 800 !important; color: #2f5c86 !important; letter-spacing: .3px !important; line-height: 1.35 !important; }',
-      '.thso-playbtn-sub { font-size: 10.5px !important; color: #7b838c !important; line-height: 1.4 !important; }',
+      '.thso-playbtn-txt { font-size: 12.5px !important; font-weight: 800 !important; color: #e8cd96 !important; letter-spacing: .3px !important; line-height: 1.35 !important; }',
+      '.thso-playbtn-sub { font-size: 10.5px !important; color: #b3a68c !important; line-height: 1.4 !important; }',
       /* 右侧胶囊：给「这是可点的」一个明确的视觉出口，不靠 hover 才看得出来 */
-      '.thso-playbtn-go { flex: 0 0 auto !important; font-size: 10.5px !important; font-weight: 800 !important; color: #3d6f9e !important; padding: 5px 10px !important; border-radius: 999px !important; background: #ffffff !important; border: 1px solid #c6d8e6 !important; white-space: nowrap !important; line-height: 1 !important; box-shadow: 0 1px 3px rgba(61,111,158,.08) !important; }',
-      '.thso-playbtn:hover .thso-playbtn-go { border-color: #3d6f9e !important; background: #3d6f9e !important; color: #ffffff !important; }',
+      '.thso-playbtn-go { flex: 0 0 auto !important; font-size: 10.5px !important; font-weight: 800 !important; color: #d9b168 !important; padding: 5px 10px !important; border-radius: 999px !important; background: #2b251c !important; border: 1px solid rgba(200,164,92,.38) !important; white-space: nowrap !important; line-height: 1 !important; box-shadow: 0 1px 3px rgba(61,111,158,.08) !important; }',
+      '.thso-playbtn:hover .thso-playbtn-go { border-color: #c8a45c !important; background: #c8a45c !important; color: #1a1610 !important; }',
       /* 手机上：胶囊藏掉（窄屏挤不下），字号各收一档，副标题保留 ——
          它是「换过去能得到什么」的唯一说明，藏了玩家就只能猜。
          ★ v1.28 修：断点从 480px 收到 560px。480 那一档在 340~480 之间
@@ -669,39 +669,39 @@
       /* 极窄屏（< 330px）再收一档，保证副标题也只占一行 */
       '@media (max-width: 330px) { .thso-playbtn-sub { font-size: 9.5px !important; letter-spacing: -.1px !important; } }',
       '.thso-sect { margin: 12px 0 2px !important; }',
-      '.thso-sect-t { font-size: 11px !important; font-weight: 700 !important; color: #3d6f9e !important; margin-bottom: 6px !important; letter-spacing: .8px !important; line-height: 1.3 !important; }',
+      '.thso-sect-t { font-size: 11px !important; font-weight: 700 !important; color: #d9b168 !important; margin-bottom: 6px !important; letter-spacing: .8px !important; line-height: 1.3 !important; }',
       '.thso-cards { display: flex !important; flex-wrap: wrap !important; gap: 10px !important; }',
       /* 季节四个一行放下（原来 3+1 换行） */
       /* 季节四列：12px 间隔，卡片本身去掉 min-width/flex —— grid 里两者会把 4 列挤成贴边 */
       '.thso-cards-4 { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 12px !important; }',
       '.thso-cards-4 .thso-item { min-width: 0 !important; flex: none !important; width: auto !important; }',
       '@media (max-width: 620px) { .thso-cards-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }',
-      '.thso-item { flex: 1 1 158px !important; min-width: 148px !important; min-height: 46px !important; border: 1px solid #e0e4e9 !important; border-radius: 10px !important; padding: 8px 11px !important; cursor: pointer !important; background: #fbfcfd !important; transition: border-color .15s, background .15s, box-shadow .15s !important; box-sizing: border-box !important; user-select: none !important; -webkit-user-select: none !important; }',
+      '.thso-item { flex: 1 1 158px !important; min-width: 148px !important; min-height: 46px !important; border: 1px solid #3d3527 !important; border-radius: 10px !important; padding: 8px 11px !important; cursor: pointer !important; background: #211d16 !important; transition: border-color .15s, background .15s, box-shadow .15s !important; box-sizing: border-box !important; user-select: none !important; -webkit-user-select: none !important; }',
       '.thso-item:hover { border-color: #9bb8d2 !important; background: #f2f7fb !important; }',
-      '.thso-item.on { border-color: #3d6f9e !important; background: #eef4f9 !important; box-shadow: 0 0 0 2px rgba(61,111,158,.16) !important; }',
-      '.thso-item-tag { font-size: 10.5px !important; color: #5c646d !important; line-height: 1.35 !important; }',
-      '.thso-item.on .thso-item-tag { color: #3d6f9e !important; }',
-      '.thso-item-name { font-size: 13px !important; font-weight: 700 !important; color: #23272c !important; line-height: 1.4 !important; }',
-      '.thso-item-desc { font-size: 10.5px !important; color: #7b838c !important; line-height: 1.4 !important; margin-top: 1px !important; }',
+      '.thso-item.on { border-color: #c8a45c !important; background: rgba(217,177,104,.12) !important; box-shadow: 0 0 0 2px rgba(200,164,92,.18) !important; }',
+      '.thso-item-tag { font-size: 10.5px !important; color: #a89b84 !important; line-height: 1.35 !important; }',
+      '.thso-item.on .thso-item-tag { color: #e8cd96 !important; }',
+      '.thso-item-name { font-size: 13px !important; font-weight: 700 !important; color: #f0e6d2 !important; line-height: 1.4 !important; }',
+      '.thso-item-desc { font-size: 10.5px !important; color: #a89b84 !important; line-height: 1.4 !important; margin-top: 1px !important; }',
       '.thso-grid2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px 10px !important; }',
       '.thso-field { min-width: 0 !important; }',
       '.thso-field label { display: block !important; font-size: 10.5px !important; color: #5c646d !important; margin-bottom: 3px !important; font-weight: 700 !important; letter-spacing: .5px; }',
       '.thso-field input { width: 100% !important; box-sizing: border-box !important; background: #ffffff !important; border: 1px solid #d4d8dd !important; border-radius: 8px !important; color: #23272c !important; padding: 8px 10px !important; font-size: 12.5px !important; font-family: inherit !important; outline: none !important; line-height: 1.4 !important; }',
       '.thso-field input:focus { border-color: #3d6f9e !important; box-shadow: 0 0 0 2px rgba(61,111,158,.14) !important; }',
       '.thso-field input::placeholder { color: #a3aab2 !important; }',
-      '.thso-summary { margin: 14px 0 0 !important; border: 1px dashed #cfd6dd !important; border-radius: 10px !important; padding: 9px 12px !important; background: #f6f8fa !important; font-size: 12px !important; color: #3a4048 !important; }',
-      '.thso-summary b { color: #3d6f9e !important; font-weight: 800 !important; }',
+      '.thso-summary { margin: 14px 0 0 !important; border: 1px dashed rgba(200,164,92,.35) !important; border-radius: 10px !important; padding: 9px 12px !important; background: #1e1a13 !important; font-size: 12px !important; color: #d8cdb6 !important; }',
+      '.thso-summary b { color: #e8cd96 !important; font-weight: 800 !important; }',
       '.thso-summary .thso-su-empty { color: #8a929b !important; }',
       '.thso-actions { display: flex !important; gap: 10px !important; margin-top: 12px !important; }',
       'button.thso-btn { flex: 1 1 auto !important; font-family: inherit !important; font-size: 13.5px !important; font-weight: 800 !important; padding: 10px 18px !important; border-radius: 10px !important; cursor: pointer !important; letter-spacing: 2px !important; transition: all .15s !important; line-height: 1.4 !important; }',
-      'button.thso-btn-confirm { background: linear-gradient(135deg, #5584b0, #3d6f9e) !important; border: 1px solid #3d6f9e !important; color: #ffffff !important; box-shadow: 0 4px 14px rgba(61,111,158,.28) !important; flex: 2 1 auto !important; }',
-      'button.thso-btn-confirm:hover:not(:disabled) { filter: brightness(1.06) !important; box-shadow: 0 6px 20px rgba(61,111,158,.4) !important; }',
+      'button.thso-btn-confirm { background: linear-gradient(135deg, #d9b168, #b08c42) !important; border: 1px solid #c8a45c !important; color: #1a1610 !important; box-shadow: 0 4px 14px rgba(200,164,92,.28) !important; flex: 2 1 auto !important; }',
+      'button.thso-btn-confirm:hover:not(:disabled) { filter: brightness(1.08) !important; box-shadow: 0 6px 20px rgba(200,164,92,.4) !important; }',
       'button.thso-btn:disabled { opacity: .5 !important; cursor: not-allowed !important; }',
-      'button.thso-btn-ghost { background: #ffffff !important; border: 1px solid #d0d5da !important; color: #3d6f9e !important; }',
-      'button.thso-btn-ghost:hover { border-color: #3d6f9e !important; color: #2f5c86 !important; }',
-      '.thso-note { margin-top: 9px !important; font-size: 10.5px !important; color: #7b838c !important; line-height: 1.5 !important; }',
-      '#' + CHIP_ID + ' { position: fixed !important; right: 14px !important; bottom: 20px !important; width: 42px !important; height: 42px !important; border-radius: 50% !important; background: linear-gradient(160deg, #ffffff, #eef4f9) !important; border: 1px solid #cfd6dd !important; box-shadow: 0 4px 14px rgba(40,50,60,.18) !important; z-index: 9998 !important; cursor: grab !important; display: flex !important; align-items: center !important; justify-content: center !important; touch-action: none !important; user-select: none !important; -webkit-user-select: none !important; transition: transform .15s !important; }',
-      '#' + CHIP_ID + ':hover { transform: scale(1.08) !important; border-color: #9bb8d2 !important; }',
+      'button.thso-btn-ghost { background: #26211a !important; border: 1px solid rgba(200,164,92,.30) !important; color: #d9b168 !important; }',
+      'button.thso-btn-ghost:hover { border-color: #c8a45c !important; color: #e8cd96 !important; }',
+      '.thso-note { margin-top: 9px !important; font-size: 10.5px !important; color: #8c8069 !important; line-height: 1.5 !important; }',
+      '#' + CHIP_ID + ' { position: fixed !important; right: 14px !important; bottom: 20px !important; width: 42px !important; height: 42px !important; border-radius: 50% !important; background: linear-gradient(160deg, #2b251c, #1e1a13) !important; border: 1px solid rgba(200,164,92,.38) !important; box-shadow: 0 4px 14px rgba(0,0,0,.45) !important; z-index: 9998 !important; cursor: grab !important; display: flex !important; align-items: center !important; justify-content: center !important; touch-action: none !important; user-select: none !important; -webkit-user-select: none !important; transition: transform .15s !important; }',
+      '#' + CHIP_ID + ':hover { transform: scale(1.08) !important; border-color: #c8a45c !important; }',
       '#' + CHIP_ID + ' svg { display: block !important; }',
       '#th-start-toast { position: fixed !important; top: 14px !important; left: 50% !important; transform: translate(-50%, -14px) !important; z-index: 100000 !important; max-width: min(88vw, 560px) !important; box-sizing: border-box !important; padding: 10px 16px !important; border-radius: 10px !important; background: #ffffff !important; border: 1px solid #d8dde3 !important; box-shadow: 0 10px 28px rgba(40,50,60,.16) !important; color: #23272c !important; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif !important; font-size: 12.5px !important; line-height: 1.6 !important; text-align: left !important; opacity: 0 !important; pointer-events: none !important; transition: opacity .22s ease, transform .22s ease !important; }',
       '#th-start-toast.th-start-toast-show { opacity: 1 !important; transform: translate(-50%, 0) !important; }'

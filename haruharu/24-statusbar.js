@@ -1154,7 +1154,7 @@
     try {
       var doc = hostDoc();
       if (!doc || !doc.body) return;
-      var v = localStorage.getItem('haru_skin_variant') || 'dark';
+      var v = localStorage.getItem('haru_skin_variant') || 'gold';
       doc.body.classList.toggle('haru-skin-gold', v === 'gold');
       /* ★ 2026-11-20：作者「浅色的正文美化没生效」。
          真因：浅纸以前靠 `haru-skin-sun` 这个类，而它是**状态栏主题**在用的 ——
@@ -1189,7 +1189,7 @@
       };
       var s3 = d.getElementById('sb-fn-skinvar');
       function paintVar() {
-        var v = localStorage.getItem('haru_skin_variant') || 'dark';
+        var v = localStorage.getItem('haru_skin_variant') || 'gold';
         var lbl = v === 'gold' ? '暗金' : (v === 'paper' ? '浅纸' : '深色樱');
         var el = d.getElementById('sb-fn-skinvar-v');
         if (el) el.textContent = lbl;
