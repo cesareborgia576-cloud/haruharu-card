@@ -1268,9 +1268,19 @@
       var pad = doc.getElementById('haru-sb-dock-pad');
       if (pad && pad.parentNode) pad.parentNode.removeChild(pad);
     } catch (eDock) {}
+    /* ★ 2026-11-25（作者：为什么有两个状态栏）：同一楼里只许留一个 ——
+       旧版挂在 .mes_text 内部、新版挂在外面，升级后两个都活着。
+       规则：只留一个（优先 .mes_text 外面的），其余全删。 */
     var hosts = doc.querySelectorAll('.haru-sb-host');
+    var keep = null;
     for (var j = 0; j < hosts.length; j++) {
-      if (!last || !last.contains(hosts[j])) { try { hosts[j].remove(); } catch (eR) {} }
+      var h = hosts[j];
+      var inText = false;
+      try { inText = !!h.closest('.mes_text'); } catch (eC) {}
+      if (!last || !last.contains(h)) { try { h.remove(); } catch (eR0) {} continue; }
+      if (inText) { try { h.remove(); } catch (eR1) {} continue; }   /* 旧挂法残留：删 */
+      if (keep) { try { h.remove(); } catch (eR2) {} }                /* 重复的：删 */
+      else keep = h;
     }
   }
   var timer = null;
