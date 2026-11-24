@@ -2174,6 +2174,29 @@
     fig.style.objectPosition = 'center center';
   }
 
+  /* ★ 2026-11-24：插图屏蔽模式的提示牌 —— 有插图但被屏蔽时显示一行字，没有就撤掉 */
+  var _illBlockNoteId = 'th-gal-illust-blocked-note';
+  function thIllustBlockNote(show) {
+    try {
+      var d = getDoc();
+      if (!d || !d.body) return;
+      var el = d.getElementById(_illBlockNoteId);
+      if (!show) { if (el && el.parentNode) el.parentNode.removeChild(el); return; }
+      if (el) return;
+      el = d.createElement('div');
+      el.id = _illBlockNoteId;
+      el.textContent = '🚫 已开启插图屏蔽模式，插图不显示';
+      el.setAttribute('style',
+        'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
+        'z-index:78;padding:10px 18px;border-radius:12px;' +
+        'background:rgba(10,8,6,.72);border:1px solid rgba(217,187,122,.45);' +
+        'color:#e6d8bd;font-size:13px;font-weight:600;letter-spacing:.5px;' +
+        'font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif;pointer-events:none;');
+      var host = d.getElementById('th-gal-shell-root') || d.body;
+      host.appendChild(el);
+    } catch (eN) {}
+  }
+
   function paint() {
     syncCgRect();
     var doc = getDoc();
@@ -2183,6 +2206,16 @@
     var group = state.queue || [];          /* ★ v125：这一轮拼好的整条队列 */
     /* 功能页里可以把内置插图关掉：当没有图处理，走下面的「收干净」分支 */
     if (!illustEnabled()) group = [];
+    /* ★ 2026-11-24（作者）：插图屏蔽模式 —— 外置/内置插图一律不显示；
+       有图时只在画面中间留一行「已开启插图屏蔽模式」。 */
+    var _illBlk = false;
+    try { _illBlk = !!(window.thIllustBlockOn && window.thIllustBlockOn()); } catch (eIB) {}
+    if (_illBlk) {
+      thIllustBlockNote(!!(group && group.length));
+      group = [];
+    } else {
+      thIllustBlockNote(false);
+    }
     var figEl = doc.getElementById(CG_FIGURE_ID);
 
     /* ★ v99：这一轮一个图组都没有 → 连黑幕一起收干净，壳的场景图与立绘回来。
@@ -2815,6 +2848,8 @@ function illustEnabled() {
     var el = extLayer();
     if (!el) return;
     var show = !!(extOn && extQueue.length);
+    /* ★ 2026-11-24：插图屏蔽模式 —— 外置（智绘姬）插图同样不显示 */
+    try { if (window.thIllustBlockOn && window.thIllustBlockOn()) show = false; } catch (eBx) {}
 
     /* 内置 CG 的让位 / 复位。只改 visibility，不碰 display、不动它的队列和推进按钮
        —— 外置图关掉之后内置那套要能原地接着播，不能被我改成半死不活。 */
@@ -3056,6 +3091,14 @@ function illustEnabled() {
       };
       window.__sprImmersive = HOST.__sprImmersive;
     } catch (eImmApi) {}
+    /* ★ 2026-11-24：插图屏蔽开关切换后，让 gal 立刻重画（内置 CG + 外置插图两条都收） */
+    try {
+      HOST.__sprGalRepaint = function () {
+        try { paint(); } catch (eRp1) {}
+        try { extRender(); } catch (eRp2) {}
+      };
+      window.__sprGalRepaint = HOST.__sprGalRepaint;
+    } catch (eRp) {}
     /* ★ 21:45：关着的时候不要每 1.5 秒全量扫 DOM（白耗性能、还可能攒脏图） */
     if (!extTimer) extTimer = setInterval(function () {
       try { if (extOn) { extScan(); extPaintBtn(); } } catch (e3) {}

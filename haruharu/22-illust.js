@@ -855,6 +855,16 @@
     var wrap = mk('div', 'thillu');
     var urls = item.urls;
 
+    /* ★ 2026-11-24（作者）：插图屏蔽模式 —— 一张图都不加载，只留一行说明 */
+    try {
+      if (window.thIllustBlockOn && window.thIllustBlockOn()) {
+        var bk0 = mk('div', 'thillu-broken');
+        bk0.textContent = '🚫 已开启插图屏蔽模式，插图不显示（' + item.who + '｜' + item.act + '）';
+        wrap.appendChild(bk0);
+        return wrap;
+      }
+    } catch (eB0) {}
+
     if (!urls || !urls.length) {
       var warn = mk('div', 'thillu-broken');
       warn.textContent = '（暂无图：' + item.who + '｜' + item.act + '）';
