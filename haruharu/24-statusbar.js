@@ -1228,18 +1228,20 @@
     var doc = hostDoc(); if (!doc) return;
     var host = doc.createElement('div');
     host.className = 'haru-sb-host';
-    host.style.cssText = 'margin:10px 0;clear:both;';
+    host.style.cssText = 'margin:10px -6px 10px -6px;clear:both;width:calc(100% + 12px);'
+      + 'max-width:none;box-sizing:border-box;';
     var f = doc.createElement('iframe');
     f.className = 'haru-sb-frame';
-    f.setAttribute('style', 'width:100%;border:0;background:transparent;display:block;'
+    f.setAttribute('style', 'width:100%;max-width:none;border:0;background:transparent;display:block;'
       + 'height:600px;max-height:62vh;');
     f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
     f.srcdoc = SB_HTML;
     host.appendChild(f);
-    /* 锚点优先，其次最末端（与天元录一致） */
-    var anchor = mt.querySelector('.xz-status-anchor, [data-xz-status-anchor]');
-    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(host, anchor.nextSibling);
-    else mt.appendChild(host);
+    /* ★ 2026-11-25（作者：状态栏就是状态栏，别被正文美化包住）：
+       挂在 .mes_text **外面**（它的兄弟节点），正文美化的卡片样式（背景/边框/内边距）
+       就套不到状态栏身上；同时给足宽度。 */
+    if (mt.parentNode) mt.parentNode.insertBefore(host, mt.nextSibling);
+    else mesEl.appendChild(host);
     try {
       f.addEventListener('load', function () {
         try { var bd = f.contentDocument && f.contentDocument.body; if (bd) f.style.height = '600px'; } catch (e2) {}
