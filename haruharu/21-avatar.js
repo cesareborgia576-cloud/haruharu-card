@@ -43,16 +43,16 @@
   var CHAR_IMAGES = {
   "春日久美子": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__立绘_01.png",
   "春日葵": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__立绘_01.png",
-  "春日静奈": "https://a.imgckr.com/2026/10/10/XlnOh.png",
+  "春日静奈": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__立绘_01.png",
   "吉川美穗": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/mihou/mihou__立绘_01.png",
   "山上椿芽": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-tsubaki@main/tsubaki__立绘_01.png",
-  "香本千玲": "https://a.imgckr.com/2026/10/10/XlW8R.png",
+  "香本千玲": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__立绘_01.png",
   "白坂结奈": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-yuna@main/yuna__立绘_01.png",
-  "神谷奈绪": "https://a.imgckr.com/2026/10/10/Xlbes.png",
-  "桃崎千鹤": "https://a.imgckr.com/2026/10/10/XlmES.png",
+  "神谷奈绪": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-nao@main/nao__立绘_01.png",
+  "桃崎千鹤": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chizuru@main/chizuru__立绘_01.png",
   "神代凛音": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__立绘_01.png",
   "月读澪": "https://a.imgckr.com/2026/10/10/Xl1QG.png",
-  "斋宫若叶": "https://a.imgckr.com/2026/10/10/XlsZX.png",
+  "斋宫若叶": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__立绘_01.png",
   "山上左寻": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/image-hosting@main/blog/1790812333896.png",
   "西村太郎": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/image-hosting@main/blog/1790812333896.png",
   "吉川大田": "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/image-hosting@main/blog/1790812333896.png",
@@ -130,7 +130,7 @@
     '.thdl-ava{flex:0 0 auto;width:56px;height:56px;border-radius:12px;overflow:hidden;',
     'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);',
     'box-shadow:0 2px 8px rgba(0,0,0,.35);position:relative;}',
-    '.thdl-ava img{width:100%;height:auto;max-width:none;object-fit:unset;object-position:top center;display:block;',   /* ★ 2026-11-25：不裁 —— 立绘按宽铺满、从头顶往下显示上半身 */
+    '.thdl-ava img{width:100%;height:auto;max-width:none;object-fit:unset;object-position:top center;display:block;transform:scale(.72);transform-origin:top center;',   /* ★ 2026-11-25：不裁 —— 立绘按宽铺满、从头顶往下显示上半身 */
     'transform:scale(2);transform-origin:50% 0;image-rendering:auto;}',
     /* 没头像的人（苦主/玩家）：用首字母占位，保持左边距一致不跳动 */
     '.thdl-ava.is-ph{display:flex;align-items:center;justify-content:center;',

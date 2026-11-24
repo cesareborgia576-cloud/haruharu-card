@@ -1215,22 +1215,31 @@
     } catch (eS) {}
   }
   function mount(mesEl) {
+    /* ══ ★ 2026-11-25：照天元录的挂法 —— 状态栏挂在**最新 AI 楼 .mes_text 内部** ══
+       天元录（05-界面脚本）：`.xz-root` 是 `.mes_text` 的子节点，
+       锚点优先 `.xz-status-anchor`，否则挂到 `.mes_text` 最末端。
+       ⚠ 天元录记过的坑：酒馆重绘 .mes_text 会把挂进去的节点一起冲掉 ——
+         所以 scan() 每轮都要检查、缺了就重挂（这里 mount 每次都会执行）。 */
     if (!mesEl) return;
     try { if (mesEl.getAttribute && mesEl.getAttribute('is_user') === 'true') return; } catch (e) {}
     var mt = mesEl.querySelector('.mes_text');
     if (!mt) return;
-    if (mesEl.querySelector('.haru-sb-host')) return;   // 去重：挂在 .mes 上
+    if (mt.querySelector('.haru-sb-host')) return;   /* 已在：不重复挂 */
     var doc = hostDoc(); if (!doc) return;
     var host = doc.createElement('div');
     host.className = 'haru-sb-host';
     host.style.cssText = 'margin:10px 0;clear:both;';
     var f = doc.createElement('iframe');
     f.className = 'haru-sb-frame';
-    f.setAttribute('style', 'width:100%;border:0;background:transparent;height:600px;');
+    f.setAttribute('style', 'width:100%;border:0;background:transparent;display:block;'
+      + 'height:600px;max-height:62vh;');
+    f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+    f.srcdoc = SB_HTML;
     host.appendChild(f);
-    // 注入到 .mes_text 之后（兄弟节点），绝不进正文
-    if (mt.parentNode) mt.parentNode.insertBefore(host, mt.nextSibling);
-    else mesEl.appendChild(host);
+    /* 锚点优先，其次最末端（与天元录一致） */
+    var anchor = mt.querySelector('.xz-status-anchor, [data-xz-status-anchor]');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(host, anchor.nextSibling);
+    else mt.appendChild(host);
     try {
       f.addEventListener('load', function () {
         try { var bd = f.contentDocument && f.contentDocument.body; if (bd) f.style.height = '600px'; } catch (e2) {}
@@ -1250,7 +1259,13 @@
       if (!isU) { last = list[i]; break; }
     }
     if (last) mount(last);
-    /* 只留最后一条 AI 消息上的状态栏，往上翻不留一堆 iframe */
+    /* 只留最新 AI 楼里的状态栏；body 上遗留的旧 dock 一并清掉 */
+    try {
+      var oldDock = doc.getElementById('haru-sb-dock');
+      if (oldDock && oldDock.parentNode) oldDock.parentNode.removeChild(oldDock);
+      var pad = doc.getElementById('haru-sb-dock-pad');
+      if (pad && pad.parentNode) pad.parentNode.removeChild(pad);
+    } catch (eDock) {}
     var hosts = doc.querySelectorAll('.haru-sb-host');
     for (var j = 0; j < hosts.length; j++) {
       if (!last || !last.contains(hosts[j])) { try { hosts[j].remove(); } catch (eR) {} }
