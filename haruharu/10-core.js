@@ -21448,14 +21448,14 @@ function injectHideCss() {
      · 美化容器（.mes_text 的直接子块）宽度吃满、左右 margin 归零。
    ⚠ 只动横向与内边距，不改字号 / 配色 / 行高，不碰预设自己的样式逻辑。 */
 var TH_FULLBLEED_CSS = [
-  '#chat .mes{padding-left:0 !important;padding-right:0 !important;}',
+  '#chat .mes{padding-left:6px !important;padding-right:6px !important;}',   /* 头像/文字不贴边 */
   '#chat .mes_text{margin-left:0 !important;margin-right:0 !important;}',   /* 铺满但不贴边：padding 交给皮肤 */
   '#chat{padding-left:0 !important;padding-right:0 !important;}',
   '#chat .mes_block{padding-left:0 !important;padding-right:0 !important;margin-left:0 !important;margin-right:0 !important;}',
   '#chat .mes_text > *{width:100% !important;max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
   '#chat .mes_text > div > *, #chat .mes_text > details > *{max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
   '#chat .mes_text > table{width:100% !important;}',
-  '.mes{padding-left:0 !important;padding-right:0 !important;}',
+  '.mes{padding-left:6px !important;padding-right:6px !important;}',
   '.mes_text{margin-left:0 !important;margin-right:0 !important;}',
   '.mes{max-width:100% !important;}',
   '.mes_text > *{width:100% !important;max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
