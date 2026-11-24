@@ -130,7 +130,7 @@
     '.thdl-ava{flex:0 0 auto;width:56px;height:56px;border-radius:12px;overflow:hidden;',
     'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);',
     'box-shadow:0 2px 8px rgba(0,0,0,.35);position:relative;}',
-    '.thdl-ava img{height:220%;width:auto;max-width:none;object-fit:unset;object-position:top center;display:block;position:relative;left:50%;transform:translateX(-50%);',   /* ★ 2026-11-25：不裁 —— 立绘按宽铺满、从头顶往下显示上半身 */
+    '.thdl-ava img{width:100%;height:100%;object-fit:cover;object-position:50% 14%;max-width:none;display:block;',   /* ★ 2026-11-25：不裁 —— 立绘按宽铺满、从头顶往下显示上半身 */
     'transform:scale(2);transform-origin:50% 0;image-rendering:auto;}',
     /* 没头像的人（苦主/玩家）：用首字母占位，保持左边距一致不跳动 */
     '.thdl-ava.is-ph{display:flex;align-items:center;justify-content:center;',
