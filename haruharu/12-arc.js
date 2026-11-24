@@ -22,6 +22,12 @@
    ============================================================ */
 (function () {
   'use strict';
+  /* ★ 2026-11-25：统一清单后各自门禁 —— 只在「游戏版」时运行 */
+  try {
+    var _uiM = (typeof window.thUiModeIs === 'function') ? (window.thUiModeIs('game') ? 'game' : 'other') : 'game';
+    if (_uiM !== 'game') return;
+  } catch (eGate) {}
+
 
   var HOST = (function () {
     try { if (window.top && window.top.document && window.top.document.body) return window.top; } catch (e) {}

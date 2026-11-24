@@ -38,6 +38,12 @@
    ============================================================ */
 (function () {
   'use strict';
+  /* ★ 2026-11-25：统一清单后各自门禁 —— 只在「文字版」时运行 */
+  try {
+    var _uiM = (typeof window.thUiModeIs === 'function') ? (window.thUiModeIs('text') ? 'text' : 'other') : 'text';
+    if (_uiM !== 'text') return;
+  } catch (eGate) {}
+
 
   var TAG = '[春日·开局设置]';
   var HOST_ID = 'th-start-host';
