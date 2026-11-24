@@ -216,12 +216,6 @@
       '<div class="ver-row"><span class="ver-k">外置插图</span>',
       '<span class="ver-v" id="sb-fn-ext-v">—</span>',
       '<button type="button" class="ver-btn" id="sb-fn-ext">切换</button></div>',
-      /* ★★ 2026-11-24（作者：版本号你不写吗）：文字版功能页直接摆版本号 ——
-         运行中 / 线上 各一行，数据来自 loader 广播的 __SPR_* 全局，零网络请求。 */
-      '<div class="ver-row"><span class="ver-k">运行中版本</span>',
-      '<span class="ver-v" id="sb-fn-ver-run">—</span></div>',
-      '<div class="ver-row"><span class="ver-k">线上版本</span>',
-      '<span class="ver-v" id="sb-fn-ver-live">—</span></div>',
       /* ★ 2026-11-24（作者）：插图屏蔽 / 立绘屏蔽（文字版功能页） */
       '<div class="ver-row"><span class="ver-k">插图屏蔽</span>',
       '<span class="ver-v" id="sb-fn-illblk-v">关</span>',
@@ -313,19 +307,9 @@
         d.getElementById('sb-fn-ext-v').textContent = i2 ? '开' : '关';
         d.getElementById('sb-fn-ext').textContent = i2 ? '关闭' : '打开';
       } catch (e) {}
-      /* ★ 2026-11-24：版本号两行 + 屏蔽开关两行的刷新 */
+      /* ★ 2026-11-25（作者：版本页本来就有版本号，功能页这两行是重复的）：只留屏蔽开关的刷新 */
       try {
         var w = (TOP && TOP.document) ? TOP : window;
-        var run = '', live = '';
-        try { run = String((w.__SPR_RUN_VER_STATE__ && w.__SPR_RUN_VER_STATE__.label) || ''); } catch (eR) {}
-        try { live = String(w.__SPR_LIVE_LABEL__ || w.__SPR_LIVE_VER__ || ''); } catch (eL) {}
-        var ss = 0, lsq = 0;
-        try { ss = Number(w.__SPR_SEQ__ || 0) || 0; } catch (eS) {}
-        try { lsq = Number(w.__SPR_LIVE_SEQ__ || 0) || 0; } catch (eL2) {}
-        var newer = (lsq > 0 && ss > 0 && lsq > ss);
-        var vr = d.getElementById('sb-fn-ver-run'), vl = d.getElementById('sb-fn-ver-live');
-        if (vr) vr.textContent = run || '—';
-        if (vl) vl.textContent = (live || '—') + (newer ? '（有更新，刷新页面）' : '');
         var ib = d.getElementById('sb-fn-illblk'), ibv = d.getElementById('sb-fn-illblk-v');
         var blkI = false;
         try { blkI = !!(w.thIllustBlockOn && w.thIllustBlockOn()); } catch (eB1) {}

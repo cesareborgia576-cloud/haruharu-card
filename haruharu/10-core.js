@@ -21478,42 +21478,6 @@ function thInjectFullbleedCss() {
   } catch (e) {}
 }
 
-/* ══ ★ 2026-11-24（作者：文字版的版本号你不写吗）════════════════════════
-   文字版没有功能页的版本页 ⇒ 左下角常驻一块小版本牌：
-   「运行中 v1.62（第 1 次）· 线上 v1.62（第 1 次）」，线上更高时标「有更新」。
-   数据全部来自 loader 广播的 __SPR_* 全局，零网络请求。 */
-function thTextVerPill() {
-  try {
-    if (!thUiIsTextMode()) return;
-    var w = (window.top && window.top.document) ? window.top : window;
-    var bd = w.document.body;
-    if (!bd) return;
-    var el = w.document.getElementById('th-text-ver-pill');
-    if (!el) {
-      el = w.document.createElement('div');
-      el.id = 'th-text-ver-pill';
-      el.setAttribute('style',
-        'position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));' +
-        'z-index:2147483000;padding:4px 10px;border-radius:10px;' +
-        'background:rgba(10,8,6,.66);border:1px solid rgba(217,187,122,.35);' +
-        'color:#d9cba8;font-size:11px;line-height:1.5;pointer-events:none;' +
-        'font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif;');
-      bd.appendChild(el);
-    }
-    var run = '', live = '';
-    try { run = String(w.__SPR_RUN_VER_STATE__ && w.__SPR_RUN_VER_STATE__.label || ''); } catch (eR) {}
-    try { live = String(w.__SPR_LIVE_LABEL__ || w.__SPR_LIVE_VER__ || ''); } catch (eL) {}
-    var ls = 0, ss = 0;
-    try { ss = Number(w.__SPR_SEQ__ || 0) || 0; } catch (eS) {}
-    try { ls = Number(w.__SPR_LIVE_SEQ__ || 0) || 0; } catch (eL2) {}
-    var newer = (ls > 0 && ss > 0 && ls > ss);
-    var txt = '📌 运行中 ' + (run || '—') + '｜线上 ' + (live || (newer ? '更高版本' : '同版本')) + (newer ? '（有更新）' : '');
-    if (el.textContent !== txt) el.textContent = txt;
-  } catch (e) {}
-}
-try { setInterval(thTextVerPill, 10000); } catch (eVp1) {}
-try { setTimeout(thTextVerPill, 2500); } catch (eVp2) {}
-
 try { thInjectFullbleedCss(); } catch (eFb0) {}
 try { setTimeout(thInjectFullbleedCss, 1200); } catch (eFb1) {}
 try { setTimeout(thInjectFullbleedCss, 4000); } catch (eFb2) {}
