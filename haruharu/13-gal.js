@@ -104,34 +104,33 @@
        ────────────────────────────────────────────────────────────────── */
 
     /* ── 吉川美穗 ── */
-        '吉川美穗|手势前戏': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/meisui_1手圈O_002.png'],
-        '吉川美穗|口交': ['https://a.imgckr.com/2026/10/13/XVJ3G.png'],
-        '吉川美穗|手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/meisui_3手交_001.png', 'https://a.imgckr.com/2026/10/13/XVfJa.png'],
+        '吉川美穗|手势前戏': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/meisui_1手圈O_002.png'],'吉川美穗|口交': [], /* imgckr 已死，待补图（原 1 张） */
+        '吉川美穗|手交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__授乳+手交_11.png"],
         '吉川美穗|授乳手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/meisui_4授乳手交_002.png'],
-        '吉川美穗|乳交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/meisui_5乳交_002.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/美穗%20乳交.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/美穗%20乳交2.png', 'https://a.imgckr.com/2026/10/13/XGklR.png'],
-        '吉川美穗|做爱': [
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/meisui_6女上男躺_001.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/meisui_7女上抱脸埋胸_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/meisui_8被后入回头_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/meisui/美穗做爱_00001_.png',
-          'https://a.imgckr.com/2026/10/13/XV0xJ.png'
-        ],
+        '吉川美穗|乳交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__乳交_01.png"],
+        '吉川美穗|做爱': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱_02.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱_03.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱_04.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱_05.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱尾声_09.png"],
 
     /* ── 春日久美子 ── */
-        '春日久美子|口交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_001.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_002.png', 'https://a.imgckr.com/2026/10/13/XGQBU.png'],
-        '春日久美子|手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_3手交.png', 'https://a.imgckr.com/2026/10/13/XGSrM.png'],
+        '春日久美子|口交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_001.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_002.png"],
+        '春日久美子|手交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__手交_21.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__授乳+手交_22.png"],
         '春日久美子|授乳手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_4授乳手交_002.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_4授乳手交_104.png'],
-        '春日久美子|乳交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子%20乳交.png', 'https://a.imgckr.com/2026/10/13/XGqog.png'],
-        '春日久美子|做爱': [
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_6女上男躺_001.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_6女上男躺_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子%20女上位.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_7女上抱脸埋胸_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_7女上抱脸埋胸_002_b2.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_7女上抱脸埋胸_003.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_9被后入回头_00001_.png',
-          'https://a.imgckr.com/2026/10/13/XGxya.png'
-        ],
+        '春日久美子|乳交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__乳交_02.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__乳交_03.png"],
+        '春日久美子|做爱': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱_04.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱_05.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱_06.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱_07.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱_08.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱_09.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱_10.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱_11.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__做爱尾声_14.png"],
 
     /* ── 桃崎千鹤 ── */
         '桃崎千鹤|口交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/桃崎/桃崎_2口交_001.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/桃崎/桃崎_2口交_002.png'],
@@ -146,75 +145,100 @@
         ],
 
     /* ── 春日葵 ── */
-        '春日葵|手势前戏': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_1手圈O_101.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_1手圈O_201.png'],
-        '春日葵|口交': ['https://a.imgckr.com/2026/10/13/XVPJ0.png'],
+        '春日葵|手势前戏': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_1手圈O_101.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_1手圈O_201.png'],'春日葵|口交': [], /* imgckr 已死，待补图（原 1 张） */
         '春日葵|授乳手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_4授乳手交_104.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_4授乳手交_204.png'],
-        '春日葵|乳交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_5乳交_001.png', 'https://a.imgckr.com/2026/10/13/XVsFy.png'],
-        '春日葵|做爱': [
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_6女上男躺_001.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_6女上男躺_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_6女上男躺_106.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_6女上男躺_206.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_7女上抱脸埋胸_001.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_7女上抱脸埋胸_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_7女上抱脸埋胸_107.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/葵/葵_8被后入回头_002.png',
-          'https://a.imgckr.com/2026/10/13/XVzD8.png'
-        ],
+        '春日葵|乳交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__乳交_03.png"],
+        '春日葵|做爱': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱_04.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱_05.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱_06.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱_07.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱_08.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱_09.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱尾声_13.png"],
 
     /* ── 春日静奈 ── */
         '春日静奈|手势前戏': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_1手圈O_101.png'],
         '春日静奈|口交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_2口交_001.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_2口交_002.png'],
-        '春日静奈|手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_3手交_001.png', 'https://a.imgckr.com/2026/10/13/XVKth.png'],
+        '春日静奈|手交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__手交_19.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__授乳+手交_20.png"],
         '春日静奈|授乳手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_4授乳手交_002.png'],
-        '春日静奈|乳交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_5乳交_002.png', 'https://a.imgckr.com/2026/10/13/XVaLf.png'],
-        '春日静奈|做爱': [
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_6女上男躺_001.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_6女上男躺_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_7女上抱脸埋胸_001.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈_7女上抱脸埋胸_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/POSE3_shizuna_7女上抱脸埋胸_00001_.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/静奈%20女上位男性脸埋胸.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/POSE3_shizuna_9被后入回头_00001_.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/静奈/POSE_shizuna_9被后入回头_00001_.png',
-          'https://a.imgckr.com/2026/10/13/XV14L.png'
-        ],
+        '春日静奈|乳交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__乳交_01.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__乳交_02.png"],
+        '春日静奈|做爱': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱_03.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱_04.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱_05.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱_06.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱_07.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱_08.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱尾声_14.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shizuna@main/shizuna__做爱尾声_15.png"],
 
     /* ── 香本千玲 ── */
         '香本千玲|手势前戏': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_1手圈O_002.png'],
         '香本千玲|口交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_2口交_001.png', 'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_2口交_002.png'],
-        '香本千玲|手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_3手交_002.png', 'https://a.imgckr.com/2026/10/13/XVEDg.png'],
+        '香本千玲|手交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__手交_17.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__手交_18.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__授乳+手交_19.png"],
         '香本千玲|授乳手交': ['https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_4授乳手交_002.png'],
-        '香本千玲|乳交': ['https://a.imgckr.com/2026/10/13/XVmvm.png'],
-        '香本千玲|做爱': [
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_6女上男躺_001.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_6女上男躺_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_7女上抱脸埋胸_001.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_7女上抱脸埋胸_002.png',
-          'https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/香本/香本_8被后入回头_002.png',
-          'https://a.imgckr.com/2026/10/13/XV4WX.png'
-        ],
+        '香本千玲|乳交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__乳交_01.png"],
+        '香本千玲|做爱': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_02.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_03.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_04.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_05.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_06.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_07.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_08.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_09.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_10.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱尾声_14.png"],
 
     /* ── 月读澪 ── */
-        '月读澪|手交': ['https://a.imgckr.com/2026/10/13/XVYFe.png'],
-        '月读澪|乳交': ['https://a.imgckr.com/2026/10/13/XVUYl.png'],
-        '月读澪|做爱': ['https://a.imgckr.com/2026/10/13/XVigS.png'],
+        '月读澪|手交': [], /* imgckr 已死，待补图（原 1 张） */
+        '月读澪|乳交': [], /* imgckr 已死，待补图（原 1 张） */
+        '月读澪|做爱': [], /* imgckr 已死，待补图（原 1 张） */
 
     /* ── 神代凛音 ── */
-        '神代凛音|手交': ['https://a.imgckr.com/2026/10/13/XVjsu.png'],
-        '神代凛音|乳交': ['https://a.imgckr.com/2026/10/13/XVvyq.png'],
-        '神代凛音|做爱': ['https://a.imgckr.com/2026/10/13/XVXBE.png'],
+        '神代凛音|手交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__手交_22.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__手交_23.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__授乳+手交_24.png"],
+        '神代凛音|乳交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__乳交_04.png"],
+        '神代凛音|做爱': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_05.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_06.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_07.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_08.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_09.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_10.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_11.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_12.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_13.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱尾声_18.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱结尾_19.png"],
 
     /* ── 斋宫若叶 ── */
-        '斋宫若叶|口交': ['https://a.imgckr.com/2026/10/13/XVOLv.png', 'https://a.imgckr.com/2026/10/13/XVemd.png', 'https://a.imgckr.com/2026/10/13/XVTtF.png'],
-        '斋宫若叶|手交': ['https://a.imgckr.com/2026/10/13/XVrvi.png'],
-        '斋宫若叶|乳交': ['https://a.imgckr.com/2026/10/13/XVulC.png'],
-        '斋宫若叶|做爱': ['https://a.imgckr.com/2026/10/13/XV3xK.png'],
+        '斋宫若叶|口交': [], /* imgckr 已死，待补图（原 3 张） */
+        '斋宫若叶|手交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__手交_16.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__授乳+手交_18.png"],
+        '斋宫若叶|乳交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__乳交_01.png"],
+        '斋宫若叶|做爱': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱_02.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱_03.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱_04.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱_05.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱_06.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱_07.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱尾声_11.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱尾声_12.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__授乳+做爱_17.png"],
 
     /* ── 西村百花 ── */
-        '西村百花|口交': ['https://a.imgckr.com/2026/10/13/XVFx7.png'],
-        '西村百花|乳交': ['https://a.imgckr.com/2026/10/13/XVRs5.png'],
-        '西村百花|做爱': ['https://a.imgckr.com/2026/10/13/XVo2n.png'],
+        '西村百花|口交': [], /* imgckr 已死，待补图（原 1 张） */
+        '西村百花|乳交': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__乳交_02.png"],
+        '西村百花|做爱': ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱_03.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱_04.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱_05.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱_06.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱_07.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱_08.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__做爱尾声_11.png"],
 
     /* ★ 动作键新增四个（v125 起）：手势前戏 / 做爱后入 / 坐起拥抱女上位 / 授乳手交
        「手势前戏」永远排在这一轮最前、一轮只播 1 张。 */
@@ -2150,6 +2174,29 @@
     fig.style.objectPosition = 'center center';
   }
 
+  /* ★ 2026-11-24：插图屏蔽模式的提示牌 —— 有插图但被屏蔽时显示一行字，没有就撤掉 */
+  var _illBlockNoteId = 'th-gal-illust-blocked-note';
+  function thIllustBlockNote(show) {
+    try {
+      var d = getDoc();
+      if (!d || !d.body) return;
+      var el = d.getElementById(_illBlockNoteId);
+      if (!show) { if (el && el.parentNode) el.parentNode.removeChild(el); return; }
+      if (el) return;
+      el = d.createElement('div');
+      el.id = _illBlockNoteId;
+      el.textContent = '🚫 已开启插图屏蔽模式，插图不显示';
+      el.setAttribute('style',
+        'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
+        'z-index:78;padding:10px 18px;border-radius:12px;' +
+        'background:rgba(10,8,6,.72);border:1px solid rgba(217,187,122,.45);' +
+        'color:#e6d8bd;font-size:13px;font-weight:600;letter-spacing:.5px;' +
+        'font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif;pointer-events:none;');
+      var host = d.getElementById('th-gal-shell-root') || d.body;
+      host.appendChild(el);
+    } catch (eN) {}
+  }
+
   function paint() {
     syncCgRect();
     var doc = getDoc();
@@ -2159,6 +2206,16 @@
     var group = state.queue || [];          /* ★ v125：这一轮拼好的整条队列 */
     /* 功能页里可以把内置插图关掉：当没有图处理，走下面的「收干净」分支 */
     if (!illustEnabled()) group = [];
+    /* ★ 2026-11-24（作者）：插图屏蔽模式 —— 外置/内置插图一律不显示；
+       有图时只在画面中间留一行「已开启插图屏蔽模式」。 */
+    var _illBlk = false;
+    try { _illBlk = !!(window.thIllustBlockOn && window.thIllustBlockOn()); } catch (eIB) {}
+    if (_illBlk) {
+      thIllustBlockNote(!!(group && group.length));
+      group = [];
+    } else {
+      thIllustBlockNote(false);
+    }
     var figEl = doc.getElementById(CG_FIGURE_ID);
 
     /* ★ v99：这一轮一个图组都没有 → 连黑幕一起收干净，壳的场景图与立绘回来。
@@ -2287,14 +2344,34 @@
             if (np2) np2.title = '插图没出来（挂起或已失效）：' + url;
           } catch (eErr) {}
         };
-        probe.onload = settleOk;
-        probe.onerror = function () { settleFail('加载失败'); };
-        failT = setTimeout(function () {
+        /* ★ 2026-11-24（作者：玩家报「插图全炸」）：jsDelivr 国内整站抽风时所有图一起挂。
+           每个 URL 生成镜像链，逐级重试：cdn → fastly → raw.githubusercontent */
+        var _cands = [url];
+        try {
+          if (/cdn\.jsdelivr\.net\/gh\//.test(url)) {
+            _cands.push(url.replace('cdn.jsdelivr.net', 'fastly.jsdelivr.net'));
+            _cands.push(url.replace('https://cdn.jsdelivr.net/gh/', 'https://raw.githubusercontent.com/').replace(/@([^\/]+)\//, '/$1/'));
+          }
+        } catch (eMc) {}
+        var _ci = 0;
+        var tryLoad = function () {
           if (settled) return;
-          try { probe.src = ''; } catch (eAb) {}
-          settleFail('8 秒超时');
-        }, 8000);
-        probe.src = url;
+          if (failT) { clearTimeout(failT); failT = null; }
+          try { probe.src = _cands[_ci]; } catch (eN) {}
+          failT = setTimeout(function () {
+            if (settled) return;
+            if (_ci + 1 < _cands.length) { _ci++; tryLoad(); return; }
+            try { probe.src = ''; } catch (eAb) {}
+            settleFail('8 秒超时');
+          }, 8000);
+        };
+        probe.onload = settleOk;
+        probe.onerror = function () {
+          if (settled) return;
+          if (_ci + 1 < _cands.length) { _ci++; tryLoad(); return; }
+          settleFail('加载失败');
+        };
+        tryLoad();
       } catch (ePr) {}
     }
 
@@ -2771,6 +2848,8 @@ function illustEnabled() {
     var el = extLayer();
     if (!el) return;
     var show = !!(extOn && extQueue.length);
+    /* ★ 2026-11-24：插图屏蔽模式 —— 外置（智绘姬）插图同样不显示 */
+    try { if (window.thIllustBlockOn && window.thIllustBlockOn()) show = false; } catch (eBx) {}
 
     /* 内置 CG 的让位 / 复位。只改 visibility，不碰 display、不动它的队列和推进按钮
        —— 外置图关掉之后内置那套要能原地接着播，不能被我改成半死不活。 */
@@ -3012,6 +3091,14 @@ function illustEnabled() {
       };
       window.__sprImmersive = HOST.__sprImmersive;
     } catch (eImmApi) {}
+    /* ★ 2026-11-24：插图屏蔽开关切换后，让 gal 立刻重画（内置 CG + 外置插图两条都收） */
+    try {
+      HOST.__sprGalRepaint = function () {
+        try { paint(); } catch (eRp1) {}
+        try { extRender(); } catch (eRp2) {}
+      };
+      window.__sprGalRepaint = HOST.__sprGalRepaint;
+    } catch (eRp) {}
     /* ★ 21:45：关着的时候不要每 1.5 秒全量扫 DOM（白耗性能、还可能攒脏图） */
     if (!extTimer) extTimer = setInterval(function () {
       try { if (extOn) { extScan(); extPaintBtn(); } } catch (e3) {}

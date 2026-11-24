@@ -36,10 +36,7 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱前夕_08.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__足交_12.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__足交_13.png"
-  ],
-  "吉川美穗|口交": [
-    "https://a.imgckr.com/2026/10/13/XVJ3G.png"
-  ],
+  ],'吉川美穗|口交': [], /* imgckr 已死，待补图（原 1 张） */
   "吉川美穗|手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__授乳+手交_11.png"
   ],
@@ -56,11 +53,8 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱_05.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-miho@main/miho__做爱尾声_09.png"
   ],
-  "春日久美子|口交": [
-    "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_001.png",
-    "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_002.png",
-    "https://a.imgckr.com/2026/10/13/XGQBU.png"
-  ],
+  "春日久美子|口交": ["https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_001.png",
+        "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/character-images@main/久美子/久美子_2口交_002.png"],
   "春日久美子|手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__手交_21.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-kumiko@main/kumiko__授乳+手交_22.png"
@@ -116,10 +110,7 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__做爱前夕_12.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__足交_24.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__足交前夕+做爱前夕_25.png"
-  ],
-  "春日葵|口交": [
-    "https://a.imgckr.com/2026/10/13/XVPJ0.png"
-  ],
+  ],'春日葵|口交': [], /* imgckr 已死，待补图（原 1 张） */
   "春日葵|授乳手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__授乳+手交_22.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-aoi@main/aoi__授乳_23.png"
@@ -209,16 +200,9 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_09.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱_10.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-chirei@main/chirei__做爱尾声_14.png"
-  ],
-  "月读澪|手交": [
-    "https://a.imgckr.com/2026/10/13/XVYFe.png"
-  ],
-  "月读澪|乳交": [
-    "https://a.imgckr.com/2026/10/13/XVUYl.png"
-  ],
-  "月读澪|做爱": [
-    "https://a.imgckr.com/2026/10/13/XVigS.png"
-  ],
+  ],'月读澪|手交': [], /* imgckr 已死，待补图（原 1 张） */
+  '月读澪|乳交': [], /* imgckr 已死，待补图（原 1 张） */
+  '月读澪|做爱': [], /* imgckr 已死，待补图（原 1 张） */
   "神代凛音|手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__手交_22.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__手交_23.png",
@@ -239,12 +223,7 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱_13.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱尾声_18.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-rinne@main/rinne__做爱结尾_19.png"
-  ],
-  "斋宫若叶|口交": [
-    "https://a.imgckr.com/2026/10/13/XVOLv.png",
-    "https://a.imgckr.com/2026/10/13/XVemd.png",
-    "https://a.imgckr.com/2026/10/13/XVTtF.png"
-  ],
+  ],'斋宫若叶|口交': [], /* imgckr 已死，待补图（原 3 张） */
   "斋宫若叶|手交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__手交_16.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__授乳+手交_18.png"
@@ -262,10 +241,7 @@
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱尾声_11.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__做爱尾声_12.png",
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-wakaba@main/wakaba__授乳+做爱_17.png"
-  ],
-  "西村百花|口交": [
-    "https://a.imgckr.com/2026/10/13/XVFx7.png"
-  ],
+  ],'西村百花|口交': [], /* imgckr 已死，待补图（原 1 张） */
   "西村百花|乳交": [
     "https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-momoka@main/momoka__乳交_02.png"
   ],
@@ -879,6 +855,16 @@
     var wrap = mk('div', 'thillu');
     var urls = item.urls;
 
+    /* ★ 2026-11-24（作者）：插图屏蔽模式 —— 一张图都不加载，只留一行说明 */
+    try {
+      if (window.thIllustBlockOn && window.thIllustBlockOn()) {
+        var bk0 = mk('div', 'thillu-broken');
+        bk0.textContent = '🚫 已开启插图屏蔽模式，插图不显示（' + item.who + '｜' + item.act + '）';
+        wrap.appendChild(bk0);
+        return wrap;
+      }
+    } catch (eB0) {}
+
     if (!urls || !urls.length) {
       var warn = mk('div', 'thillu-broken');
       warn.textContent = '（暂无图：' + item.who + '｜' + item.act + '）';
@@ -911,9 +897,25 @@
       }, 8000);
     }
 
+    /* ★ 2026-11-24（作者：玩家报「插图全炸」）：jsDelivr 国内整站抽风时所有图一起挂。
+       每个图 URL 生成镜像链，逐级重试：cdn → fastly → raw.githubusercontent */
+    function mirrorList(u) {
+      var out = [u];
+      try {
+        if (/cdn\.jsdelivr\.net\/gh\//.test(u)) {
+          out.push(u.replace('cdn.jsdelivr.net', 'fastly.jsdelivr.net'));
+          out.push(u.replace('https://cdn.jsdelivr.net/gh/', 'https://raw.githubusercontent.com/').replace(/@([^\/]+)\//, '/$1/'));
+        }
+      } catch (eM) {}
+      return out;
+    }
+    var curCands = [], curCi = 0;
+
     function paint(i) {
       idx = ((i % urls.length) + urls.length) % urls.length;
-      img.src = urls[idx];
+      curCands = mirrorList(urls[idx]);
+      curCi = 0;
+      img.src = curCands[0];
       armLoadT();
       cap.textContent = one ? item.act : (item.act + ' ' + (idx + 1) + '/' + urls.length);
       if (dots) {
@@ -948,6 +950,13 @@
     };
     img.onerror = function () {
       if (loadT) { clearTimeout(loadT); loadT = null; }
+      /* ★ 2026-11-24：还有镜像没试完就换下一个；全试完才算真坏 */
+      if (curCi + 1 < curCands.length) {
+        curCi++;
+        try { img.src = curCands[curCi]; } catch (eN) {}
+        armLoadT();
+        return;
+      }
       stopTimer();
       try {
         frame.innerHTML = '';

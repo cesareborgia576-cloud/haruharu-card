@@ -95,7 +95,19 @@ var MvuSelfHealing = (function() {
 
   function messageTextOf(m) {
     if (!m) return "";
-    return typeof m.mes === "string" ? m.mes : (typeof m.message === "string" ? m.message : "");
+    /* ★ 2026-11-24：与 10-core 的 messageTextOf 对齐 —— m.mes 空掉时还要看 swipe。
+       以前这里只看 m.mes / m.message：玩家 swipe 过、或 mes 没同步时读到空串，
+       面板就误报「本楼完全没有变量块」（作者原话：「这不他妈有吗」）。 */
+    if (typeof m.mes === "string" && m.mes) return m.mes;
+    if (typeof m.message === "string" && m.message) return m.message;
+    var swId = m.swipe_id != null ? m.swipe_id : 0;
+    if (m.swipe_info && m.swipe_info[swId] && typeof m.swipe_info[swId].mes === "string") return String(m.swipe_info[swId].mes);
+    if (m.swipes && m.swipes.length) {
+      var cur = m.swipes[swId];
+      if (cur && typeof cur === "object") return String(cur.mes != null ? cur.mes : "");
+      return String(cur == null ? "" : cur);
+    }
+    return "";
   }
 
   var _cssInjected = false;
@@ -296,6 +308,25 @@ var MvuSelfHealing = (function() {
     return messageTextOf(ctx.chat[idx]);
   }
 
+  /* ★★ 2026-11-24（作者：「这不他妈有吗，乱他妈来」）：
+     最新 AI 楼层是空的（生成失败 / 空 swipe / 状态占位楼）时，拿它查变量块必然误报
+     「本楼完全没有变量块」。补全中心所有检测/补全入口一律改读「最近一条有内容的 AI 楼层」。
+     ⚠ 回空提示（轮询那条路）不走这里，它仍要认「最新楼层为空」。 */
+  function getLatestAINonEmptyIndex() {
+    var ctx = getStContext();
+    if (ctx && Array.isArray(ctx.chat)) {
+      for (var i = ctx.chat.length - 1; i >= 0; i--) {
+        var m = ctx.chat[i];
+        if (!m || m.is_user === true || m.isUser === true || m.role === 'user') continue;
+        if (m.is_system === true || m.isSystem === true || m.role === 'system') continue;
+        var t = '';
+        try { t = messageTextOf(m); } catch (eT) {}
+        if (String(t == null ? '' : t).trim()) return i;
+      }
+    }
+    return getLatestAIMessageIndex();
+  }
+
   function lcsParsePatch(rawIn, allowEmpty) {
     var raw = String(rawIn || "").replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
     if (!raw) return false;
@@ -430,7 +461,8 @@ var MvuSelfHealing = (function() {
     if (!raw.trim()) { problems.push('本楼完全没有变量块'); return problems; }
 
     var s = stripThinkForVar(raw);
-    if (!s.trim()) { problems.push('本楼完全没有变量块'); return problems; }
+    /* ★ 2026-11-24：不再在 s 为空时直接判「完全没有变量块」——
+       先按下面的顺序扫一遍：剥完的 s 没有 → 回原文 raw 再找。 */
 
     /* ★ 23:10【口径变更】以前按「世界书约定的三层格式」判，外壳缺失也报。
        作者决定改成**只看 MVU 实际会执行什么** —— 也就是只看 <JSONPatch>…</JSONPatch>。
@@ -449,6 +481,20 @@ var MvuSelfHealing = (function() {
       else bad++;
     }
     if (good > 0) return problems;                    /* 至少一块能执行 → MVU 会写进去 */
+    /* ★ 2026-11-24：s 里没有 → 回原文再找一次。
+       模型常把变量块写进未闭合的 think 段（预设把闭合标签吃了），
+       stripThinkForVar 会把整段删光 ⇒ 玩家明明看得见块，却判「完全没有变量块」。 */
+    if (String(s) !== String(raw)) {
+      var reR = /<\s*(?:JSONPatch|json_?patch)\b[^>]*>([\s\S]*?)<\s*\/\s*(?:JSONPatch|json_?patch)\s*>/gi;
+      var rGood = 0, rClosed = 0, rBad = 0, mr;
+      while ((mr = reR.exec(raw)) !== null) {
+        rClosed++;
+        if (lcsParsePatch(String(mr[1] || ''), true)) rGood++;
+        else rBad++;
+      }
+      if (rGood > 0) return problems;
+      if (closed === 0 && rClosed > 0) { closed = rClosed; bad = rBad; }
+    }
     if (closed > 0) {
       problems.push('&lt;JSONPatch&gt; 里的 JSON 不是合法数组（' + bad + ' 块都解析失败）');
       return problems;
@@ -1598,7 +1644,7 @@ var MvuSelfHealing = (function() {
 
   async function runFormatOnlyInner() {
     var ctx = getStContext();
-    var targetIdx = getLatestAIMessageIndex();
+    var targetIdx = getLatestAINonEmptyIndex();
     if (!ctx || !Array.isArray(ctx.chat) || targetIdx < 0) {
       setStatus("❌ 未找到目标消息，请刷新重试", false);
       return;
@@ -1774,7 +1820,7 @@ var MvuSelfHealing = (function() {
     }, 1000);
 
     var ctx = getStContext();
-    var targetIdx = getLatestAIMessageIndex();
+    var targetIdx = getLatestAINonEmptyIndex();
     if (!ctx || !Array.isArray(ctx.chat) || targetIdx < 0) {
       setStatus("❌ 未找到目标消息，请刷新重试", false);
       _inFlight = false;
@@ -1849,7 +1895,7 @@ var MvuSelfHealing = (function() {
   }
 
   async function applyQuickFallback() {
-    var targetIdx = getLatestAIMessageIndex();
+    var targetIdx = getLatestAINonEmptyIndex();
     if (targetIdx < 0) { dismissSuspension(); return; }
 
     var ctx = getStContext();
@@ -2099,7 +2145,7 @@ var MvuSelfHealing = (function() {
      有了这一行：数字跟着变 = 读的是新内容；数字没变 = 读的不是你改的那一楼。
      ⚠ 别把它做成「只在打开面板时算一次」—— 那样手动改完再回来看，永远看到旧数字。 */
   function buildProbeText() {
-    var idx = getLatestAIMessageIndex();
+    var idx = getLatestAINonEmptyIndex();
     if (idx < 0) return "🔬 读取：没有 AI 楼层";
     var raw = getMsgRawText(idx);
     var t = stripThinkForVar(String(raw || ""));
@@ -2133,7 +2179,7 @@ var MvuSelfHealing = (function() {
      顺手把去重键与待确认状态清干净：这正是「改坏了却一直不报」的两个卡点。 */
   function refreshStatusNow() {
     _sniffedKey = ""; _pendingKey = ""; _pendingAt = 0; _pollAt = 0;
-    var idx = getLatestAIMessageIndex();
+    var idx = getLatestAINonEmptyIndex();
     paintProbe();
     if (idx < 0) { setStatus("❌ 没有可检测的楼层", false); return; }
     var raw = getMsgRawText(idx);
@@ -2359,7 +2405,7 @@ var MvuSelfHealing = (function() {
     if (_isSuspended) { paintProbe(); return; }
     if (_inFlight) return;                       /* 正在补算 → 不重复弹 */
     if (!_lcsArmed) return;                      /* 本会话还没观察过一轮完整生成 → 不嗅 */
-    var idx = getLatestAIMessageIndex();
+    var idx = getLatestAINonEmptyIndex();
     if (idx < 0) return;
     var key = "p" + _chatSig + "#" + idx;    /* ★ 22:52：存档 + 楼层，两个存档不撞 */
     var rawText = getMsgRawText(idx);
@@ -2425,7 +2471,7 @@ var MvuSelfHealing = (function() {
     clearStatusSink: function() { _statusSink = null; },
     hasPatch: function() {
       try {
-        var idx = getLatestAIMessageIndex();
+        var idx = getLatestAINonEmptyIndex();
         if (idx < 0) return false;
         return hasCompleteMvuPatch(getMsgRawText(idx));
       } catch (e) { return false; }
@@ -2536,7 +2582,7 @@ var MvuSelfHealing = (function() {
     resetChat: function() { _sniffedKey = ""; _pendingKey = ""; _pendingAt = 0; _hasIssue = false; _lcsArmed = false; _pollAt = 0; hideVarBanner(); try { hideEmptyBanner(); } catch (eRE) {} updateTopbarBtnState(); },
     api: MvuApi,
     openManualPanel: function(shell) {
-      var targetIdx = getLatestAIMessageIndex();
+      var targetIdx = getLatestAINonEmptyIndex();
       var rawText = getMsgRawText(targetIdx);
       var problems = checkVarFormat(rawText);
       var valid = (problems.length === 0);
