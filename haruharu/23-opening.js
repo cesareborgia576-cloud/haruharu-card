@@ -677,7 +677,7 @@
       '.thso-cards-4 .thso-item { min-width: 0 !important; flex: none !important; width: auto !important; }',
       '@media (max-width: 620px) { .thso-cards-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }',
       '.thso-item { flex: 1 1 158px !important; min-width: 148px !important; min-height: 46px !important; border: 1px solid #3d3527 !important; border-radius: 10px !important; padding: 8px 11px !important; cursor: pointer !important; background: #211d16 !important; transition: border-color .15s, background .15s, box-shadow .15s !important; box-sizing: border-box !important; user-select: none !important; -webkit-user-select: none !important; }',
-      '.thso-item:hover { border-color: #9bb8d2 !important; background: #f2f7fb !important; }',
+      '.thso-item:hover { border-color: #c8a45c !important; background: #26211a !important; }',
       '.thso-item.on { border-color: #c8a45c !important; background: rgba(217,177,104,.12) !important; box-shadow: 0 0 0 2px rgba(200,164,92,.18) !important; }',
       '.thso-item-tag { font-size: 10.5px !important; color: #a89b84 !important; line-height: 1.35 !important; }',
       '.thso-item.on .thso-item-tag { color: #e8cd96 !important; }',
