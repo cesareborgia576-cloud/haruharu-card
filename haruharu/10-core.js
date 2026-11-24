@@ -21592,13 +21592,9 @@ function lcsPaintModeBtn() {
    ⚠ 绝不要在这里再写一套「自己 setItem 再自己同步」——
      同一个量两套算法必然不同步（LCS_BEAUTIFY_ENABLED 是模块加载时算的缓存值）。 */
 function lcsToggleBeautify() {
-  try {
-    var next = thToggleNativeProjectionMode();
-    try { injectHideCss(); } catch (eH) {}
-    try { lcsPaintModeBtn(); } catch (eP) {}
-    try { thUpdateNativeProjectionButton(); } catch (eU) {}
-    return next;
-  } catch (e) { return undefined; }
+  /* ★ 2026-11-24（作者：「彻底下架显示美化，这个很害人」）：模式开关整个下架，
+     这里恒为 no-op —— 永远停在「剔除美化」，不再有任何切换入口。 */
+  return 'strip';
 }
 /* 旧实现（已熔断，保留仅供回溯参考）：
 function _lcsToggleBeautify_old() {
@@ -22039,25 +22035,10 @@ var TH_NATIVE_MODE_KEY = 'TH_NATIVE_PROJECTION_MODE_V2';
 var TH_NATIVE_PAGE_TOKEN = '\u2063TH_NATIVE_PROJECTION_PAGE\u2063';
 var TH_LAST_NATIVE_HTML = '';
 function thNativeProjectionMode() {
-  try {
-    var m = String(localStorage.getItem(TH_NATIVE_MODE_KEY) || '').toLowerCase();
-    if (m === 'beautify' || m === 'show' || m === '1') return 'beautify';
-    if (m === 'strip' || m === '0') return 'strip';
-  } catch (e) {}
-  /* ══ ★★ 2026-11-21 第 172 次：默认改回「剔除美化」══
-     作者原话：「妈的，搞成默认剔除美化。」
-     ── 必须先说清改之前的实际状态，否则下次又会被注释带偏 ────────────
-     改之前 22050 行是 `return 'beautify'` ⇒ **默认显示美化**。
-     而上一行（22038）的注释却写着「默认剔除」—— 两处自相矛盾，
-     是 11-19 从 strip 改成 beautify 时只改了代码没改注释。
-     结果：玩家第一次进卡（localStorage 没有这个键）拿到的就是 beautify，
-     而 beautify 会整楼一页投影酒馆可见 DOM，正文/美化稍有不合就显示成空。
-     ── 现在的判据（顺序不能反）──────────────────────────────────
-       ① localStorage 明确写 beautify ⇒ 尊重玩家手动选择，保持 beautify
-       ② localStorage 明确写 strip/0  ⇒ strip
-       ③ **没有任何键**（新玩家 / 清了缓存）⇒ 'strip'
-     也就是：玩家的手选永远优先，只有「从没选过」才落到默认值。
-     ⚠ 别把默认写成 'beautify' 又只改注释 —— 代码才是唯一生效的东西。 */
+  /* ★★ 2026-11-24（作者：「彻底下架显示美化，这个很害人」）：
+     不再读 localStorage、不再给 beautify 留任何入口 —— 恒为「剔除美化」。
+     以前玩家手选过 beautify 的存档也一并熔断（顺手把旧键清掉）。 */
+  try { localStorage.removeItem(TH_NATIVE_MODE_KEY); } catch (e0) {}
   return 'strip';
 }
 function thNativeProjectionLabel() {
@@ -22076,24 +22057,9 @@ function thUpdateNativeProjectionButton(doc) {
   } catch (e) {}
 }
 function thToggleNativeProjectionMode() {
-  var next = thNativeProjectionMode() === 'strip' ? 'beautify' : 'strip';
-  try { localStorage.setItem(TH_NATIVE_MODE_KEY, next); } catch (e) {}
-  LCS_BEAUTIFY_ENABLED = (next === 'beautify');
-  _lcsProsePool = null;
-  TH_LAST_NATIVE_HTML = '';
-  try { thUpdateNativeProjectionButton(); } catch (e1) {}
-  try {
-    if (typeof DialogueReader !== 'undefined') {
-      DialogueReader.lastSig = '';
-      DialogueReader.lastRaw = '';
-      DialogueReader.lastGeom = '';
-      DialogueReader._nativeProjectionHTML = '';
-      var raw = getLatestAIRawText();
-      DialogueReader.setRawText(raw, false);
-    }
-  } catch (e2) {}
-  try { popToast('🪞 原生投影：' + (next === 'beautify' ? '显示美化' : '剔除美化')); } catch (e3) {}
-  return next;
+  /* ★ 2026-11-24：显示美化下架 —— 切换入口不存在，恒返回 strip */
+  LCS_BEAUTIFY_ENABLED = false;
+  return 'strip';
 }
 /* ★ 2026-11-20：在场诊断弹层 —— 一眼看清「他为什么没画出来」 */
 function thOpenRosterDiag() {
@@ -24563,8 +24529,7 @@ function thBuildHudPanel(shell) {
     /* ★ 2026-11-19：以下整块**搬到世界书版本下面**（作者指定顺序） */
     + '<div style="height:1px;background:rgba(217,187,122,.18);margin:2px 2px 10px;"></div>'
     + '<div style="padding:2px 2px 8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
-    + '<button type="button" id="th-native-projection-toggle" class="th-gal-shell-act-btn" style="font-size:12px;">🪞 投影：显示美化</button>'
-    + '<span style="font-size:11px;color:#8b8175;">酒馆显示什么就显示什么</span>'
+    /* ★ 2026-11-24（作者：「彻底下架显示美化，这个很害人」）：🪞 投影切换按钮整个删除 */
     + '<button type="button" id="th-roster-diag" class="th-gal-shell-act-btn" style="font-size:12px;">🩺 在场诊断</button>'
     + '</div>'
     + '<div style="padding:2px 2px 8px;display:flex;gap:8px;flex-wrap:wrap;">'
@@ -26825,15 +26790,7 @@ function setupInteractions(shell) {
       openCheatSheet();
     };
   }
-  /* LCS：美化模式一键切换（放在通用循环之后接线，免得被吃掉 onclick） */
-  var btnBeautify = shell.querySelector(".th-gal-btn-beautify");
-  if (btnBeautify) {
-    btnBeautify.onclick = function (e) {
-      e.stopPropagation();
-      try { PixelAudio.playSelect(); } catch (eA) {}
-      lcsToggleBeautify();
-    };
-  }
+  /* LCS：★ 2026-11-24 显示美化彻底下架 —— 🎨 切换按钮与其接线一并移除（恒为剔除美化） */
   try { lcsPaintModeBtn(); } catch (ePB) {}
 
   /* LCS：旧「屏蔽美化」按钮及其绑定已移除（改由 🎨 美化 按钮一键切换） */
