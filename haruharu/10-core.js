@@ -1,3 +1,5 @@
+/* ★ 2026-11-24：装载标记 —— 20-heal 垫片用它判断 10-core 是否已在场，避免二次加载 */
+try { window.__TH_CORE_LOADED__ = true; if (window.top && window.top !== window) { try { window.top.__TH_CORE_LOADED__ = true; } catch (e1) {} } } catch (e0) {}
 /* ============================================================
    《四邻宅邸 & 全景漫游 & 真同层完美完全体 v27.0》
    ★★ v164（2026-11-11）：**正文契约只剩一层 `<content>`**。
