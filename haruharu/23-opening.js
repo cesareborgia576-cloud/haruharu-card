@@ -230,7 +230,8 @@
     open: false,          /* 面板当前是否要出现 */
     busy: false,          /* 确认流程进行中（挡重入 + 挡心跳重挂） */
     done: false,          /* 本聊天已完成过开局 */
-    inited: false         /* 默认草稿是否已按当前开场白初始化过 */
+    inited: false,        /* 默认草稿是否已按当前开场白初始化过 */
+    step: 1               /* ★ 2026-11-25：两页向导（1=篇章与季节，2=玩家与开局） */
   };
   var draft = defaultDraft();
 
@@ -729,70 +730,69 @@
       (name ? ('<b>' + escHtml(name) + '</b>') : '<span class="thso-su-empty">（留空）</span>') +
       '　—　确认后写入本局存档';
   }
+  /* ══════════════ ★ 2026-11-25：两页向导（作者：天元录那样，两页就够）══════════════
+     第 1 页 = 篇章 + 季节；第 2 页 = 玩家信息 + 开局类型 + 确认。 */
   function panelHtml() {
-    var a = arcOf(draft.arc);
+    var step = (state.step === 2) ? 2 : 1;
     var h = '';
     h += '<div class="thso-card" data-thso-rev="' + REV + '">';
     h += '<div class="thso-head">' + sakuraSvg(22) +
-      '<span class="thso-title">春日狂想曲 · 开局设置</span><span class="thso-sub">确认后写入本局存档</span></div>';
+      '<span class="thso-title">春日狂想曲 · 开局设置</span>' +
+      '<span class="thso-sub">' + (step === 1 ? '第 1 / 2 页 · 篇章与季节' : '第 2 / 2 页 · 玩家与开局') + '</span></div>';
 
-    /* ★★ v1.27：文字版也要有「换去游戏版」的入口。
-       作者要求「开始游戏的第一页就弄出来，选择玩游戏还是文字版」——
-       但文字版玩家根本看不到游戏版那张标题屏（非同层版没有壳、没有标题屏）。
-       所以这里在开局面板最顶上放一条，和游戏版标题屏那一屏是**同一件事的两个入口**：
-       一个在游戏版里（问你要不要留在游戏版），一个在文字版里（问你要不要换过去）。
-       点它就走 00-switcher 暴露的 __SPR_SWITCH_MODE__('game')，写卡数据 + 自动刷新。
-       ★ v1.28：结构改成「图标 / 两行文字 / 右侧胶囊」三段式。
-         原来三块平铺在一行里，副标题 margin-left:auto 顶右，
-         窄一点就糊成一坨（作者截图里就是这个样子）。 */
-    h += '<div class="thso-playtip" data-thso-playtip="1">' +
-      '<button type="button" class="thso-playbtn" data-thso-act="toGame">' +
-        '<span class="thso-playbtn-ico">🎮</span>' +
-        '<span class="thso-playbtn-body">' +
-          '<span class="thso-playbtn-txt">想玩 Galgame 版点我</span>' +
-          '<span class="thso-playbtn-sub">全屏画面 · 立绘与对话框 · 点哪走哪</span>' +
-        '</span>' +
-        '<span class="thso-playbtn-go">切过去 ›</span>' +
-      '</button>' +
-      '</div>';
+    if (step === 1) {
+      /* 换游戏版入口 */
+      h += '<div class="thso-playtip" data-thso-playtip="1">' +
+        '<button type="button" class="thso-playbtn" data-thso-act="toGame">' +
+          '<span class="thso-playbtn-ico">🎮</span>' +
+          '<span class="thso-playbtn-body">' +
+            '<span class="thso-playbtn-txt">想玩 Galgame 版点我</span>' +
+            '<span class="thso-playbtn-sub">全屏画面 · 立绘与对话框 · 点哪走哪</span>' +
+          '</span>' +
+          '<span class="thso-playbtn-go">切过去 ›</span>' +
+        '</button>' +
+        '</div>';
 
-    /* ① 起始篇章 */
-    h += '<div class="thso-sect"><div class="thso-sect-t">① 起始篇章</div><div class="thso-cards">';
-    ARCS.forEach(function (x) {
-      h += itemHtml('arc', x.key, x.icon + ' ' + x.tag, x.key + '篇', x.desc, draft.arc === x.key);
-    });
-    h += '</div></div>';
+      /* ① 起始篇章 */
+      h += '<div class="thso-sect"><div class="thso-sect-t">① 起始篇章</div><div class="thso-cards">';
+      ARCS.forEach(function (x) {
+        h += itemHtml('arc', x.key, x.icon + ' ' + x.tag, x.key + '篇', x.desc, draft.arc === x.key);
+      });
+      h += '</div></div>';
 
-    /* ★ 2026-11-21：② 游戏模式 整个分区删除（纯爱下架，只剩牛头，没有可选项了） */
+      /* ② 季节 */
+      h += '<div class="thso-sect"><div class="thso-sect-t">② 季节</div><div class="thso-cards thso-cards-4">';
+      ['春', '夏', '秋', '冬'].forEach(function (se) {
+        var m = SEASON_META[se];
+        var sd = SEASON_START_DATE[se];
+        h += itemHtml('season', se, m.icon + ' ' + sd.月份 + '月' + sd.日期 + '日起', se, m.desc, draft.season === se);
+      });
+      h += '</div></div>';
 
-    /* ② 季节 */
-    h += '<div class="thso-sect"><div class="thso-sect-t">② 季节</div><div class="thso-cards thso-cards-4">';
-    ['春', '夏', '秋', '冬'].forEach(function (s) {
-      var m = SEASON_META[s];
-      var sd = SEASON_START_DATE[s];
-      h += itemHtml('season', s, m.icon + ' ' + sd.月份 + '月' + sd.日期 + '日起', s, m.desc, draft.season === s);
-    });
-    h += '</div></div>';
+      h += '<div class="thso-actions">' +
+        '<button type="button" class="thso-btn thso-btn-confirm" data-thso-act="next">下一步 ›</button>' +
+        '</div>';
+    } else {
+      /* ③ 玩家信息 */
+      h += '<div class="thso-sect"><div class="thso-sect-t">③ 玩家信息</div><div class="thso-grid2">';
+      PLAYER_KEYS.forEach(function (k) {
+        h += '<div class="thso-field"><label>' + PLAYER_LABEL[k] + '</label>' +
+          '<input type="text" data-thso-field="' + k + '" value="' + escAttr(String(draft.player[k] || '')) + '" placeholder="' + escAttr(PLAYER_PLACEHOLDER[k]) + '" autocomplete="off" /></div>';
+      });
+      h += '</div></div>';
 
-    /* ③ 玩家信息 */
-    h += '<div class="thso-sect"><div class="thso-sect-t">③ 玩家信息</div><div class="thso-grid2">';
-    PLAYER_KEYS.forEach(function (k) {
-      h += '<div class="thso-field"><label>' + PLAYER_LABEL[k] + '</label>' +
-        '<input type="text" data-thso-field="' + k + '" value="' + escAttr(String(draft.player[k] || '')) + '" placeholder="' + escAttr(PLAYER_PLACEHOLDER[k]) + '" autocomplete="off" /></div>';
-    });
-    h += '</div></div>';
+      /* ④ 开局类型 */
+      h += '<div class="thso-sect"><div class="thso-sect-t">④ 开局类型</div><div class="thso-cards">';
+      h += itemHtml('startType', '正常开局', '🌤 原始好感起步', '正常开局', '开场白种子里的好感原样生效（全员 20）', draft.startType === '正常开局');
+      h += itemHtml('startType', '梦幻开局', '🌙 所有女角色好感 100', '梦幻开局', '种子里的每位女角色好感直接拉满', draft.startType === '梦幻开局');
+      h += '</div></div>';
 
-    /* ④ 开局类型 */
-    h += '<div class="thso-sect"><div class="thso-sect-t">④ 开局类型</div><div class="thso-cards">';
-    h += itemHtml('startType', '正常开局', '🌤 原始好感起步', '正常开局', '开场白种子里的好感原样生效（全员 20）', draft.startType === '正常开局');
-    h += itemHtml('startType', '梦幻开局', '🌙 所有女角色好感 100', '梦幻开局', '种子里的每位女角色好感直接拉满', draft.startType === '梦幻开局');
-    h += '</div></div>';
-
-    h += '<div class="thso-summary" data-thso-summary="1">' + summaryHtml() + '</div>';
-    h += '<div class="thso-actions">' +
-      '<button type="button" class="thso-btn thso-btn-confirm" data-thso-act="confirm">✓ 确认开局</button>' +
-      '<button type="button" class="thso-btn thso-btn-ghost" data-thso-act="reset">重置</button>' +
-      '</div>';
+      h += '<div class="thso-summary" data-thso-summary="1">' + summaryHtml() + '</div>';
+      h += '<div class="thso-actions">' +
+        '<button type="button" class="thso-btn thso-btn-ghost" data-thso-act="prev">‹ 上一步</button>' +
+        '<button type="button" class="thso-btn thso-btn-confirm" data-thso-act="confirm">✓ 确认开局</button>' +
+        '</div>';
+    }
 
     h += '</div>';
     return h;
@@ -945,6 +945,8 @@
         if (a === 'confirm') confirmStart();
         else if (a === 'reset') resetForm();
         else if (a === 'toGame') toGameMode();
+        else if (a === 'next') { state.step = 2; try { refreshPanelHard(); } catch (eN1) {} }
+        else if (a === 'prev') { state.step = 1; try { refreshPanelHard(); } catch (eP1) {} }
       }
     });
     host.addEventListener('input', function (ev) {
