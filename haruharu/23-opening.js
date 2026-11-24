@@ -692,14 +692,14 @@
       '.thso-summary { margin: 14px 0 0 !important; border: 1px dashed rgba(200,164,92,.35) !important; border-radius: 10px !important; padding: 9px 12px !important; background: #1e1a13 !important; font-size: 12px !important; color: #d8cdb6 !important; }',
       '.thso-summary b { color: #e8cd96 !important; font-weight: 800 !important; }',
       '.thso-summary .thso-su-empty { color: #8a929b !important; }',
-      '.thso-cover { text-align: center !important; padding: 26px 8px 10px !important; }',
-      '.thso-cover-title { font-size: 34px !important; font-weight: 900 !important; letter-spacing: 10px !important; color: #e8cd96 !important; text-shadow: 0 2px 12px rgba(200,164,92,.35) !important; font-family: "Songti SC","STSong","Noto Serif SC",serif !important; }',
+      '.thso-cover { text-align: center !important; padding: 72px 8px 26px !important; }',
+      '.thso-cover-title { font-size: 42px !important; font-weight: 900 !important; letter-spacing: 10px !important; color: #e8cd96 !important; text-shadow: 0 2px 12px rgba(200,164,92,.35) !important; font-family: "Songti SC","STSong","Noto Serif SC",serif !important; }',
       '.thso-cover-line { width: 120px !important; height: 1px !important; margin: 12px auto !important; background: linear-gradient(90deg, transparent, rgba(200,164,92,.75), transparent) !important; }',
-      '.thso-cover-sub { font-size: 11.5px !important; color: #b3a68c !important; line-height: 1.7 !important; letter-spacing: .5px !important; }',
-      '.thso-cover-meta { margin: 14px 0 0 !important; border: 1px solid rgba(200,164,92,.22) !important; border-radius: 10px !important; background: #1e1a13 !important; padding: 8px 12px !important; }',
+      '.thso-cover-sub { font-size: 12px !important; color: #b3a68c !important; line-height: 1.9 !important; letter-spacing: .5px !important; max-width: 520px !important; margin: 0 auto !important; }',
+      '.thso-cover-meta { margin: 34px 0 0 !important; border: 1px solid rgba(200,164,92,.22) !important; border-radius: 10px !important; background: #1e1a13 !important; padding: 8px 12px !important; }',
       '.thso-cover-row { display: flex !important; justify-content: space-between !important; font-size: 11.5px !important; color: #a89b84 !important; padding: 3px 0 !important; }',
       '.thso-cover-row b { color: #e8cd96 !important; }',
-      '.thso-cover-note { margin-top: 12px !important; border-left: 2px solid rgba(200,164,92,.45) !important; padding: 8px 12px !important; background: rgba(200,164,92,.05) !important; font-size: 11px !important; color: #a89b84 !important; line-height: 1.75 !important; border-radius: 0 8px 8px 0 !important; }',
+      '.thso-cover-note { margin-top: 18px !important; border-left: 2px solid rgba(200,164,92,.45) !important; padding: 8px 12px !important; background: rgba(200,164,92,.05) !important; font-size: 11px !important; color: #a89b84 !important; line-height: 1.75 !important; border-radius: 0 8px 8px 0 !important; }',
       '.thso-cover-note-t { font-weight: 800 !important; color: #d9b168 !important; margin-bottom: 4px !important; letter-spacing: 2px !important; }',
       '.thso-actions { display: flex !important; gap: 10px !important; margin-top: 12px !important; }',
       'button.thso-btn { flex: 1 1 auto !important; font-family: inherit !important; font-size: 13.5px !important; font-weight: 800 !important; padding: 10px 18px !important; border-radius: 10px !important; cursor: pointer !important; letter-spacing: 2px !important; transition: all .15s !important; line-height: 1.4 !important; }',
@@ -763,7 +763,7 @@
         '本卡含成人向内容，请确认已成年后再继续。<br>' +
         '开局后可在「功能」页随时调整模式、屏蔽与美化；剧情由模型推演，变量由 MVU 落库。' +
         '</div>';
-      h += '<div class="thso-actions">' +
+      h += '<div class="thso-actions" style="margin-top:34px;">' +
         '<button type="button" class="thso-btn thso-btn-confirm" data-thso-act="next">开始 ›</button>' +
         '</div>';
     } else {
