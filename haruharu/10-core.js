@@ -24417,6 +24417,13 @@ function thUiIsTextMode() {
      不一定读得到；switcher 的 readMode() 是玩家当前模式的权威，也一并问。
      以前只看 window.top 一处：读不到就当游戏版 ⇒ 文字版被造出游戏壳，
      「切了文字版却一直是游戏版、还显示已是文字版」就是这么来的。 */
+  /* ★ 2026-11-24：URL hash 是最后一道硬判据 —— 切换器写 #sprmode=text/game 再刷新，
+     不依赖任何作用域的 localStorage（作者实机：切了文字版还是游戏版，存储判定不可靠）。 */
+  try {
+    var _h = String((window.top && window.top.location && window.top.location.hash) || location.hash || '');
+    if (/#sprmode=text/i.test(_h)) return true;
+    if (/#sprmode=game/i.test(_h)) return false;
+  } catch (eH) {}
   var cands = [];
   try { cands.push(window.top); } catch (e0) {}
   try { cands.push(window.parent); } catch (e1) {}
@@ -31600,7 +31607,16 @@ function mountInSlot() {
 
   /* 还没有壳：造在最新那一楼 */
   /* ★ 2026-11-24：文字版不造游戏壳 —— 文字版加载 10-core 只为补全/检测/版本显示。 */
-  try { if (thUiIsTextMode()) return; } catch (eTxt) {}
+  try {
+    if (thUiIsTextMode()) {
+      /* 文字版：清掉任何残留的游戏壳，保证界面就是酒馆原生聊天 */
+      try {
+        var _old = doc.getElementById('th-gal-shell-root');
+        if (_old && _old.parentNode) _old.parentNode.removeChild(_old);
+      } catch (eRm) {}
+      return;
+    }
+  } catch (eTxt) {}
   var hostMes = target;
   if (!hostMes) {
     /* 一条 AI 消息都还没有（刚开卡那种）：退回老办法，在聊天区里找个能放的地方 */

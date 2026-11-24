@@ -1181,6 +1181,11 @@
         return r;
       }
       try { HW.localStorage.setItem(KEY, target); } catch (e) {}
+      /* ★ 2026-11-24（作者：切了文字版实际还是游戏版）：模式同时写进 URL hash。
+         实机里 localStorage 判定不可靠（多作用域 / 被预设重置），
+         hash 跟着这次刷新走，10-core / 13-gal 都以它做硬判据。 */
+      try { HW.location.hash = '#sprmode=' + target; } catch (eH0) {}
+      try { if (window !== HW) window.location.hash = '#sprmode=' + target; } catch (eH1) {}
       var tail = r.errs.length ? ('\n提示：' + r.errs.join('；')) : '';
       say('✓ ' + r.oks.join('、') + '\n已切换为「' + LABEL[target].name + '」，即将自动刷新网页…' + tail, 'sw-ok');
       if (r.errs.length) {
@@ -3719,6 +3724,14 @@
   }
   try { setInterval(thNvBarTick, 15000); } catch (eI0) {}
   try { setTimeout(thNvBarTick, 6000); } catch (eT0) {}
+
+  /* ★ 2026-11-24：开机把当前模式同步进 URL hash（只在没有 hash 时写一次）。
+     这样即使玩家这次不再手动切，下一次刷新 10-core / 13-gal 也能拿到硬判据。 */
+  try {
+    if (!/#sprmode=/i.test(String(HW.location.hash || ''))) {
+      HW.location.hash = '#sprmode=' + readMode();
+    }
+  } catch (eHBoot) {}
 
   boot();
     }
