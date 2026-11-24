@@ -1224,10 +1224,29 @@
     var host = doc.createElement('div');
     host.className = 'haru-sb-host';
     /* ★★ 2026-11-25（作者：状态栏要常驻显示在下面）：不再塞在消息里，改成**固定在屏幕底部** */
-    host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:900;'
-      + 'height:42vh;min-height:240px;max-height:60vh;margin:0;padding:0;'
+    /* ★ 2026-11-25 修正：常驻在**输入框上方**，不再盖住输入区 */
+    function _inputH() {
+      try {
+        var se = doc.getElementById('send_form') || doc.querySelector('#send_form, #send_form_container, #form_sheld');
+        var h = se && se.getBoundingClientRect ? se.getBoundingClientRect().height : 0;
+        if (!h || h < 40) h = 120;
+        return Math.round(h) + 8;
+      } catch (e) { return 120; }
+    }
+    host.style.cssText = 'position:fixed;left:0;right:0;bottom:' + _inputH() + 'px;z-index:900;'
+      + 'height:38vh;min-height:220px;max-height:52vh;margin:0;padding:0;'
       + 'background:#12100c;border-top:1px solid rgba(200,164,92,.35);'
       + 'box-shadow:0 -8px 24px rgba(0,0,0,.55);';
+    try {
+      if (!window.__haruSbDockFix) {
+        window.__haruSbDockFix = setInterval(function () {
+          try {
+            var hs = doc.querySelectorAll('.haru-sb-host');
+            for (var i = 0; i < hs.length; i++) hs[i].style.bottom = _inputH() + 'px';
+          } catch (e0) {}
+        }, 1500);
+      }
+    } catch (e1) {}
     var f = doc.createElement('iframe');
     f.className = 'haru-sb-frame';
     f.setAttribute('style', 'width:100%;height:100%;border:0;background:#12100c;display:block;');
@@ -1236,8 +1255,8 @@
       if (!doc.getElementById('haru-sb-dock-pad')) {
         var st = doc.createElement('style');
         st.id = 'haru-sb-dock-pad';
-        st.textContent = 'body.haru-txt-mode{padding-bottom:44vh !important;}'
-          + '@media (max-height:700px){body.haru-txt-mode{padding-bottom:46vh !important;}}';
+        st.textContent = 'body.haru-txt-mode{padding-bottom:52vh !important;}';
+        try { st.textContent += '@media (max-height:700px){body.haru-txt-mode{padding-bottom:56vh !important;}}'; } catch (eM) {}
         (doc.head || doc.documentElement).appendChild(st);
       }
     } catch (ePad) {}
