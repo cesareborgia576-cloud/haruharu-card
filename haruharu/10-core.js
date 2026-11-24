@@ -1,3 +1,5 @@
+/* ★ 2026-11-24：装载标记 —— 20-heal 垫片用它判断 10-core 是否已在场，避免二次加载 */
+try { window.__TH_CORE_LOADED__ = true; if (window.top && window.top !== window) { try { window.top.__TH_CORE_LOADED__ = true; } catch (e1) {} } } catch (e0) {}
 /* ============================================================
    《四邻宅邸 & 全景漫游 & 真同层完美完全体 v27.0》
    ★★ v164（2026-11-11）：**正文契约只剩一层 `<content>`**。
@@ -21442,11 +21444,16 @@ function injectHideCss() {
 var TH_FULLBLEED_CSS = [
   '#chat .mes{padding-left:0 !important;padding-right:0 !important;}',
   '#chat .mes_text{padding-left:0 !important;padding-right:0 !important;margin-left:0 !important;margin-right:0 !important;}',
-  '#chat .mes_text > *{max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
+  '#chat{padding-left:0 !important;padding-right:0 !important;}',
+  '#chat .mes_block{padding-left:0 !important;padding-right:0 !important;margin-left:0 !important;margin-right:0 !important;}',
+  '#chat .mes_text > *{width:100% !important;max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
+  '#chat .mes_text > div > *, #chat .mes_text > details > *{max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
   '#chat .mes_text > table{width:100% !important;}',
   '.mes{padding-left:0 !important;padding-right:0 !important;}',
   '.mes_text{padding-left:0 !important;padding-right:0 !important;margin-left:0 !important;margin-right:0 !important;}',
-  '.mes_text > *{max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
+  '.mes{max-width:100% !important;}',
+  '.mes_text > *{width:100% !important;max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
+  '.mes_text > div > *, .mes_text > details > *{max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
   '.mes_text > table{width:100% !important;}'
 ].join('\n');
 function thInjectFullbleedCss() {
@@ -21470,6 +21477,43 @@ function thInjectFullbleedCss() {
     }
   } catch (e) {}
 }
+
+/* ══ ★ 2026-11-24（作者：文字版的版本号你不写吗）════════════════════════
+   文字版没有功能页的版本页 ⇒ 左下角常驻一块小版本牌：
+   「运行中 v1.62（第 1 次）· 线上 v1.62（第 1 次）」，线上更高时标「有更新」。
+   数据全部来自 loader 广播的 __SPR_* 全局，零网络请求。 */
+function thTextVerPill() {
+  try {
+    if (!thUiIsTextMode()) return;
+    var w = (window.top && window.top.document) ? window.top : window;
+    var bd = w.document.body;
+    if (!bd) return;
+    var el = w.document.getElementById('th-text-ver-pill');
+    if (!el) {
+      el = w.document.createElement('div');
+      el.id = 'th-text-ver-pill';
+      el.setAttribute('style',
+        'position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));' +
+        'z-index:2147483000;padding:4px 10px;border-radius:10px;' +
+        'background:rgba(10,8,6,.66);border:1px solid rgba(217,187,122,.35);' +
+        'color:#d9cba8;font-size:11px;line-height:1.5;pointer-events:none;' +
+        'font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif;');
+      bd.appendChild(el);
+    }
+    var run = '', live = '';
+    try { run = String(w.__SPR_RUN_VER_STATE__ && w.__SPR_RUN_VER_STATE__.label || ''); } catch (eR) {}
+    try { live = String(w.__SPR_LIVE_LABEL__ || w.__SPR_LIVE_VER__ || ''); } catch (eL) {}
+    var ls = 0, ss = 0;
+    try { ss = Number(w.__SPR_SEQ__ || 0) || 0; } catch (eS) {}
+    try { ls = Number(w.__SPR_LIVE_SEQ__ || 0) || 0; } catch (eL2) {}
+    var newer = (ls > 0 && ss > 0 && ls > ss);
+    var txt = '📌 运行中 ' + (run || '—') + '｜线上 ' + (live || (newer ? '更高版本' : '同版本')) + (newer ? '（有更新）' : '');
+    if (el.textContent !== txt) el.textContent = txt;
+  } catch (e) {}
+}
+try { setInterval(thTextVerPill, 10000); } catch (eVp1) {}
+try { setTimeout(thTextVerPill, 2500); } catch (eVp2) {}
+
 try { thInjectFullbleedCss(); } catch (eFb0) {}
 try { setTimeout(thInjectFullbleedCss, 1200); } catch (eFb1) {}
 try { setTimeout(thInjectFullbleedCss, 4000); } catch (eFb2) {}
@@ -22104,6 +22148,15 @@ function thToggleNativeProjectionMode() {
   LCS_BEAUTIFY_ENABLED = false;
   return 'strip';
 }
+/* ★ 2026-11-24：给状态栏「变量自愈」按钮的入口（原先是 20-heal 提供的，
+   20-heal 下架后由这里出同一个补全中心面板）。 */
+try {
+  window.__openMvuPanel = function () {
+    try { MvuSelfHealing.openManualPanel(getDoc().getElementById('th-gal-shell-root')); } catch (e0) {}
+  };
+  try { if (window.top && window.top !== window) window.top.__openMvuPanel = window.__openMvuPanel; } catch (e1) {}
+} catch (eOpen) {}
+
 /* ★ 2026-11-20：在场诊断弹层 —— 一眼看清「他为什么没画出来」 */
 function thOpenRosterDiag() {
   try {
@@ -24357,6 +24410,38 @@ function thDlgNum(key, dflt, min, max) {
   if (isNaN(v)) v = dflt;
   return Math.min(max, Math.max(min, v));
 }
+/* ★ 2026-11-24：UI 模式判定 —— 文字版（SPR_UNIFIED_MODE==='text'）时 10-core 只跑
+   变量检测 / 补全中心 / 版本显示 / 正文美化铺满，**不造游戏壳**（壳是游戏版的界面）。 */
+function thUiIsTextMode() {
+  /* ★ 2026-11-24：多作用域都看一眼 —— 脚本可能跑在 iframe 里，top 的 localStorage
+     不一定读得到；switcher 的 readMode() 是玩家当前模式的权威，也一并问。
+     以前只看 window.top 一处：读不到就当游戏版 ⇒ 文字版被造出游戏壳，
+     「切了文字版却一直是游戏版、还显示已是文字版」就是这么来的。 */
+  var cands = [];
+  try { cands.push(window.top); } catch (e0) {}
+  try { cands.push(window.parent); } catch (e1) {}
+  cands.push(window);
+  for (var i = 0; i < cands.length; i++) {
+    try {
+      var w = cands[i];
+      if (!w) continue;
+      try {
+        var v = String(w.localStorage.getItem('SPR_UNIFIED_MODE') || '');
+        if (v === 'text') return true;
+        if (v === 'game') return false;
+      } catch (eL) {}
+      try {
+        if (typeof w.__SPR_READ_MODE__ === 'function') {
+          var rm = String(w.__SPR_READ_MODE__() || '');
+          if (rm === 'text') return true;
+          if (rm === 'game') return false;
+        }
+      } catch (eR) {}
+    } catch (e2) {}
+  }
+  return false;
+}
+
 /* ══ ★ 2026-11-24（作者）：插图屏蔽 / 立绘屏蔽 ═══════════════════════════
    游戏版按钮栏一颗「🚫 插图屏蔽」；文字版在功能页多一颗「立绘屏蔽」。
    插图屏蔽 = 外置（智绘姬）+ 内置图组 + 正文里的插图全部不显示；
@@ -31514,6 +31599,8 @@ function mountInSlot() {
   }
 
   /* 还没有壳：造在最新那一楼 */
+  /* ★ 2026-11-24：文字版不造游戏壳 —— 文字版加载 10-core 只为补全/检测/版本显示。 */
+  try { if (thUiIsTextMode()) return; } catch (eTxt) {}
   var hostMes = target;
   if (!hostMes) {
     /* 一条 AI 消息都还没有（刚开卡那种）：退回老办法，在聊天区里找个能放的地方 */
