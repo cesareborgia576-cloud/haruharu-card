@@ -21432,6 +21432,47 @@ function injectHideCss() {
     d.head.appendChild(st);
   } catch (e) {}
 }
+
+/* ══ ★ 2026-11-24（作者）：正文美化铺满酒馆聊天界面，不留白 ═══════════════
+   口径参考天元录 / 帕罗亚村庄：美化块横向顶满聊天区，没有左右留白。
+   做法：给酒馆页面（含顶部文档）注入一条全局样式 ——
+     · .mes / .mes_text 左右 padding / margin 归零；
+     · 美化容器（.mes_text 的直接子块）宽度吃满、左右 margin 归零。
+   ⚠ 只动横向与内边距，不改字号 / 配色 / 行高，不碰预设自己的样式逻辑。 */
+var TH_FULLBLEED_CSS = [
+  '#chat .mes{padding-left:0 !important;padding-right:0 !important;}',
+  '#chat .mes_text{padding-left:0 !important;padding-right:0 !important;margin-left:0 !important;margin-right:0 !important;}',
+  '#chat .mes_text > *{max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
+  '#chat .mes_text > table{width:100% !important;}',
+  '.mes{padding-left:0 !important;padding-right:0 !important;}',
+  '.mes_text{padding-left:0 !important;padding-right:0 !important;margin-left:0 !important;margin-right:0 !important;}',
+  '.mes_text > *{max-width:100% !important;margin-left:0 !important;margin-right:0 !important;}',
+  '.mes_text > table{width:100% !important;}'
+].join('\n');
+function thInjectFullbleedCss() {
+  try {
+    var docs = [];
+    try { docs.push(document); } catch (e0) {}
+    try { if (window.top && window.top.document && docs.indexOf(window.top.document) < 0) docs.push(window.top.document); } catch (e1) {}
+    try { if (window.parent && window.parent.document && docs.indexOf(window.parent.document) < 0) docs.push(window.parent.document); } catch (e2) {}
+    for (var i = 0; i < docs.length; i++) {
+      try {
+        var d = docs[i];
+        if (!d || !d.head) continue;
+        var el = d.getElementById('th-fullbleed-css');
+        if (!el) {
+          el = d.createElement('style');
+          el.id = 'th-fullbleed-css';
+          el.textContent = TH_FULLBLEED_CSS;
+          d.head.appendChild(el);
+        }
+      } catch (e3) {}
+    }
+  } catch (e) {}
+}
+try { thInjectFullbleedCss(); } catch (eFb0) {}
+try { setTimeout(thInjectFullbleedCss, 1200); } catch (eFb1) {}
+try { setTimeout(thInjectFullbleedCss, 4000); } catch (eFb2) {}
 /* 把一个节点里所有命中规则的块整块摘掉（连里面的字一起丢，不然剥标签后会漏到对话框） */
 function purgeHiddenNodes(root) {
   if (LCS_BEAUTIFY_ENABLED) return root;   /* 放行模式不摘节点 */
