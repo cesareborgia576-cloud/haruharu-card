@@ -2311,14 +2311,34 @@
             if (np2) np2.title = '插图没出来（挂起或已失效）：' + url;
           } catch (eErr) {}
         };
-        probe.onload = settleOk;
-        probe.onerror = function () { settleFail('加载失败'); };
-        failT = setTimeout(function () {
+        /* ★ 2026-11-24（作者：玩家报「插图全炸」）：jsDelivr 国内整站抽风时所有图一起挂。
+           每个 URL 生成镜像链，逐级重试：cdn → fastly → raw.githubusercontent */
+        var _cands = [url];
+        try {
+          if (/cdn\.jsdelivr\.net\/gh\//.test(url)) {
+            _cands.push(url.replace('cdn.jsdelivr.net', 'fastly.jsdelivr.net'));
+            _cands.push(url.replace('https://cdn.jsdelivr.net/gh/', 'https://raw.githubusercontent.com/').replace(/@([^\/]+)\//, '/$1/'));
+          }
+        } catch (eMc) {}
+        var _ci = 0;
+        var tryLoad = function () {
           if (settled) return;
-          try { probe.src = ''; } catch (eAb) {}
-          settleFail('8 秒超时');
-        }, 8000);
-        probe.src = url;
+          if (failT) { clearTimeout(failT); failT = null; }
+          try { probe.src = _cands[_ci]; } catch (eN) {}
+          failT = setTimeout(function () {
+            if (settled) return;
+            if (_ci + 1 < _cands.length) { _ci++; tryLoad(); return; }
+            try { probe.src = ''; } catch (eAb) {}
+            settleFail('8 秒超时');
+          }, 8000);
+        };
+        probe.onload = settleOk;
+        probe.onerror = function () {
+          if (settled) return;
+          if (_ci + 1 < _cands.length) { _ci++; tryLoad(); return; }
+          settleFail('加载失败');
+        };
+        tryLoad();
       } catch (ePr) {}
     }
 

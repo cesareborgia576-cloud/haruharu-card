@@ -887,9 +887,25 @@
       }, 8000);
     }
 
+    /* ★ 2026-11-24（作者：玩家报「插图全炸」）：jsDelivr 国内整站抽风时所有图一起挂。
+       每个图 URL 生成镜像链，逐级重试：cdn → fastly → raw.githubusercontent */
+    function mirrorList(u) {
+      var out = [u];
+      try {
+        if (/cdn\.jsdelivr\.net\/gh\//.test(u)) {
+          out.push(u.replace('cdn.jsdelivr.net', 'fastly.jsdelivr.net'));
+          out.push(u.replace('https://cdn.jsdelivr.net/gh/', 'https://raw.githubusercontent.com/').replace(/@([^\/]+)\//, '/$1/'));
+        }
+      } catch (eM) {}
+      return out;
+    }
+    var curCands = [], curCi = 0;
+
     function paint(i) {
       idx = ((i % urls.length) + urls.length) % urls.length;
-      img.src = urls[idx];
+      curCands = mirrorList(urls[idx]);
+      curCi = 0;
+      img.src = curCands[0];
       armLoadT();
       cap.textContent = one ? item.act : (item.act + ' ' + (idx + 1) + '/' + urls.length);
       if (dots) {
@@ -924,6 +940,13 @@
     };
     img.onerror = function () {
       if (loadT) { clearTimeout(loadT); loadT = null; }
+      /* ★ 2026-11-24：还有镜像没试完就换下一个；全试完才算真坏 */
+      if (curCi + 1 < curCands.length) {
+        curCi++;
+        try { img.src = curCands[curCi]; } catch (eN) {}
+        armLoadT();
+        return;
+      }
       stopTimer();
       try {
         frame.innerHTML = '';

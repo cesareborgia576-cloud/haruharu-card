@@ -1,9 +1,9 @@
 {
-  "version": "v1.59（第 8 次更新 · dev）",
-  "seq": 900075,
-  "fixNo": 8,
-  "label": "v1.59（第 8 次更新 · dev）",
-  "stableRef": "296c4122a83076049fc6cc86c3b74b2a2a9e8916",
+  "version": "v1.59（第 9 次更新 · dev）",
+  "seq": 900076,
+  "fixNo": 9,
+  "label": "v1.59（第 9 次更新 · dev）",
+  "stableRef": "",
   "updated": "2026-11-21T10:50:02.210Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
@@ -28,5 +28,5 @@
     ]
   },
   "verBase": "v1.59",
-  "lastPushedFixNo": 7
+  "lastPushedFixNo": 8
 }

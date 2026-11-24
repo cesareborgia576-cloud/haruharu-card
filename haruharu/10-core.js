@@ -3195,9 +3195,9 @@ function thMapPath(from, to) {
   }
   return null;
 }
-/* 成本：每格 10 分钟 / 2 精力；跨片区通道（搭车 / 山道 / 石阶）每道额外 20 分钟 */
+/* 成本：每格 10 分钟 / 1 精力（作者 2026-11-24：移动一次掉 1 点）；跨片区通道（搭车 / 山道 / 石阶）每道额外 20 分钟 */
 function thMapCost(path) {
-  var steps = Math.max(0, (path ? path.length : 1) - 1), cross = 0, i, per = 10, ep = 2;
+  var steps = Math.max(0, (path ? path.length : 1) - 1), cross = 0, i, per = 10, ep = 1;
   for (i = 1; i < (path ? path.length : 0); i++) if (thMapAreaOf(path[i - 1]) !== thMapAreaOf(path[i])) cross++;
   try { if (HOST && HOST.__thMapSceneMinutes) per = HOST.__thMapSceneMinutes; } catch (e1) {}
   try { if (HOST && HOST.__thMapEnergyCost) ep = HOST.__thMapEnergyCost; } catch (e2) {}
@@ -13462,7 +13462,7 @@ function buildShellDOM() {
                 '<p><b>赭框</b>　途经格</p>' +
                 '<p><b>朱红虚线</b>　跨片区通道（搭车 / 山道 / 石阶）</p>' +
                 '<hr>' +
-                '<p>每格 <b>10 分钟 / 2 精力</b>；跨片区每道额外 <b>20 分钟</b>。</p>' +
+                '<p>每格 <b>10 分钟 / 1 精力</b>；跨片区每道额外 <b>20 分钟</b>。</p>' +
                 '<p>拖动平移 · 滚轮缩放 · 点格子选目的地。</p>' +
               '</div>' +
             '</div>' +
