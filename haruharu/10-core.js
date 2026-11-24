@@ -27353,6 +27353,30 @@ var MvuSelfHealing = (function() {
     return getLatestAIMessageIndex();
   }
 
+  /* ★ 2026-11-25：DOM 兜底 —— ctx.chat 取不到时（iframe/浅加载），用 #chat 的 mesid 定位 */
+  function thDomLatestAiIdx() {
+    try {
+      var doc = getDoc();
+      var all = doc.querySelectorAll('#chat .mes[mesid]');
+      for (var i = all.length - 1; i >= 0; i--) {
+        var el = all[i];
+        if (el.classList && el.classList.contains('is_user')) continue;
+        var id = Number(el.getAttribute('mesid'));
+        if (isFinite(id) && id >= 0) return id;
+      }
+    } catch (e) {}
+    return -1;
+  }
+  function thDomMsgRaw(idx) {
+    try {
+      var doc = getDoc();
+      var el = doc.querySelector('#chat .mes[mesid="' + idx + '"]');
+      if (!el) return '';
+      var t = el.querySelector('.mes_text');
+      return t ? String(t.innerHTML || '') : '';
+    } catch (e) { return ''; }
+  }
+
   function getMsgRawText(targetIdx) {
     try {
       var ctx = getStContext();
@@ -29388,9 +29412,12 @@ var MvuSelfHealing = (function() {
     markInterrupted: function() { lcsMarkInterrupted(); },
     openManualPanel: function(shell) {
       var targetIdx = getLatestAINonEmptyIndex();
+      /* ★ 2026-11-25：ctx 取不到楼层时用 DOM 兜底（作者实机：面板误判「还在开场白」） */
+      if (targetIdx <= 0) { var _di = thDomLatestAiIdx(); if (_di > 0) targetIdx = _di; }
       /* ★ v140：只有开场白时不判定变量格式（开场白不是 AI 楼层） */
       var greetingOnly = (targetIdx <= 0);
       var rawText = greetingOnly ? '' : getMsgRawText(targetIdx);
+      if (!greetingOnly && !String(rawText || '').trim()) rawText = thDomMsgRaw(targetIdx);
       var problems = greetingOnly ? [] : checkVarFormat(rawText);
       var valid = (problems.length === 0);
       var modal = ensureModal(shell);
