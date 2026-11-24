@@ -199,6 +199,38 @@
     var vpage = d.getElementById('page-version');
     if (!tabs || !vpage) return;
 
+    /* ★★ 2026-11-25（作者：「版本页加运行中版本 / 线上版本」）：
+       版本页原来只有卡版本 / 世界书，缺这两项。这里直接补两行，
+       数值由 paintVerRows() 每 5 秒刷新（数据来自 loader 的 __SPR_* 全局，零网络）。 */
+    if (!d.getElementById('sb-ver-run')) {
+      var r1 = d.createElement('div');
+      r1.className = 'ver-row';
+      r1.innerHTML = '<span class="ver-k">运行中版本</span><span class="ver-v" id="sb-ver-run">—</span>';
+      var r2 = d.createElement('div');
+      r2.className = 'ver-row';
+      r2.innerHTML = '<span class="ver-k">线上版本</span><span class="ver-v" id="sb-ver-live">—</span>';
+      var anchor0 = vpage.firstChild;
+      if (anchor0 && anchor0.nextSibling) { vpage.insertBefore(r1, anchor0.nextSibling); vpage.insertBefore(r2, r1.nextSibling); }
+      else { vpage.appendChild(r1); vpage.appendChild(r2); }
+    }
+    function paintVerRows() {
+      try {
+        var w = (TOP && TOP.document) ? TOP : window;
+        var run = '', live = '';
+        try { run = String((w.__SPR_RUN_VER_STATE__ && w.__SPR_RUN_VER_STATE__.label) || ''); } catch (eR) {}
+        try { live = String(w.__SPR_LIVE_LABEL__ || w.__SPR_LIVE_VER__ || ''); } catch (eL) {}
+        var ss = 0, lsq = 0;
+        try { ss = Number(w.__SPR_SEQ__ || 0) || 0; } catch (eS) {}
+        try { lsq = Number(w.__SPR_LIVE_SEQ__ || 0) || 0; } catch (eL2) {}
+        var newer = (lsq > 0 && ss > 0 && lsq > ss);
+        var a = d.getElementById('sb-ver-run'), b = d.getElementById('sb-ver-live');
+        if (a) a.textContent = run || '—';
+        if (b) b.textContent = (live || '—') + (newer ? '（有更新，刷新页面）' : '');
+      } catch (e) {}
+    }
+    paintVerRows();
+    try { setInterval(paintVerRows, 5000); } catch (eI0) {}
+
     var tab = d.createElement('span');
     tab.className = 'saku-tab';
     tab.setAttribute('data-page', 'page-func');
