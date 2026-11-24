@@ -37,6 +37,32 @@
     return window;
   }
   var HW = hostWin();
+  /* ★★ 2026-11-25（作者：切换不了模式）：全卡共用的模式判定。
+     顺序：URL hash（切换器刷新前写死）→ 各作用域 localStorage → 默认 game。
+     挂到 window/top，所有脚本（10-core / 11 / 12 / 13 / 21~24）都用它自门禁。 */
+  function sprUiModeNow() {
+    try {
+      var hs = '';
+      try { hs = String((HW && HW.location && HW.location.hash) || location.hash || ''); } catch (eh0) {}
+      if (/#sprmode=text/i.test(hs)) return 'text';
+      if (/#sprmode=game/i.test(hs)) return 'game';
+      var cands = [];
+      try { cands.push(window.top); } catch (e0) {}
+      try { cands.push(window.parent); } catch (e1) {}
+      cands.push(window);
+      for (var i = 0; i < cands.length; i++) {
+        try {
+          var v = cands[i] && cands[i].localStorage ? cands[i].localStorage.getItem(KEY) : null;
+          if (v === 'game' || v === 'text') return v;
+        } catch (e2) {}
+      }
+    } catch (e3) {}
+    return CFG.defaultMode || 'game';
+  }
+  try { window.sprUiModeNow = sprUiModeNow; } catch (eA) {}
+  try { window.thUiModeIs = function (w) { return sprUiModeNow() === w; }; } catch (eB) {}
+  try { if (window.top && window.top !== window) { window.top.sprUiModeNow = sprUiModeNow; window.top.thUiModeIs = window.thUiModeIs; } } catch (eC) {}
+
   var HD;
   try { HD = HW.document; } catch (e) { HD = document; }
   if (!HD) return;
@@ -1181,6 +1207,11 @@
         return r;
       }
       try { HW.localStorage.setItem(KEY, target); } catch (e) {}
+      /* ★ 2026-11-24（作者：切了文字版实际还是游戏版）：模式同时写进 URL hash。
+         实机里 localStorage 判定不可靠（多作用域 / 被预设重置），
+         hash 跟着这次刷新走，10-core / 13-gal 都以它做硬判据。 */
+      try { HW.location.hash = '#sprmode=' + target; } catch (eH0) {}
+      try { if (window !== HW) window.location.hash = '#sprmode=' + target; } catch (eH1) {}
       var tail = r.errs.length ? ('\n提示：' + r.errs.join('；')) : '';
       say('✓ ' + r.oks.join('、') + '\n已切换为「' + LABEL[target].name + '」，即将自动刷新网页…' + tail, 'sw-ok');
       if (r.errs.length) {
@@ -3719,6 +3750,14 @@
   }
   try { setInterval(thNvBarTick, 15000); } catch (eI0) {}
   try { setTimeout(thNvBarTick, 6000); } catch (eT0) {}
+
+  /* ★ 2026-11-24：开机把当前模式同步进 URL hash（只在没有 hash 时写一次）。
+     这样即使玩家这次不再手动切，下一次刷新 10-core / 13-gal 也能拿到硬判据。 */
+  try {
+    if (!/#sprmode=/i.test(String(HW.location.hash || ''))) {
+      HW.location.hash = '#sprmode=' + readMode();
+    }
+  } catch (eHBoot) {}
 
   boot();
     }

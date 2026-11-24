@@ -18,6 +18,12 @@
    ============================================================ */
 (function () {
   'use strict';
+  /* ★ 2026-11-25：统一清单后各自门禁 —— 只在「文字版」时运行 */
+  try {
+    var _uiM = (typeof window.thUiModeIs === 'function') ? (window.thUiModeIs('text') ? 'text' : 'other') : 'text';
+    if (_uiM !== 'text') return;
+  } catch (eGate) {}
+
 
   var VER = 'v13-20261028';
   var STYLE_ID = 'th-illu-styles';

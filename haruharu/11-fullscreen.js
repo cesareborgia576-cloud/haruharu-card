@@ -5,6 +5,10 @@
    ============================================================ */
 (function () {
 'use strict';
+/* ★ 2026-11-25：统一清单后各自门禁 —— 只在游戏版运行 */
+try {
+  if (typeof window.thUiModeIs === 'function' && !window.thUiModeIs('game')) return;
+} catch (eGate) {}
 
 var P = 'th_stage_portal';
 var PORTAL_ID = P + '-overlay';

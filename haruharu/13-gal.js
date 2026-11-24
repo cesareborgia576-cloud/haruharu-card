@@ -33,8 +33,37 @@
       这张卡第 0 楼就是 3 个 swipe（首页/乡村/公寓），
       玩家编辑的是当前那张，m.mes 未必是它 —— 只读 m.mes 会永远读不到标签。
    ============================================================ */
+
+/* ★ 2026-11-24（作者：切了文字版实际还是游戏版）：文字版下整个 gal 模块退场，
+   不画 CG / 姓名牌 / 外置插图 —— 即使 loader 误把游戏版脚本也加载了。 */
+(function () {
+  function _isText() {
+    try {
+      var h = String((window.top && window.top.location && window.top.location.hash) || location.hash || '');
+      if (/#sprmode=text/i.test(h)) return true;
+      if (/#sprmode=game/i.test(h)) return false;
+    } catch (e0) {}
+    var cs = [];
+    try { cs.push(window.top); } catch (e1) {}
+    try { cs.push(window.parent); } catch (e2) {}
+    cs.push(window);
+    for (var i = 0; i < cs.length; i++) {
+      try {
+        var v = cs[i] && cs[i].localStorage ? cs[i].localStorage.getItem('SPR_UNIFIED_MODE') : null;
+        if (v === 'text') return true;
+        if (v === 'game') return false;
+      } catch (e3) {}
+    }
+    return false;
+  }
+  if (_isText()) {
+    try { window.__SPR_GAL_SKIPPED__ = true; } catch (e4) {}
+  }
+})();
 (function () {
   'use strict';
+  /* ★ 2026-11-24：文字版 → 整个 gal 模块不启动（不画 CG / 姓名牌 / 外置插图） */
+  if (window.__SPR_GAL_SKIPPED__) return;
 
   var STYLE_ID = 'gal-framework-styles';
   /* ★ v99：样式只要动过就必须换版本号 —— 否则老页面上旧样式会一直赖着不走 */
