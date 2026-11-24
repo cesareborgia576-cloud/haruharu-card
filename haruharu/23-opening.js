@@ -692,6 +692,15 @@
       '.thso-summary { margin: 14px 0 0 !important; border: 1px dashed rgba(200,164,92,.35) !important; border-radius: 10px !important; padding: 9px 12px !important; background: #1e1a13 !important; font-size: 12px !important; color: #d8cdb6 !important; }',
       '.thso-summary b { color: #e8cd96 !important; font-weight: 800 !important; }',
       '.thso-summary .thso-su-empty { color: #8a929b !important; }',
+      '.thso-cover { text-align: center !important; padding: 26px 8px 10px !important; }',
+      '.thso-cover-title { font-size: 34px !important; font-weight: 900 !important; letter-spacing: 10px !important; color: #e8cd96 !important; text-shadow: 0 2px 12px rgba(200,164,92,.35) !important; font-family: "Songti SC","STSong","Noto Serif SC",serif !important; }',
+      '.thso-cover-line { width: 120px !important; height: 1px !important; margin: 12px auto !important; background: linear-gradient(90deg, transparent, rgba(200,164,92,.75), transparent) !important; }',
+      '.thso-cover-sub { font-size: 11.5px !important; color: #b3a68c !important; line-height: 1.7 !important; letter-spacing: .5px !important; }',
+      '.thso-cover-meta { margin: 14px 0 0 !important; border: 1px solid rgba(200,164,92,.22) !important; border-radius: 10px !important; background: #1e1a13 !important; padding: 8px 12px !important; }',
+      '.thso-cover-row { display: flex !important; justify-content: space-between !important; font-size: 11.5px !important; color: #a89b84 !important; padding: 3px 0 !important; }',
+      '.thso-cover-row b { color: #e8cd96 !important; }',
+      '.thso-cover-note { margin-top: 12px !important; border-left: 2px solid rgba(200,164,92,.45) !important; padding: 8px 12px !important; background: rgba(200,164,92,.05) !important; font-size: 11px !important; color: #a89b84 !important; line-height: 1.75 !important; border-radius: 0 8px 8px 0 !important; }',
+      '.thso-cover-note-t { font-weight: 800 !important; color: #d9b168 !important; margin-bottom: 4px !important; letter-spacing: 2px !important; }',
       '.thso-actions { display: flex !important; gap: 10px !important; margin-top: 12px !important; }',
       'button.thso-btn { flex: 1 1 auto !important; font-family: inherit !important; font-size: 13.5px !important; font-weight: 800 !important; padding: 10px 18px !important; border-radius: 10px !important; cursor: pointer !important; letter-spacing: 2px !important; transition: all .15s !important; line-height: 1.4 !important; }',
       'button.thso-btn-confirm { background: linear-gradient(135deg, #d9b168, #b08c42) !important; border: 1px solid #c8a45c !important; color: #1a1610 !important; box-shadow: 0 4px 14px rgba(200,164,92,.28) !important; flex: 2 1 auto !important; }',
@@ -730,18 +739,39 @@
       (name ? ('<b>' + escHtml(name) + '</b>') : '<span class="thso-su-empty">（留空）</span>') +
       '　—　确认后写入本局存档';
   }
-  /* ══════════════ ★ 2026-11-25：两页向导（作者：天元录那样，两页就够）══════════════
-     第 1 页 = 篇章 + 季节；第 2 页 = 玩家信息 + 开局类型 + 确认。 */
+  /* ══════════════ ★ 2026-11-25：照抄天元录开局 ——
+     第 1 页 = 标题页（大字标题 + 一句介绍 + 版本/世界书 + 前言注意事项 + 开始）
+     第 2 页 = 设置页（篇章 / 季节 / 玩家 / 开局类型 + 确认） */
   function panelHtml() {
     var step = (state.step === 2) ? 2 : 1;
     var h = '';
     h += '<div class="thso-card" data-thso-rev="' + REV + '">';
-    h += '<div class="thso-head">' + sakuraSvg(22) +
-      '<span class="thso-title">春日狂想曲 · 开局设置</span>' +
-      '<span class="thso-sub">' + (step === 1 ? '第 1 / 2 页 · 篇章与季节' : '第 2 / 2 页 · 玩家与开局') + '</span></div>';
 
     if (step === 1) {
-      /* 换游戏版入口 */
+      /* ── 第 1 页：标题页（天元录式）── */
+      h += '<div class="thso-cover">' +
+        '<div class="thso-cover-title">春日狂想曲</div>' +
+        '<div class="thso-cover-line"></div>' +
+        '<div class="thso-cover-sub">七位熟女 · 三位巫女 · 八位苦主 —— 一座走不出去的山村，一段说不出口的夏天。</div>' +
+        '</div>';
+      h += '<div class="thso-cover-meta">' +
+        '<div class="thso-cover-row"><span>卡版本</span><b id="thso-cover-ver">' + escHtml(String(window.__SPR_CARD_VER || '—')) + '</b></div>' +
+        '<div class="thso-cover-row"><span>世界书</span><b id="thso-cover-wb">检测中…</b></div>' +
+        '</div>';
+      h += '<div class="thso-cover-note">' +
+        '<div class="thso-cover-note-t">前言</div>' +
+        '本卡含成人向内容，请确认已成年后再继续。<br>' +
+        '开局后可在「功能」页随时调整模式、屏蔽与美化；剧情由模型推演，变量由 MVU 落库。' +
+        '</div>';
+      h += '<div class="thso-actions">' +
+        '<button type="button" class="thso-btn thso-btn-confirm" data-thso-act="next">开始 ›</button>' +
+        '</div>';
+    } else {
+      /* ── 第 2 页：设置页 ── */
+      h += '<div class="thso-head">' + sakuraSvg(22) +
+        '<span class="thso-title">开局设置</span>' +
+        '<span class="thso-sub">第 2 / 2 页</span></div>';
+
       h += '<div class="thso-playtip" data-thso-playtip="1">' +
         '<button type="button" class="thso-playbtn" data-thso-act="toGame">' +
           '<span class="thso-playbtn-ico">🎮</span>' +
@@ -753,14 +783,12 @@
         '</button>' +
         '</div>';
 
-      /* ① 起始篇章 */
       h += '<div class="thso-sect"><div class="thso-sect-t">① 起始篇章</div><div class="thso-cards">';
       ARCS.forEach(function (x) {
         h += itemHtml('arc', x.key, x.icon + ' ' + x.tag, x.key + '篇', x.desc, draft.arc === x.key);
       });
       h += '</div></div>';
 
-      /* ② 季节 */
       h += '<div class="thso-sect"><div class="thso-sect-t">② 季节</div><div class="thso-cards thso-cards-4">';
       ['春', '夏', '秋', '冬'].forEach(function (se) {
         var m = SEASON_META[se];
@@ -769,11 +797,6 @@
       });
       h += '</div></div>';
 
-      h += '<div class="thso-actions">' +
-        '<button type="button" class="thso-btn thso-btn-confirm" data-thso-act="next">下一步 ›</button>' +
-        '</div>';
-    } else {
-      /* ③ 玩家信息 */
       h += '<div class="thso-sect"><div class="thso-sect-t">③ 玩家信息</div><div class="thso-grid2">';
       PLAYER_KEYS.forEach(function (k) {
         h += '<div class="thso-field"><label>' + PLAYER_LABEL[k] + '</label>' +
@@ -781,7 +804,6 @@
       });
       h += '</div></div>';
 
-      /* ④ 开局类型 */
       h += '<div class="thso-sect"><div class="thso-sect-t">④ 开局类型</div><div class="thso-cards">';
       h += itemHtml('startType', '正常开局', '🌤 原始好感起步', '正常开局', '开场白种子里的好感原样生效（全员 20）', draft.startType === '正常开局');
       h += itemHtml('startType', '梦幻开局', '🌙 所有女角色好感 100', '梦幻开局', '种子里的每位女角色好感直接拉满', draft.startType === '梦幻开局');
