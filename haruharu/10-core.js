@@ -27121,6 +27121,27 @@ var MvuSelfHealing = (function() {
     return -1;
   }
 
+  /* ★★ 2026-11-24（作者：「这不他妈有吗，乱他妈来」）：
+     最新 AI 楼层是空楼层时（生成失败 / 空 swipe / 状态占位楼），
+     拿它去查变量块必然判「本楼完全没有变量块」—— 玩家明明看得到上一楼的变量块。
+     面板类检测（手动面板 / 重新检测 / 探针）一律改读「最近一条有内容的 AI 楼层」。
+     ⚠ 轮询嗅探（pollSniff）**不改**：它要用「最新楼层为空」来弹回空提示。 */
+  function getLatestAINonEmptyIndex() {
+    try {
+      var ctx = getStContext();
+      if (ctx && Array.isArray(ctx.chat)) {
+        for (var i = ctx.chat.length - 1; i >= 0; i--) {
+          var m = ctx.chat[i];
+          if (!m || m.is_user || m.is_system || m.role === 'user') continue;
+          var t = '';
+          try { t = (typeof messageTextOf === 'function') ? messageTextOf(m) : (m.mes || ''); } catch (eT) {}
+          if (String(t == null ? '' : t).trim()) return i;
+        }
+      }
+    } catch (e2) {}
+    return getLatestAIMessageIndex();
+  }
+
   function getMsgRawText(targetIdx) {
     try {
       var ctx = getStContext();
@@ -28717,7 +28738,7 @@ var MvuSelfHealing = (function() {
      有了这一行：数字跟着变 = 读的是新内容；数字没变 = 读的不是你改的那一楼。
      ⚠ 别把它做成「只在打开面板时算一次」—— 那样手动改完再回来看，永远看到旧数字。 */
   function buildProbeText() {
-    var idx = getLatestAIMessageIndex();
+    var idx = getLatestAINonEmptyIndex();
     if (idx < 0) return "🔬 读取：没有 AI 楼层";
     var raw = getMsgRawText(idx);
     var t = stripThinkForVar(String(raw || ""));
@@ -28751,7 +28772,7 @@ var MvuSelfHealing = (function() {
      顺手把去重键与待确认状态清干净：这正是「改坏了却一直不报」的两个卡点。 */
   function refreshStatusNow() {
     _sniffedKey = ""; _pendingKey = ""; _pendingAt = 0; _pollAt = 0;
-    var idx = getLatestAIMessageIndex();
+    var idx = getLatestAINonEmptyIndex();
     paintProbe();
     if (idx < 0) { setStatus("❌ 没有可检测的楼层", false); return; }
     var raw = getMsgRawText(idx);
@@ -29140,7 +29161,7 @@ var MvuSelfHealing = (function() {
     resetChat: function() { _sniffedKey = ''; _pendingKey = ''; _pendingAt = 0; _hasIssue = false; _lcsArmed = false; _pollAt = 0; hideVarBanner(); try { hideEmptyBanner(); } catch (eRE) {} },
     markInterrupted: function() { lcsMarkInterrupted(); },
     openManualPanel: function(shell) {
-      var targetIdx = getLatestAIMessageIndex();
+      var targetIdx = getLatestAINonEmptyIndex();
       /* ★ v140：只有开场白时不判定变量格式（开场白不是 AI 楼层） */
       var greetingOnly = (targetIdx <= 0);
       var rawText = greetingOnly ? '' : getMsgRawText(targetIdx);
