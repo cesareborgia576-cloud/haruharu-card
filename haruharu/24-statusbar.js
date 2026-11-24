@@ -210,6 +210,19 @@
       '<div class="ver-row"><span class="ver-k">外置插图</span>',
       '<span class="ver-v" id="sb-fn-ext-v">—</span>',
       '<button type="button" class="ver-btn" id="sb-fn-ext">切换</button></div>',
+      /* ★★ 2026-11-24（作者：版本号你不写吗）：文字版功能页直接摆版本号 ——
+         运行中 / 线上 各一行，数据来自 loader 广播的 __SPR_* 全局，零网络请求。 */
+      '<div class="ver-row"><span class="ver-k">运行中版本</span>',
+      '<span class="ver-v" id="sb-fn-ver-run">—</span></div>',
+      '<div class="ver-row"><span class="ver-k">线上版本</span>',
+      '<span class="ver-v" id="sb-fn-ver-live">—</span></div>',
+      /* ★ 2026-11-24（作者）：插图屏蔽 / 立绘屏蔽（文字版功能页） */
+      '<div class="ver-row"><span class="ver-k">插图屏蔽</span>',
+      '<span class="ver-v" id="sb-fn-illblk-v">关</span>',
+      '<button type="button" class="ver-btn" id="sb-fn-illblk">开启</button></div>',
+      '<div class="ver-row"><span class="ver-k">立绘屏蔽</span>',
+      '<span class="ver-v" id="sb-fn-sprblk-v">关</span>',
+      '<button type="button" class="ver-btn" id="sb-fn-sprblk">开启</button></div>',
       /* ★ v1.24：悬浮球收起后必须能在这里叫回来，否则玩家收了就再也找不到。
          文字版这一页是「功能」，跟游戏版 HUD 面板里那两个按钮是同一个用途。 */
       '<div class="ver-row"><span class="ver-k">悬浮球</span>',
@@ -294,6 +307,30 @@
         d.getElementById('sb-fn-ext-v').textContent = i2 ? '开' : '关';
         d.getElementById('sb-fn-ext').textContent = i2 ? '关闭' : '打开';
       } catch (e) {}
+      /* ★ 2026-11-24：版本号两行 + 屏蔽开关两行的刷新 */
+      try {
+        var w = (TOP && TOP.document) ? TOP : window;
+        var run = '', live = '';
+        try { run = String((w.__SPR_RUN_VER_STATE__ && w.__SPR_RUN_VER_STATE__.label) || ''); } catch (eR) {}
+        try { live = String(w.__SPR_LIVE_LABEL__ || w.__SPR_LIVE_VER__ || ''); } catch (eL) {}
+        var ss = 0, lsq = 0;
+        try { ss = Number(w.__SPR_SEQ__ || 0) || 0; } catch (eS) {}
+        try { lsq = Number(w.__SPR_LIVE_SEQ__ || 0) || 0; } catch (eL2) {}
+        var newer = (lsq > 0 && ss > 0 && lsq > ss);
+        var vr = d.getElementById('sb-fn-ver-run'), vl = d.getElementById('sb-fn-ver-live');
+        if (vr) vr.textContent = run || '—';
+        if (vl) vl.textContent = (live || '—') + (newer ? '（有更新，刷新页面）' : '');
+        var ib = d.getElementById('sb-fn-illblk'), ibv = d.getElementById('sb-fn-illblk-v');
+        var blkI = false;
+        try { blkI = !!(w.thIllustBlockOn && w.thIllustBlockOn()); } catch (eB1) {}
+        if (ibv) ibv.textContent = blkI ? '开' : '关';
+        if (ib) ib.textContent = blkI ? '关闭' : '开启';
+        var sb = d.getElementById('sb-fn-sprblk'), sbv = d.getElementById('sb-fn-sprblk-v');
+        var blkS = false;
+        try { blkS = !!(w.thSpriteBlockOn && w.thSpriteBlockOn()); } catch (eB2) {}
+        if (sbv) sbv.textContent = blkS ? '开' : '关';
+        if (sb) sb.textContent = blkS ? '关闭' : '开启';
+      } catch (eV) {}
       paintEnv();
       paintGameMode();
       paintBall();
@@ -829,6 +866,29 @@
           var err = '';
           try { err = sbOpenHeal('openManualPanel'); } catch (e5) { err = '变量自愈打不开'; }
           try { showToast(err || '已打开变量自愈', err ? 3000 : 1800); } catch (e6) {}
+        };
+        /* ★ 2026-11-24：插图屏蔽 / 立绘屏蔽（走 10-core 的统一开关） */
+        var ibtn = d.getElementById('sb-fn-illblk');
+        if (ibtn) ibtn.onclick = function () {
+          try {
+            var w = (TOP && TOP.document) ? TOP : window;
+            if (typeof w.thIllustBlockOn !== 'function') { showToast('核心脚本还没就绪，稍后再试', 2200); return; }
+            var next = w.thIllustBlockOn() ? '0' : '1';
+            localStorage.setItem('SPR_ILLUST_BLOCK', next);
+            if (typeof w.thApplyIllustBlock === 'function') w.thApplyIllustBlock();
+            showToast(next === '1' ? '🚫 插图屏蔽：已开启' : '插图屏蔽：已关闭', 2000);
+          } catch (eI2) {}
+        };
+        var sbtn = d.getElementById('sb-fn-sprblk');
+        if (sbtn) sbtn.onclick = function () {
+          try {
+            var w = (TOP && TOP.document) ? TOP : window;
+            if (typeof w.thSpriteBlockOn !== 'function') { showToast('核心脚本还没就绪，稍后再试', 2200); return; }
+            var next = w.thSpriteBlockOn() ? '0' : '1';
+            localStorage.setItem('SPR_SPRITE_BLOCK', next);
+            if (typeof w.thApplyIllustBlock === 'function') w.thApplyIllustBlock();
+            showToast(next === '1' ? '🚫 立绘屏蔽：已开启' : '立绘屏蔽：已关闭', 2000);
+          } catch (eI3) {}
         };
         var b5 = d.getElementById('sb-fn-reloadimg');
         if (b5) b5.onclick = function () {
