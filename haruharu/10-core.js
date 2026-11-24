@@ -15919,6 +15919,12 @@ function arcInitPatch(arc, gameMode, season, art, startType, playerInfo) {
   } catch (eP) { return base; }
 }
 
+/* ★ 2026-11-25：开局种子对外暴露（文字版开局兜底用） */
+try {
+  window.__TH_ARC_SEED_OPS__ = function (a) { try { return arcInitPatch(a); } catch (e0) { return []; } };
+  if (window.top && window.top !== window) window.top.__TH_ARC_SEED_OPS__ = window.__TH_ARC_SEED_OPS__;
+} catch (eSeed) {}
+
 /* ══════════════════════════════════════════════════════════════════════
    ★ v165：篇章角色变量补全（用户原话）
      「切换篇章之后因为没有人物变量，导致那些人没见。改为：点击切换篇章，

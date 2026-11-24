@@ -491,6 +491,16 @@
       /* ② 从目标开场白现提取种子补丁（单一真相源 = 开场白自己） */
       var text = greetingTextOf(arc.idx);
       var ops = extractJsonPatch(text);
+      if (!ops.length) {
+        /* ★ 2026-11-25：开场白缺 <JSONPatch>（公寓那篇就是这样）→ 用 10-core 的篇章种子兜底 */
+        try {
+          var fnSeed = (window.__TH_ARC_SEED_OPS__ || (window.top && window.top.__TH_ARC_SEED_OPS__));
+          if (typeof fnSeed === 'function') {
+            var arr = fnSeed(arc.key);
+            if (Array.isArray(arr) && arr.length) ops = arr;
+          }
+        } catch (eSeed2) {}
+      }
       if (!ops.length) throw new Error('目标篇章的开场白里没有 <JSONPatch> 种子，不能开局');
 
       /* ③ 加工 + 合成 + 落库 */
