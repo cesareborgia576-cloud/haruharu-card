@@ -22121,6 +22121,24 @@ try {
   try { if (window.top && window.top !== window) window.top.__openMvuPanel = window.__openMvuPanel; } catch (e1) {}
 } catch (eOpen) {}
 
+/* ★ 2026-11-25：状态栏「版本」页的变量状态行 —— 不再依赖已下架的 __MvuApi。
+   由 10-core 出统一判据：读最近一条有内容的 AI 楼层，跑 checkVarFormat。 */
+try {
+  window.__thVarStatus = function () {
+    try {
+      var idx = getLatestAINonEmptyIndex();
+      if (idx <= 0) { var _di = thDomLatestAiIdx(); if (_di > 0) idx = _di; }
+      if (idx <= 0) return { ok: true, text: '开场白（尚未开局）' };
+      var raw = getMsgRawText(idx);
+      if (!String(raw || '').trim()) raw = thDomMsgRaw(idx);
+      if (!String(raw || '').trim()) return { ok: true, text: '空楼层（跳过）' };
+      var probs = checkVarFormat(raw);
+      return { ok: probs.length === 0, text: probs.length ? probs[0].replace(/&lt;/g, '<').replace(/&gt;/g, '>') : '正常' };
+    } catch (e) { return { ok: true, text: '—' }; }
+  };
+  try { if (window.top && window.top !== window) window.top.__thVarStatus = window.__thVarStatus; } catch (e1) {}
+} catch (eVS) {}
+
 /* ★ 2026-11-20：在场诊断弹层 —— 一眼看清「他为什么没画出来」 */
 function thOpenRosterDiag() {
   try {
@@ -27354,27 +27372,39 @@ var MvuSelfHealing = (function() {
   }
 
   /* ★ 2026-11-25：DOM 兜底 —— ctx.chat 取不到时（iframe/浅加载），用 #chat 的 mesid 定位 */
+  function thDomDocs() {
+    var out = [];
+    try { if (document) out.push(document); } catch (e0) {}
+    try { if (window.top && window.top.document && out.indexOf(window.top.document) < 0) out.push(window.top.document); } catch (e1) {}
+    try { if (window.parent && window.parent.document && out.indexOf(window.parent.document) < 0) out.push(window.parent.document); } catch (e2) {}
+    return out;
+  }
   function thDomLatestAiIdx() {
-    try {
-      var doc = getDoc();
-      var all = doc.querySelectorAll('#chat .mes[mesid]');
-      for (var i = all.length - 1; i >= 0; i--) {
-        var el = all[i];
-        if (el.classList && el.classList.contains('is_user')) continue;
-        var id = Number(el.getAttribute('mesid'));
-        if (isFinite(id) && id >= 0) return id;
-      }
-    } catch (e) {}
+    var docs = thDomDocs();
+    for (var d = 0; d < docs.length; d++) {
+      try {
+        var all = docs[d].querySelectorAll('#chat .mes[mesid]');
+        for (var i = all.length - 1; i >= 0; i--) {
+          var el = all[i];
+          if (el.classList && el.classList.contains('is_user')) continue;
+          var id = Number(el.getAttribute('mesid'));
+          if (isFinite(id) && id >= 0) return id;
+        }
+      } catch (eD) {}
+    }
     return -1;
   }
   function thDomMsgRaw(idx) {
-    try {
-      var doc = getDoc();
-      var el = doc.querySelector('#chat .mes[mesid="' + idx + '"]');
-      if (!el) return '';
-      var t = el.querySelector('.mes_text');
-      return t ? String(t.innerHTML || '') : '';
-    } catch (e) { return ''; }
+    var docs = thDomDocs();
+    for (var d = 0; d < docs.length; d++) {
+      try {
+        var el = docs[d].querySelector('#chat .mes[mesid="' + idx + '"]');
+        if (!el) continue;
+        var t = el.querySelector('.mes_text');
+        return t ? String(t.innerHTML || '') : '';
+      } catch (eD) {}
+    }
+    return '';
   }
 
   function getMsgRawText(targetIdx) {
