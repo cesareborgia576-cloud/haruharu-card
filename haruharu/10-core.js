@@ -7067,7 +7067,7 @@ var STYLE = `<style id="th-gal-shell-style">
     height: 100% !important;
     object-fit: cover !important;
     object-position: center !important;
-    filter: brightness(0.72) contrast(1.08) !important;
+    filter: brightness(0.88) contrast(1.05) saturate(1.05) sepia(0.24) !important;
     transform: scale(1.03) !important;
     transition: transform 6s ease-out !important;
   }
@@ -7077,9 +7077,13 @@ var STYLE = `<style id="th-gal-shell-style">
   .th-gal-title-mask {
     position: absolute !important;
     inset: 0 !important;
-    background: radial-gradient(circle at 50% 45%, rgba(10, 15, 25, 0.3) 0%, rgba(15, 10, 25, 0.75) 85%, rgba(5, 5, 10, 0.95) 100%) !important;
+    /* ★ 2026-11-26：樱色紫雾 → 夏日田野的暖绿+金光，压暗但不发紫 */
+    background:
+      radial-gradient(circle at 50% 36%, rgba(255, 168, 72, 0.22) 0%, rgba(255, 150, 60, 0.07) 34%, rgba(0, 0, 0, 0) 58%),
+      linear-gradient(180deg, rgba(46, 22, 6, 0.30) 0%, rgba(34, 16, 5, 0.48) 62%, rgba(16, 8, 3, 0.84) 100%) !important;
     pointer-events: none !important;
   }
+  /* ★ 2026-11-26（作者：开始游戏的向日葵去掉）：四角向日葵整块删除。 */
   .th-gal-title-inner {
     position: relative !important;
     z-index: 2 !important;
@@ -7105,16 +7109,17 @@ var STYLE = `<style id="th-gal-shell-style">
     letter-spacing: 6px !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: linear-gradient(180deg, #ffffff 0%, #ffedd5 40%, #f472b6 100%) !important;
+    /* ★ 2026-11-26：樱粉 → 向日葵金（白→暖米→金黄），夏日感 */
+    background: linear-gradient(180deg, #fff7ed 0%, #fcd34d 40%, #f97316 100%) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
-    filter: drop-shadow(0 3px 12px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 24px rgba(244, 114, 182, 0.55)) !important;
+    filter: drop-shadow(0 3px 12px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 22px rgba(245, 158, 11, 0.55)) !important;
     line-height: 1.2 !important;
     font-family: "Noto Serif SC", "Songti SC", "SimSun", serif, sans-serif !important;
   }
   .th-gal-title-sub-text {
     font-size: calc(11px * var(--ui-scale, 1)) !important;
-    color: #fed7aa !important;
+    color: #fde68a !important;
     letter-spacing: 4px !important;
     font-weight: 600 !important;
     margin-top: 6px !important;
@@ -7148,7 +7153,8 @@ var STYLE = `<style id="th-gal-shell-style">
     background: linear-gradient(135deg, rgba(22, 20, 30, 0.9), rgba(40, 30, 46, 0.92)) !important;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6) !important;
     font-size: calc(11px * var(--ui-scale, 1)) !important;
-    letter-spacing: 1px !important;
+    letter-spacing: 0.5px !important;
+    white-space: nowrap !important;
     gap: 6px !important;
   }
   .th-gal-title-btn.is-sub:hover {
@@ -7166,14 +7172,15 @@ var STYLE = `<style id="th-gal-shell-style">
     width: 100% !important;
     box-sizing: border-box !important;
     border-radius: 6px 22px 6px 22px !important;
-    border: 1.5px solid rgba(254, 215, 170, 0.65) !important;
-    background: linear-gradient(135deg, rgba(28, 20, 40, 0.94), rgba(62, 30, 72, 0.96)) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 14px rgba(251, 146, 60, 0.3) !important;
+    border: 1.5px solid rgba(251, 176, 59, 0.66) !important;
+    background: linear-gradient(135deg, rgba(52, 28, 10, 0.93), rgba(104, 56, 16, 0.95)) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 14px rgba(249, 146, 26, 0.34) !important;
     color: #fff7ed !important;
     font-family: inherit !important;
     font-size: calc(13.5px * var(--ui-scale, 1)) !important;
     font-weight: 700 !important;
     letter-spacing: 2.5px !important;
+    white-space: nowrap !important;   /* ★ 2026-11-26：窄屏下「公告查看」被挤成两行，禁止换行 */
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9) !important;
     cursor: pointer !important;
     padding: 0 !important;
@@ -7183,14 +7190,14 @@ var STYLE = `<style id="th-gal-shell-style">
   }
   .th-gal-title-btn:hover {
     transform: translateY(-2px) scale(1.03) !important;
-    border-color: #f472b6 !important;
-    background: linear-gradient(135deg, rgba(52, 26, 66, 0.96), rgba(92, 38, 100, 0.98)) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), 0 0 22px rgba(244, 114, 182, 0.55) !important;
+    border-color: #facc15 !important;
+    background: linear-gradient(135deg, rgba(96, 48, 14, 0.96), rgba(158, 84, 20, 0.98)) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), 0 0 22px rgba(249, 146, 26, 0.6) !important;
     color: #ffffff !important;
   }
   .th-gal-title-btn:active {
     transform: scale(0.97) !important;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.9), 0 0 10px rgba(244, 114, 182, 0.4) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.9), 0 0 10px rgba(250, 204, 21, 0.4) !important;
   }
   .th-gal-title-btn .btn-icon {
     font-size: calc(16px * var(--ui-scale, 1)) !important;
@@ -13205,7 +13212,9 @@ function buildShellDOM() {
         /* ★ v153：标题页固定用神社篇最漂亮那张（神龛佛堂外·前庭正殿）。
            以前这张会被 seasonSceneUrl('开场白') 覆盖成村里四季图，
            于是「开局图放错了」。现在写死神社，并且 thUpdateSeasonHud 不再动它。 */
-        '<img class="th-gal-title-bg-img" src="https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb01_day.jpg" alt="神社后山·夏樱" data-title-bg="shrine" />' +
+        /* ★ 2026-11-26（作者：开始游戏界面用乡村篇的图 + 夏日向日葵调）：
+           换成乡村小路（夏越村·夏日稻田），不再是神社樱色。 */
+        '<img class="th-gal-title-bg-img" src="https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022588.jpg" alt="夏越村·夏日乡路" data-title-bg="village" />' +
         '<div class="th-gal-title-mask"></div>' +
         '<div class="th-gal-title-inner">' +
           '<div class="th-gal-title-logo-wrap">' +
@@ -13214,7 +13223,7 @@ function buildShellDOM() {
           '</div>' +
           '<div class="th-gal-title-menu-box" id="th-gal-title-menu-box">' +
             '<button type="button" class="th-gal-title-btn" id="th-title-btn-start">' +
-              '<span class="btn-icon">🌸</span>' +
+              '<span class="btn-icon">✦</span>' +
               '<span class="btn-text">开始游戏</span>' +
             '</button>' +
             '<button type="button" class="th-gal-title-btn" id="th-title-btn-load">' +
@@ -31749,8 +31758,19 @@ async function updateContainer(shell) {
         if (typeof thImgUrlsForArc === 'function') urls = thImgUrlsForArc(__arc0);
       }
     } catch (eGate0) {}
-    if (!urls.length || typeof thImgGateRun !== 'function') { beginGameConfirmed(); return; }
-    thImgGateRun(urls, beginGameConfirmed, { title: '载 入 素 材' });
+    /* ★★ 2026-11-26（作者第 5 次要求：取消确认开局的素材载入）★★
+       以前这里会先弹一块「载 入 素 材」遮罩，把整篇图拉完才放行 —— 每次开局都要干等。
+       现在**直接进游戏**，图交给进游戏后的后台预热（thImgWarmStart）慢慢灌缓存：
+       玩到下一个场景时那张图通常已经在了，不再堵在开局。 */
+    try { beginGameConfirmed(); } catch (eEnter) {}
+    try {
+      if (typeof thImgWarmStart === 'function') {
+        setTimeout(function () {
+          try { thImgWarmStart(thPendingArc || '夏越村', 0); } catch (eW) {}
+        }, 1500);
+      }
+    } catch (eWarm) {}
+    return;
   };
 
   // 5. 点击【继续存档】——合二为一：已有进度直接进场，空局/开局直接唤起酒馆聊天存档管理器！
@@ -35193,6 +35213,8 @@ function __thLiveVerShow(v) {
   d.innerHTML = '<span style="font-size:15px;">🔔</span>'
     + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">有新版本 <b style="font-family:monospace;">'
     + String(v).replace(/[<>&]/g, '') + '</b>' + String(_brief).replace(/[<>&]/g, '') + '</span>'
+    /* ★ 2026-11-26（作者：一直弹更新但更新不了）：把「刚推送要等缓存」写明白 */
+    + '<span style="font-size:11px;opacity:.78;">刚推送约需 3 分钟，拉不到就稍后再点</span>'
     + '<span style="padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);font-size:12px;">点击查看更新</span>';
   __thMarkVerBadge(true);
   /* ★ 19:26：这里原先往 #th-vlog-live 里塞「已有 + 点击刷新」。
@@ -35201,6 +35223,47 @@ function __thLiveVerShow(v) {
   try { __thVlogRedraw(); } catch (eVRf) {}
 }
 
+
+/* ══ ★★ 2026-11-26（作者：更新提醒一直弹，但点了根本更新不了，玩家还看不出来）★★
+   病象：红条说「有新版本」，玩家点了、刷新了、还是老版本，红条继续弹 —— 因为
+         jsDelivr 对新推的 commit 有 1~3 分钟缓存空窗，这段时间脚本根本取不到。
+   修法：**弹条之前先确认 CDN 上真的已经能取到这一版**（带 ?t= 绕缓存重问一次）。
+         · 取到了   → 弹（这时点了一定有效）
+         · 没取到   → 不弹，静默等下一轮（30 秒冷却，不刷屏、不骗人）
+   只用于「提示该不该弹」，绝不参与「加载什么」。 */
+function __thVerReady(targetSeq, cb) {
+  try {
+    var now = Date.now();
+    var st = __thVerReady._st || (__thVerReady._st = { at: 0, seq: 0, miss: 0 });
+    if (!targetSeq) { cb(true); return; }
+    if (st.seq && st.seq >= targetSeq) { cb(true); return; }
+    if (st.at && now - st.at < 30000) { cb(false); return; }   /* 30 秒冷却 */
+    st.at = now;
+    var nodes = ['cdn', 'testingcf', 'gcore'];
+    var left = nodes.length, best = 0, fired = false;
+    function done() {
+      if (fired) return;
+      fired = true;
+      st.seq = best;
+      if (!(best && best >= targetSeq)) st.miss = (st.miss || 0) + 1;
+      else st.miss = 0;
+      cb(!!(best && best >= targetSeq));
+    }
+    for (var i = 0; i < nodes.length; i++) {
+      (function (n) {
+        try {
+          var u = 'https://' + n + '.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-card@main/haruharu/version.json?t=' + now + '&n=' + i;
+          fetch(u, { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) { var s = Number((j && j.seq) || 0); if (s > best) best = s; })
+            .catch(function () {})
+            .then(function () { if (--left <= 0) done(); });
+        } catch (e) { if (--left <= 0) done(); }
+      })(nodes[i]);
+    }
+    setTimeout(done, 2500);
+  } catch (e) { cb(false); }
+}
 
 /* ══ ★ 版本状态同步 ══════════════════════════════════════════════════
    loader 开机时已读过 ver.js 并注入全局变量。
@@ -35257,9 +35320,15 @@ function __thLiveVerTick(force) {
     if (newer) {
       /* 横幅/徽章显示「第 X 次修复更新」，别再只挂一个永远不变的 v1.22 */
       var _lab = _st.ossLabel || (_st.ossVer ? ('v' + String(_st.ossVer).replace(/^v/i, '')) : '') || v;
-      try { window.__SPR_LIVE_NEW__ = _lab; } catch (e1) {}
-      try { if (window.top && window.top !== window) window.top.__SPR_LIVE_NEW__ = _lab; } catch (e2) {}
-      __thLiveVerShow(_lab);
+      /* ★ 2026-11-26：先确认 CDN 上真的能取到这一版，取不到就不弹（别再骗玩家） */
+      var _tseq = Number(_st.ossSeq || 0) || 0;
+      __thVerReady(_tseq, function (ok) {
+        try { if (window.__SPR_LIVE_DBG__) window.__SPR_LIVE_DBG__.cdnReady = !!ok; } catch (eR0) {}
+        if (!ok) return;
+        try { window.__SPR_LIVE_NEW__ = _lab; } catch (e1) {}
+        try { if (window.top && window.top !== window) window.top.__SPR_LIVE_NEW__ = _lab; } catch (e2) {}
+        __thLiveVerShow(_lab);
+      });
     } else {
       /* ★ 19:05：已经是最新就把残留清掉。旧写法只加不减 ——
          刷新完红条还挂在最上面，玩家以为一直有新版本。 */

@@ -1,14 +1,15 @@
 {
-  "version": "v1.84",
-  "seq": 213,
+  "version": "v1.85",
+  "seq": 214,
   "fixNo": 1,
-  "label": "v1.84（第 1 次更新 · stable）",
-  "stableRef": "4394fefa27e843ebce88b34b48e82db852ad0d81",
-  "updated": "2026-11-25T19:01:00.197Z",
+  "label": "v1.85（第 1 次更新 · stable）",
+  "stableRef": "",
+  "updated": "2026-11-25T19:38:42.491Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
   "files": {
     "common": [
+      "01-bootmask.js",
       "02-schema.js",
       "03-deduce.js",
       "00-switcher.js"
