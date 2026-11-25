@@ -14701,10 +14701,6 @@ function thImgGateSet(p) {
   });
 }
 function thImgGateOpen(sub, title) {
-  /* ★ 2026-11-25 作者：开局的「载入素材」遮罩是摆设（预加载没实际效果、还挡视线），去掉不显示。 */
-  try { var _hg = thImgGateDoc().getElementById('th-img-gate'); if (_hg) { _hg.hidden = true; _hg.classList.remove('is-on'); } } catch (eHG0) {}
-  try { thImgGateDoc().body.classList.remove('th-img-gate-on'); } catch (eHG1) {}
-  return;
   var el = thImgGate();
   if (!el) return;
   /* 全屏搬运 / 壳重建之后，弹层可能还挂在旧父节点上 —— 每次开都重新归位。

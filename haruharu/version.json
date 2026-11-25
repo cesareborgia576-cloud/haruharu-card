@@ -1,10 +1,10 @@
 {
-  "version": "v1.78",
-  "seq": 207,
+  "version": "v1.79",
+  "seq": 208,
   "fixNo": 1,
-  "label": "v1.78（第 1 次更新 · stable）",
-  "stableRef": "ea45c021923a3c9ac0ad8c8f305489e70589e19e",
-  "updated": "2026-11-25T11:27:45.362Z",
+  "label": "v1.79（第 1 次更新 · stable）",
+  "stableRef": "",
+  "updated": "2026-11-25T11:33:18.516Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
   "files": {
