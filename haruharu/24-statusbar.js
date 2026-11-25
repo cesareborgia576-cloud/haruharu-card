@@ -1129,6 +1129,36 @@
     } catch (eS) {}
   }
 
+  /* ★★★ 2026-11-25（作者：状态栏一直没有）：mount 函数在之前删正文美化时被一起删掉了，
+     scan 里的 mount(last) 一直抛 ReferenceError 被 try 吞掉 —— 从未真正挂载过。
+     这里补回：状态栏 iframe 挂在最新 AI 楼 .mes_text 之后（正文之下）。 */
+  function mount(mesEl) {
+    try {
+      var doc = hostDoc();
+      if (!doc || !doc.body || !mesEl) return;
+      if (mesEl.querySelector('.haru-sb-host')) return;
+      var mt = mesEl.querySelector('.mes_text');
+      if (!mt) return;
+      var host = doc.createElement('div');
+      host.className = 'haru-sb-host';
+      host.style.cssText = 'margin:12px 0;clear:both;';
+      var f = doc.createElement('iframe');
+      f.className = 'haru-sb-frame';
+      f.setAttribute('style', 'width:100%;border:0;background:transparent;display:block;height:600px;');
+      f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+      f.srcdoc = SB_HTML;
+      host.appendChild(f);
+      if (mt.parentNode) mt.parentNode.insertBefore(host, mt.nextSibling);
+      else mesEl.appendChild(host);
+      try {
+        f.addEventListener('load', function () {
+          try { injectChg(f); } catch (e4) {}
+          try { injectFunc(f); } catch (e5) {}
+        });
+      } catch (e3) {}
+    } catch (e) {}
+  }
+
   function scan() {
     var doc = hostDoc(); if (!doc || !doc.body) return;
     try { injectTextSkin(doc); } catch (eSkin) {}
