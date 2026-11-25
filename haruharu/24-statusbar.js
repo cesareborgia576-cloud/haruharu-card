@@ -1051,41 +1051,111 @@
     page.appendChild(bar);
   }
 
-  /* ★★ 2026-11-25（作者：正文美化参考天元录）：**不再给 .mes_text 套纸**。
-   天元录的正文美化 = 气泡（水墨灰）+ 旁白 + 字色，消息容器保持酒馆原生布局。
-   以前那套「纸 + 樱花边 + padding/border-image」会给每楼增高几十像素，
-   导致聊天滚动错位（看着像回到开场白）、预设思维链美化块被压坏。
-   现在一律只动气泡与颜色，不动盒模型。 */
+  /* ★ 2026-11-25：美化外观恢复原样（作者：别把老子美化换了），只修 bug。 */
+  /* ★★ 2026-11-25（作者最终口径）：**正文美化照抄天元录** ——
+   天元录没有「给消息套纸/边框」这回事，它的正文美化就是
+   「头像 + 姓名 + 水墨灰气泡 + 旁白」，消息容器本身保持酒馆原生。
+   所以这里把旧的纸/樱花边/padding/border-image 整套**删除**，
+   只保留气泡与字色的美化（色值取自天元录 v590 的水墨灰）。 */
+/* ══════════════ ★ 2026-11-25（作者：正文美化直接删，照抄天元录）══════════════
+   照抄天元录 05-界面脚本 的「绢本手卷 v639 + 满铺（帕罗亚范式）」：
+     · 纸 = .mes_text 自己（加 haru-ink-scroll 类），不是另起元素
+     · 纸底：半透明灰 + 上下渐隐 + 横竖织纹（全 CSS 渐变，零图片）
+     · 对称内边距 18/20/16、圆角 16px、内描边 + 内投影
+     · 楼层 .mes 加 haru-ink-mes：清宿主 padding/圆角/底色/头像列 ⇒ 纸铺满
+     · 上下沿是零高度装饰线（不占正文垂直空间）
+     · 状态栏（haru-sb-host）在纸内，margin-top 16px 呼吸位
+     · 第 0 楼（开场白）不美化 —— 与天元录一致 */
+var INK_CLS = 'haru-ink-scroll';
+var INK_MES = 'haru-ink-mes';
+var INK_MARK = 'data-haru-ink';
 var TEXT_SKIN_CSS = [
-  'body.haru-txt-mode #chat .mes_text { color: #e9e0d0; }',
-  'body.haru-txt-mode #chat .mes_text .thdl-bubble {',
-  '  background: radial-gradient(130% 82% at 20% 0%, rgba(152,158,166,.13) 0%, rgba(152,158,166,0) 58%),',
-  '  linear-gradient(180deg, rgba(92,96,102,.90) 0%, rgba(70,74,80,.92) 100%) !important;',
-  '  border: 1px solid rgba(160,166,174,.30) !important;',
-  '  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 2px 7px rgba(0,0,0,.28) !important;',
-  '  color: #e9e6e0 !important; border-radius: 10px !important;',
+  '.haru-ink-scroll{',
+  '  --haru-ink-paper:rgba(158,166,178,0.10);',
+  '  --haru-ink-fiber:rgba(255,255,255,0.014);',
+  '  --haru-ink-rule:rgba(214,222,232,0.40);',
+  '  --haru-ink-rule-2:rgba(214,222,232,0.13);',
+  '  --haru-ink-edge:rgba(0,0,0,0.26);',
+  '  position:relative;box-sizing:border-box;max-width:100%;',
+  '  padding:18px 20px 16px !important;',
+  '  margin:0 !important;',
+  '  border-radius:16px !important;',
+  '  background-color:var(--haru-ink-paper);',
+  '  background-image:',
+  '    linear-gradient(180deg,var(--haru-ink-edge) 0,rgba(0,0,0,0) 9%,rgba(0,0,0,0) 91%,var(--haru-ink-edge) 100%),',
+  '    repeating-linear-gradient(0deg,var(--haru-ink-fiber) 0 1px,rgba(0,0,0,0) 1px 3px),',
+  '    repeating-linear-gradient(90deg,var(--haru-ink-fiber) 0 1px,rgba(0,0,0,0) 1px 5px);',
+  '  background-repeat:no-repeat,repeat,repeat;',
+  '  background-size:100% 100%,100% 3px,5px 100%;',
+  '  box-shadow:inset 0 0 0 1px rgba(255,255,255,.045),inset 0 0 0 1.5px var(--haru-ink-rule-2),inset 0 0 30px rgba(0,0,0,0.18);',
   '}',
-  'body.haru-txt-mode #chat .mes_text .thdl-narr-text { color: #dcd6cc; }',
-  'body.haru-txt-mode #chat .mes_text b,',
-  'body.haru-txt-mode #chat .mes_text strong { color: #ffe9a8 !important; }',
-  'body.haru-txt-mode #chat .mes_text em,',
-  'body.haru-txt-mode #chat .mes_text i { color: #e8c884 !important; }',
-  'body.haru-txt-mode #chat .mes_text a { color: #f4d9a0 !important; }',
-  /* 浅纸变体：淡墨气泡（同一套水墨，只是压淡） */
-  'body.haru-txt-mode.haru-skin-paper #chat .mes_text .thdl-bubble {',
-  '  background: linear-gradient(180deg, rgba(118,122,128,.23) 0%, rgba(100,104,110,.24) 100%) !important;',
-  '  border-color: rgba(78,82,88,.34) !important;',
-  '  color: #2f3338 !important;',
-  '}',
-  'body.haru-txt-mode.haru-skin-paper #chat .mes_text { color: #3a3f45; }',
-  /* 关掉正文美化：气泡恢复默认半透明白 */
-  'body.haru-no-skin #chat .mes_text .thdl-bubble { background: rgba(255,255,255,.07) !important; border-color: rgba(255,255,255,.13) !important; box-shadow: none !important; color: inherit !important; }',
-  'body.haru-no-skin #chat .mes_text { color: inherit; }',
-  'body.haru-no-skin #chat .mes_text b, body.haru-no-skin #chat .mes_text strong,',
-  'body.haru-no-skin #chat .mes_text em, body.haru-no-skin #chat .mes_text i,',
-  'body.haru-no-skin #chat .mes_text a { color: inherit !important; }'
-].join('\n');
-/* 三套皮肤的 .mes_text 纸样式已整块删除（天元录口径：纸不存在，美化在气泡上）。 */
+  '.mes.haru-ink-mes{padding:0 !important;margin:10px 0 !important;border-radius:0 !important;background:transparent !important;border-color:transparent !important;box-shadow:none !important;}',
+  '.mes.haru-ink-mes .mes_block{padding:0 !important;margin:0 !important;}',
+  '.mes.haru-ink-mes .mesAvatarWrapper{display:none !important;}',
+  '.haru-ink-scroll q,.haru-ink-scroll q *{color:inherit !important;font-style:normal;}',
+  '.haru-ink-scroll > .haru-sb-host{margin-top:16px !important;}',
+  '.haru-scroll-top,.haru-scroll-bot{position:relative;height:0;margin:0;}',
+  '.haru-scroll-top::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,rgba(0,0,0,0) 0,var(--haru-ink-rule) 16px,var(--haru-ink-rule) calc(100% - 16px),rgba(0,0,0,0) 100%);}',
+  '.haru-scroll-top::after{content:"";position:absolute;left:12%;right:12%;top:7px;height:1px;background:linear-gradient(90deg,rgba(0,0,0,0),var(--haru-ink-rule-2) 24%,var(--haru-ink-rule-2) 76%,rgba(0,0,0,0));}',
+  '.haru-scroll-bot::before{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,rgba(0,0,0,0) 0,var(--haru-ink-rule) 16px,var(--haru-ink-rule) calc(100% - 16px),rgba(0,0,0,0) 100%);}',
+  '.haru-scroll-bot::after{content:"";position:absolute;left:50%;bottom:3px;width:7px;height:7px;margin:0 0 0 -3.5px;transform:rotate(45deg);background:var(--haru-ink-rule);box-shadow:0 0 12px var(--haru-ink-rule-2);}',
+  '@media (max-width:480px){.haru-ink-scroll{padding:14px 14px 12px !important;border-radius:12px !important;}}',
+  'body.haru-no-skin .haru-ink-scroll{background:none !important;background-image:none !important;box-shadow:none !important;padding:0 !important;border-radius:0 !important;}',
+  'body.haru-no-skin .haru-scroll-top,body.haru-no-skin .haru-scroll-bot{display:none !important;}'
+].join(String.fromCharCode(10));
+
+/* ── 照抄天元录的挂载函数：给每楼加类 + 插零高度上下沿 ── */
+function haruInkBox(mesEl) {
+  try { return mesEl.querySelector('.mes_text') || null; } catch (e) { return null; }
+}
+function haruInkStrip(mesEl) {
+  var box = haruInkBox(mesEl); if (!box) return 0;
+  var n = 0;
+  try {
+    var olds = box.querySelectorAll('.haru-scroll-top,.haru-scroll-bot');
+    for (var i = 0; i < olds.length; i++) {
+      try { if (olds[i].parentNode) { olds[i].parentNode.removeChild(olds[i]); n++; } } catch (e0) {}
+    }
+    box.classList.remove(INK_CLS);
+    mesEl.classList.remove(INK_MES);
+    mesEl.removeAttribute(INK_MARK);
+  } catch (e1) {}
+  return n;
+}
+function haruInkRender(mesEl) {
+  if (!mesEl) return 0;
+  try { if (mesEl.getAttribute('is_user') === 'true') return 0; } catch (eU) {}
+  var box = haruInkBox(mesEl); if (!box) return 0;
+  try { if (String(mesEl.getAttribute('mesid')) === '0') { haruInkStrip(mesEl); return 0; } } catch (e0) {}
+  var intact = false;
+  try {
+    intact = mesEl.getAttribute(INK_MARK) === '1' && box.classList.contains(INK_CLS)
+      && mesEl.classList.contains(INK_MES)
+      && !!box.querySelector('.haru-scroll-top') && !!box.querySelector('.haru-scroll-bot');
+  } catch (eI) { intact = false; }
+  if (intact) return 0;
+  haruInkStrip(mesEl);
+  try {
+    var doc = hostDoc() || document;
+    var top = doc.createElement('div'); top.className = 'haru-scroll-top'; top.setAttribute('aria-hidden', 'true');
+    var bot = doc.createElement('div'); bot.className = 'haru-scroll-bot'; bot.setAttribute('aria-hidden', 'true');
+    var first = box.firstChild;
+    if (first) box.insertBefore(top, first); else box.appendChild(top);
+    box.appendChild(bot);
+    box.classList.add(INK_CLS);
+    mesEl.classList.add(INK_MES);
+    mesEl.setAttribute(INK_MARK, '1');
+  } catch (e1) { return 0; }
+  return 1;
+}
+function haruInkScan() {
+  try {
+    if (localStorage.getItem('haru_no_skin') === '1') return;
+    var doc = hostDoc(); if (!doc) return;
+    var list = doc.querySelectorAll('#chat .mes');
+    for (var i = 0; i < list.length; i++) { try { haruInkRender(list[i]); } catch (e) {} }
+  } catch (e) {}
+}
 
   /* ══ 正文美化（文字版）：深红樱花边 + 深红正文 ═══════════════════════
      只在「没有游戏壳」时生效（body.haru-txt-mode），游戏版一个字都不碰。
@@ -1251,8 +1321,7 @@ var TEXT_SKIN_CSS = [
     var doc = hostDoc(); if (!doc) return;
     var host = doc.createElement('div');
     host.className = 'haru-sb-host';
-    host.style.cssText = 'margin:10px -6px 10px -6px;clear:both;width:calc(100% + 12px);'
-      + 'max-width:none;box-sizing:border-box;';
+    host.style.cssText = 'margin:10px 0;clear:both;width:100%;max-width:100%;box-sizing:border-box;';
     var f = doc.createElement('iframe');
     f.className = 'haru-sb-frame';
     /* ★ 2026-11-25（作者：状态栏别搞这么恶心，抄天元录）：高度**由内容决定** ——
@@ -1280,8 +1349,18 @@ var TEXT_SKIN_CSS = [
     /* ★ 2026-11-25（作者：状态栏就是状态栏，别被正文美化包住）：
        挂在 .mes_text **外面**（它的兄弟节点），正文美化的卡片样式（背景/边框/内边距）
        就套不到状态栏身上；同时给足宽度。 */
-    if (mt.parentNode) mt.parentNode.insertBefore(host, mt.nextSibling);
-    else mesEl.appendChild(host);
+    /* ★ 2026-11-25（作者：状态栏搭载方式照抄天元录）：
+       天元录是 `#xz-status-host` 挂在**最新 AI 楼的 .mes_text 里**（锚点后，否则最末端）。
+       这里同样挂进 .mes_text 末尾；正文美化已不再给 .mes_text 套纸，所以不会被包裹。 */
+    var _anchor = null;
+    try { _anchor = mt.querySelector('.xz-status-anchor'); } catch (eAn) {}
+    if (_anchor && _anchor.parentNode) _anchor.parentNode.insertBefore(host, _anchor.nextSibling);
+    else {
+      var _bot = null;
+      try { _bot = mt.querySelector('.haru-scroll-bot'); } catch (eBot) {}
+      if (_bot && _bot.parentNode) _bot.parentNode.insertBefore(host, _bot);
+      else mt.appendChild(host);
+    }
     try {
       f.addEventListener('load', function () {
         /* 高度交给 postMessage（见上），这里只在拿不到消息时兜底一次 */
@@ -1308,6 +1387,8 @@ var TEXT_SKIN_CSS = [
       if (!isU) { last = list[i]; break; }
     }
     if (last) mount(last);
+    /* ★ 先挂状态栏，再画纸（上沿/下沿）—— 顺序反了会出现「下沿在状态栏上面」 */
+    try { haruInkScan(); } catch (eInk) {}
     /* 只留最新 AI 楼里的状态栏；body 上遗留的旧 dock 一并清掉 */
     try {
       var oldDock = doc.getElementById('haru-sb-dock');

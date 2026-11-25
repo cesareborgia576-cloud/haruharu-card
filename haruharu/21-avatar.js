@@ -291,7 +291,7 @@
   /* ⚠ 跳过名单里的类名必须和 10 真实产出的类名一致。
      10 的插图块是 `.thillu`（不是 .thillu-wrap）—— 写错就等于没跳过，
      反过来会把已经渲染好的插图块再当文本处理一遍。 */
-  var SKIP_SEL = '.thdl-wrap,.thillu,iframe,#th-place-modal,.mes_text script,.mes_text style';
+  var SKIP_SEL = '.thdl-wrap,.thillu,iframe,#th-place-modal,.haru-scroll-top,.haru-scroll-bot,.haru-sb-host,.mes_text script,.mes_text style';
 
   /* ══════════════════════════════════════════════════════════
      ★★ v13 核心修正：酒馆会把「…」包进 <q>，把一句对白劈成两个节点 ★★
