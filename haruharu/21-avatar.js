@@ -104,12 +104,57 @@
     return out;
   }
 
+  /* ★★ 2026-11-26（作者：白坂结奈正文头像，第 6 次）★★
+     真凶：CHAR_IMAGES 里给她挂的是
+       haruharu-yuna@main/yuna__立绘_01.png
+     而 cesareborgia576-cloud/haruharu-yuna 这个仓库**根本没有图**（只有 README.md），
+     jsDelivr 解析不到版本，直接 301 甩给 raw.githubusercontent.com ⇒ 图加载失败 ⇒ 首字母占位。
+     状态栏「人物」页为什么是对的：它走 10-core 的立绘池 thStandingUrl()，
+     她那张是**内嵌的 WebP（透明背景 385×826）**，跟网络无关，永远能显示。
+     ⇒ 正文头像改成直接问 10-core 要同一张图（和状态栏人物页完全同源）。 */
+  function standingOf(name) {
+    var n = String(name || '').trim();
+    if (!n) return '';
+    var scopes = [];
+    try { if (typeof HOST !== 'undefined' && HOST) scopes.push(HOST); } catch (e0) {}
+    try { scopes.push(window); } catch (e1) {}
+    try { if (window.parent && window.parent !== window) scopes.push(window.parent); } catch (e2) {}
+    try { if (window.top && window.top !== window) scopes.push(window.top); } catch (e3) {}
+    for (var i = 0; i < scopes.length; i++) {
+      try {
+        if (scopes[i] && typeof scopes[i].__thStandingUrl === 'function') {
+          var u = scopes[i].__thStandingUrl(n);
+          if (u) return u;
+        }
+      } catch (e4) {}
+    }
+    try {
+      var d = (typeof getDoc === 'function') ? getDoc() : document;
+      var ifr = d.querySelectorAll('iframe');
+      for (var j = 0; j < ifr.length; j++) {
+        try {
+          var w = ifr[j].contentWindow;
+          if (w && typeof w.__thStandingUrl === 'function') {
+            var u2 = w.__thStandingUrl(n);
+            if (u2) return u2;
+          }
+        } catch (e5) {}
+      }
+    } catch (e6) {}
+    return '';
+  }
+
   /* 这个名字该不该上头像。玩家（# / user）永远不上头像。 */
   function avatarOf(name) {
     var n = String(name || '').trim();
     if (!n) return '';
     if (n === '#' || n.toLowerCase() === 'user' || n === '你') return '';
     if (MALE_ONLY[n]) return '';
+    /* 有内嵌立绘的人（目前只有白坂结奈）优先用内嵌那张，和状态栏人物页同一张 */
+    if (/白坂结奈/.test(n)) {
+      var su = standingOf(n);
+      if (su) return su;
+    }
     return CHAR_IMAGES[n] || '';
   }
 
@@ -219,6 +264,8 @@
           img.alt = p.who;
           img.loading = 'lazy';
           img.referrerPolicy = 'no-referrer';
+          /* ★ 2026-11-26：这里原来给白坂结奈硬加了 cover+top 裁切 ——
+             那张图本来就和别人一样是竖立绘，裁切反而把她裁坏了。删掉，统一按 CSS 走。 */
           /* 图挂了就把头像框降级成首字母，不留破图图标 */
           img.onerror = (function (box, nm) {
             return function () { degradeAvatar(box, nm); };

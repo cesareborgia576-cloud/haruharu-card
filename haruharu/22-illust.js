@@ -18,11 +18,9 @@
    ============================================================ */
 (function () {
   'use strict';
-  /* ★ 2026-11-25：统一清单后各自门禁 —— 只在「文字版」时运行 */
-  try {
-    var _uiM = (typeof window.thUiModeIs === 'function') ? (window.thUiModeIs('text') ? 'text' : 'other') : 'text';
-    if (_uiM !== 'text') return;
-  } catch (eGate) {}
+  /* ★ 2026-11-26（作者：文字版正文插图不显示了）：原来这里按 thUiModeIs('text') 加了门禁，
+     脚本 iframe 里拿不到模式就误判成非文字版、直接 return ⇒ 插图一个都不渲染。
+     22 只处理正文里的 <插图>，游戏版壳里没有这种正文，天然不会误伤 ⇒ 取消门禁，始终运行。 */
 
 
   var VER = 'v13-20261028';
@@ -851,6 +849,59 @@
 
   function mk(tag, cls) { var n = getDoc().createElement(tag); if (cls) n.className = cls; return n; }
 
+  /* ★ 2026-11-26（作者：屏蔽插图无效）—— 真凶：这里原来写的是
+     `window.thIllustBlockOn`，可 22 跑在自己的脚本 iframe 里，
+     `thIllustBlockOn` 挂在 10-core 那个 iframe / 顶层 window 上，
+     本 iframe 的 window 上根本没有 ⇒ 判断永远是 false，屏蔽从来没生效过。
+     现在按「本窗口 → HOST → parent → top → 其它 iframe」逐个找，再兜底读 localStorage。 */
+  function blockOn() {
+    try {
+      var scopes = [];
+      try { scopes.push(HOST); } catch (e0) {}
+      try { scopes.push(window); } catch (e1) {}
+      try { if (window.parent && window.parent !== window) scopes.push(window.parent); } catch (e2) {}
+      try { if (window.top && window.top !== window) scopes.push(window.top); } catch (e3) {}
+      for (var i = 0; i < scopes.length; i++) {
+        try {
+          if (scopes[i] && typeof scopes[i].thIllustBlockOn === 'function') {
+            return !!scopes[i].thIllustBlockOn();
+          }
+        } catch (e4) {}
+      }
+      try {
+        var d = getDoc();
+        var ifr = d.querySelectorAll('iframe');
+        for (var j = 0; j < ifr.length; j++) {
+          try {
+            var w = ifr[j].contentWindow;
+            if (w && typeof w.thIllustBlockOn === 'function') return !!w.thIllustBlockOn();
+          } catch (e5) {}
+        }
+      } catch (e6) {}
+      var v = null;
+      try { v = (HOST.localStorage || localStorage).getItem('SPR_ILLUST_BLOCK'); } catch (e7) {}
+      return v === '1';
+    } catch (e) { return false; }
+  }
+
+  /* 开关一按立刻生效：已渲染的插图块全撤掉，再按当前开关重扫一遍 */
+  function applyBlockNow() {
+    try {
+      var doc = getDoc();
+      var blocks = doc.querySelectorAll('.thillu');
+      for (var i = blocks.length - 1; i >= 0; i--) {
+        try { if (blocks[i].parentNode) blocks[i].parentNode.removeChild(blocks[i]); } catch (e0) {}
+      }
+      var mes = doc.querySelectorAll('#chat .mes, .mes[mesid]');
+      for (var j = 0; j < mes.length; j++) {
+        try { mes[j].removeAttribute('data-thillu-sig'); } catch (e1) {}
+      }
+      setTimeout(function () { try { scanAll(); } catch (e) {} }, 30);
+      return true;
+    } catch (e) { return false; }
+  }
+  try { HOST.__thIlluApplyBlock = window.__thIlluApplyBlock = applyBlockNow; } catch (eAB) {}
+
   /* 建一个插图块。多张图时在**同一个框里**轮播：
        默认 ROTATE_MS（2 秒）自动切一张
        按「⏸ 固定」停住 / 再按「▶ 自动」继续
@@ -863,7 +914,7 @@
 
     /* ★ 2026-11-24（作者）：插图屏蔽模式 —— 一张图都不加载，只留一行说明 */
     try {
-      if (window.thIllustBlockOn && window.thIllustBlockOn()) {
+      if (blockOn()) {
         var bk0 = mk('div', 'thillu-broken');
         bk0.textContent = '🚫 已开启插图屏蔽模式，插图不显示（' + item.who + '｜' + item.act + '）';
         wrap.appendChild(bk0);
@@ -1118,6 +1169,103 @@
     return { text: text, nodes: nodes };
   }
 
+  /* ══════════════════════════════════════════════════════════
+     ★ 2026-11-26（作者：文字版正文插图不显示了）—— 真凶不在我们这边，在酒馆本身
+     ──────────────────────────────────────────────────────────
+     实测（headless Chrome 开 127.0.0.1:8000 文字版，直接 addOneMessage 一条
+     「旁白。\n<插图>春日久美子｜手交</插图>\n旁白。」）：
+       渲染出来的 .mes_text 只剩 <p>旁白。</p><p>旁白。</p>
+       —— **中间那一段连文字带标签整段没了**。
+     原因：`<插图>` 不是合法 HTML 元素，酒馆 messageFormatting / DOMPurify
+     把它当未知元素连内容一起删掉。游戏版没事，是因为 10-core 读的是原始
+     message.mes（还没过 HTML 清洗），自己重建 DOM。
+     ⇒ 文字版必须走同一条路：**DOM 里认不出标签就回头读原始正文**，
+       按「空行分块」把插图块插到对应段落后面。
+     ══════════════════════════════════════════════════════════ */
+  function rawTextOf(mesEl) {
+    try {
+      var w = HOST;
+      var st = (w.SillyTavern && w.SillyTavern.getContext) ? w.SillyTavern.getContext()
+        : ((window.SillyTavern && window.SillyTavern.getContext) ? window.SillyTavern.getContext() : null);
+      if (!st || !st.chat) return '';
+      var id = parseInt(mesEl.getAttribute('mesid'), 10);
+      var m = st.chat[id];
+      if (!m) return '';
+      if (Array.isArray(m.swipes) && m.swipes.length) {
+        var i = (typeof m.swipe_id === 'number') ? m.swipe_id : 0;
+        if (typeof m.swipes[i] === 'string') return m.swipes[i];
+      }
+      return typeof m.mes === 'string' ? m.mes : '';
+    } catch (e) { return ''; }
+  }
+
+  /* 正文里真正算「内容」的子元素（排除美化装饰与脚本） */
+  function bodyKids(box) {
+    var out = [];
+    for (var i = 0; i < box.childNodes.length; i++) {
+      var n = box.childNodes[i];
+      if (n.nodeType !== 1) continue;
+      var tn = String(n.tagName || '').toLowerCase();
+      if (tn === 'script' || tn === 'style' || tn === 'link') continue;
+      if (tn === 'div' && /(^|\s)haru-ink-(top|bot)(\s|$)/.test(String(n.className || ''))) continue;
+      out.push(n);
+    }
+    return out;
+  }
+
+  /* 标签被酒馆吃掉后，靠「标签前那句正文」在 DOM 里找落脚点 */
+  function anchorFor(blocks, b) {
+    var same = String(blocks[b] || '').split('<插图>')[0].trim();
+    if (same) return same.slice(-14);
+    for (var k = b - 1; k >= 0; k--) {
+      var t = String(blocks[k] || '').replace(/<插图>[^<]*/g, '').trim();
+      if (t) return t.slice(-14);
+    }
+    return '';
+  }
+
+  function renderRawFallback(mesEl, box) {
+    try {
+      var raw = rawTextOf(mesEl);
+      if (!raw || raw.indexOf('<插图>') < 0) return 0;
+      var total = (raw.match(/<插图>/g) || []).length;
+      var sig = raw.length + ':' + total;
+      /* 同一份原文只插一次；酒馆重绘把块冲掉后 sig 会失效、自动补回来 */
+      if (mesEl.getAttribute('data-thillu-sig') === sig) return 0;
+      var blocks = String(raw).split(/\n\s*\n/);
+      var kids = bodyKids(box);
+      var count = 0;
+      for (var b = 0; b < blocks.length; b++) {
+        var re = new RegExp(ILLU_BODY_PATTERN, 'g');
+        var mm, hits = [];
+        while ((mm = re.exec(blocks[b])) !== null) hits.push(mm[0]);
+        if (!hits.length) continue;
+        var anchorText = anchorFor(blocks, b);
+        var target = null;
+        if (anchorText) {
+          for (var z = 0; z < kids.length; z++) {
+            if (String(kids[z].textContent || '').indexOf(anchorText) >= 0) { target = kids[z]; break; }
+          }
+        }
+        for (var q = 0; q < hits.length; q++) {
+          var one = null;
+          try { one = parseIllus(hits[q]); } catch (eP) { one = null; }
+          if (!one || !one.length) continue;
+          var node = buildIllu(one[0]);
+          try {
+            /* 标签那一块在 DOM 里已经不存在 ⇒ 落在「它前面那句」后面才是原位 */
+            if (target && target.parentNode) target.parentNode.insertBefore(node, target.nextSibling);
+            else if (kids[b] && kids[b].parentNode) kids[b].parentNode.insertBefore(node, kids[b]);
+            else box.appendChild(node);
+            count++;
+          } catch (eI) {}
+        }
+      }
+      if (count) { try { mesEl.setAttribute('data-thillu-sig', sig); } catch (eS) {} }
+      return count;
+    } catch (e) { return 0; }
+  }
+
   function renderOne(mesEl) {
     if (!mesEl) return 0;
     var box = mesEl.querySelector('.mes_text');
@@ -1141,7 +1289,9 @@
       }
       if (!skip) targets.push(tn);
     }
-    if (!targets.length) return 0;
+    /* ★ 2026-11-26：DOM 里一个标签都没有 ⇒ 八成是酒馆把 <插图> 整段吃掉了
+       （文字版实测），回头读原始正文补渲染。 */
+    if (!targets.length) return renderRawFallback(mesEl, box);
 
     for (var i = 0; i < targets.length; i++) {
       var node = targets[i];

@@ -82,7 +82,21 @@
     '#' + HOST_ID + ' .hb-empty{padding:18px 6px;text-align:center;font-size:11.5px;color:var(--hb-dim);}',
     '@media (max-width:480px){#' + HOST_ID + '{margin-top:9px;border-radius:12px;}',
     '  #' + HOST_ID + ' .hb-body{padding:8px 9px 10px;}',
-    '  #' + HOST_ID + ' .hb-tab{padding:4px 9px;font-size:11px;}}'
+    '  #' + HOST_ID + ' .hb-tab{padding:4px 9px;font-size:11px;}}',
+    /* ★ 2026-11-26（作者：功能页要一个个格子，不要一条条） */
+    '#' + HOST_ID + ' .hb-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px 2px;}',
+    '#' + HOST_ID + ' .hb-cell{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(200,164,92,.25);color:#f0e6d2;font-size:12.5px;cursor:pointer;text-align:center;line-height:1.3;}',
+    '#' + HOST_ID + ' .hb-cell:hover{background:rgba(200,164,92,.14);}',
+    '#' + HOST_ID + ' .hb-cell:active{transform:scale(.97);}',
+    '#' + HOST_ID + ' .hb-cell.is-off{opacity:.55;}',
+    '#' + HOST_ID + ' .hb-cell-st{margin-left:4px;font-style:normal;font-size:10.5px;padding:1px 6px;border-radius:999px;background:rgba(125,220,154,.2);color:#7ddc9a;}',
+    '#' + HOST_ID + ' .hb-cell.is-off .hb-cell-st{background:rgba(200,120,120,.2);color:#d08b8b;}',
+    /* ★ 2026-11-26（作者：气泡头像关闭后没关）：关气泡美化 = 去头像去气泡框，名字+话内联成普通正文 */
+    'body.haru-no-bubble .thdl-wrap{display:block !important;margin:2px 0 !important;}',
+    'body.haru-no-bubble .thdl-ava{display:none !important;}',
+    'body.haru-no-bubble .thdl-main{display:inline !important;}',
+    'body.haru-no-bubble .thdl-name{display:inline !important;font-size:inherit !important;font-weight:600 !important;color:inherit !important;margin:0 2px 0 0 !important;}',
+    'body.haru-no-bubble .thdl-bubble{display:inline !important;background:none !important;border:0 !important;padding:0 !important;margin:0 !important;box-shadow:none !important;border-radius:0 !important;color:inherit !important;}'
   ].join('\n');
 
   /* ══════════ 正文美化：**完全照抄天元录《05-界面脚本》的卷轴美化** ══════════
@@ -443,7 +457,7 @@
     } catch (eB) {}
     if (bg) {
       h += '<div style="border-radius:10px;overflow:hidden;border:1px solid rgba(200,164,92,.3);margin-bottom:8px;">'
-        + '<img src="' + esc(bg) + '" style="width:100%;height:auto;max-height:260px;object-fit:contain;display:block;background:#14100a;" loading="lazy" referrerpolicy="no-referrer">'
+        + '<img src="' + esc(bg) + '" style="width:100%;height:auto;display:block;" loading="lazy" referrerpolicy="no-referrer">'
         + '</div>';
     }
     h += '<div class="hb-cell" style="margin-bottom:8px"><div class="hb-k">📍 你在这里</div><div class="hb-v">' + esc(here || '—') + '</div></div>';
@@ -527,20 +541,23 @@
     var items = [
       ['🩺 变量自愈', 'heal'],
       ['🕘 历史楼层', 'floors'],
-      ['🖼 重载图片', 'reloadimg'],
       ['🔧 修改器', 'cheat'],
       ['🕸 关系网', 'relnet'],
       ['📜 回忆', 'recall'],
       ['🚫 插图屏蔽', 'illblk'],
-      ['🚫 立绘屏蔽', 'sprblk'],
       ['🎨 正文美化', 'skin'],
       ['💬 气泡头像美化', 'bubble']
     ];
-    var h = '<div class="hb-title">功能</div>';
+    var h = '<div class="hb-title">功能</div><div class="hb-grid">';
     for (var i = 0; i < items.length; i++) {
-      h += '<div class="hb-row"><b>' + items[i][0] + '</b><span></span>'
-        + '<span class="hb-btn" data-hb-act="' + items[i][1] + '">打开</span></div>';
+      var act = items[i][1], cls = 'hb-cell', st = '';
+      /* 美化开关显示「开/关」状态；其余是「打开面板」 */
+      if (act === 'skin') { var off = false; try { off = localStorage.getItem('haru_no_skin') === '1'; } catch (e) {} cls += off ? ' is-off' : ' is-on'; st = off ? '关' : '开'; }
+      else if (act === 'bubble') { var off2 = false; try { off2 = localStorage.getItem('haru_no_bubble') === '1'; } catch (e) {} cls += off2 ? ' is-off' : ' is-on'; st = off2 ? '关' : '开'; }
+      else if (act === 'illblk') { var bi = false; try { bi = localStorage.getItem('SPR_ILLUST_BLOCK') === '1'; } catch (e) {} cls += bi ? ' is-off' : ' is-on'; st = bi ? '屏蔽' : '显示'; }
+      h += '<button type="button" class="' + cls + '" data-hb-act="' + act + '">' + items[i][0] + (st ? '<i class="hb-cell-st">' + st + '</i>' : '') + '</button>';
     }
+    h += '</div>';
     return h;
   }
 
@@ -687,7 +704,11 @@
         try { cur = !!(on && on()); } catch (e2) {}
         try { localStorage.setItem(isIll ? 'SPR_ILLUST_BLOCK' : 'SPR_SPRITE_BLOCK', cur ? '0' : '1'); } catch (e3) {}
         try { if (typeof ap === 'function') ap(); } catch (e4) {}
+        /* ★ 2026-11-26：正文里的插图块归 22 管，10-core 的 thApplyIllustBlock
+           只管游戏版那一套 —— 文字版必须让 22 当场撤块重扫，不然按了没反应。 */
+        try { var ab = pickFn('__thIlluApplyBlock'); if (typeof ab === 'function') ab(); } catch (e5) {}
         toast((isIll ? '插图屏蔽' : '立绘屏蔽') + '：' + (cur ? '已关闭' : '已开启'));
+        try { render(true); } catch (eILR) {}
         return;
       }
       if (a === 'skin') {
@@ -698,6 +719,7 @@
         try { injectTextSkin(); } catch (eS2) {}
         try { inkApply(); } catch (eS3) {}
         toast('正文美化：' + (offSkin ? '已开启' : '已关闭'));
+        try { render(true); } catch (eSR) {}
         return;
       }
       if (a === 'bubble') {
@@ -708,6 +730,20 @@
         try { injectTextSkin(); } catch (eB2) {}
         try { var rr = pickFn('__thAvatarRerender'); if (typeof rr === 'function') rr(); } catch (eB3) {}
         toast('气泡头像美化：' + (offBub ? '已开启' : '已关闭'));
+        try { render(true); } catch (eBR) {}
+        return;
+      }
+      if (a === 'music') {
+        var bc = pickFn('__thBgmCtrl');
+        var on = null; try { on = (bc && bc.toggle) ? bc.toggle() : null; } catch (eM0) {}
+        if (on === null) { toast('音乐模块未就绪'); return; }
+        /* ★ 2026-11-26：状态一律以音频元素真实状态为准，别拿乐观返回值糊弄玩家 */
+        var inf = {}; try { inf = bc.info ? bc.info() : {}; } catch (eM1) {}
+        var playing = (typeof inf.playing === 'boolean') ? inf.playing : !!on;
+        var msg = (playing ? '▶ 播放' : '⏸ 暂停') + (inf.name ? '：' + inf.name : '');
+        if (!playing && on === true) msg = '浏览器拦截了自动播放，再点一次';
+        toast(msg);
+        try { render(true); } catch (eM2) {}
         return;
       }
     } catch (e) {}

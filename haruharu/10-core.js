@@ -4048,6 +4048,8 @@ function thMapOpen(preselect) {
   if (keep && !TH_MAP_GRID[keep]) keep = '';
   m.removeAttribute('hidden');
   TH_MAP_STATE.open = true;
+  /* ★ 关图时 thMapClose 设了 display:none !important，开图必须重置回 flex（否则关一次就再也开不出来） */
+  try { var _mmo = thEl('th-gal-mapmodal'); if (_mmo) { _mmo.removeAttribute('hidden'); _mmo.style.setProperty('display', 'flex', 'important'); } } catch (eShow) {}
   TH_MAP_STATE.sel = keep;
   /* ★ v164：每次开图都把图例浮层收起来 —— 图例是「第一次看才需要」的东西，
      不该每次打开都先糊一层在上面挡地图。 */
@@ -4087,6 +4089,18 @@ function thMapOpen(preselect) {
   try { thMapFitArea(TH_MAP_STATE.area || '全部', keep || thMapHere()); } catch (eFit) {}
   if (keep) { try { thMapPaintSelection(); } catch (eSel) {} }
   try { PixelAudio.playPageBlip(); } catch (e) {}
+  /* ★ 2026-11-26（作者：文字版地图三按钮关不掉）：每次开图给浮层里所有
+     [data-th-mapact] 按钮直接绑一次点击（onclick 覆盖），不靠 document 委托 ——
+     iframe 里 document 级捕获常收不到浮层点击，直接绑最稳。 */
+  try {
+    var _mm = thEl('th-gal-mapmodal');
+    if (_mm && window.__thMapOnClick) {
+      var _bts = _mm.querySelectorAll('[data-th-mapact]');
+      for (var _bi = 0; _bi < _bts.length; _bi++) {
+        try { _bts[_bi].onclick = window.__thMapOnClick; } catch (eB2) {}
+      }
+    }
+  } catch (eBindAll) {}
 }
 /* 按片区框算一个「刚好看全这片」的缩放倍率。
    ══ ★ v165P ══════════════════════════════════════════════════════════════
@@ -4129,7 +4143,9 @@ function thMapFitArea(areaKey, focusKey) {
 }
 function thMapClose() {
   var m = thEl('th-gal-mapmodal');   /* ★ v155 */
-  if (m) m.setAttribute('hidden', '');
+  /* ★ 2026-11-26（作者：地图关不掉）：文字版浮层内联 display:flex !important，
+     光 setAttribute('hidden') 压不掉它 ⇒ 强制 display:none。 */
+  if (m) { try { m.setAttribute('hidden', ''); m.style.setProperty('display', 'none', 'important'); } catch (eC) {} }
   TH_MAP_STATE.open = false;
 }
 function thMapZoom(delta) {
@@ -4148,6 +4164,21 @@ function thMapDoJump() {
   var sel = TH_MAP_STATE.sel, here = thMapHere();
   var path = (sel && sel !== here) ? thMapPath(here, sel) : null;
   if (!path || path.length < 2) { thMapToast('🗺️ 先点一个格子选目的地'); return; }
+  /* ★ 2026-11-26（作者：文字版跳转不是改变量，而是输入框追加「前往XXXX」，并关地图） */
+  try {
+    if (thUiIsTextMode()) {
+      var _ta = getDoc().querySelector('#send_textarea');
+      if (_ta) {
+        var _cur = String(_ta.value || '').trim();
+        _ta.value = (_cur ? _cur + ' ' : '') + '前往' + sel;
+        try { _ta.dispatchEvent(new Event('input', { bubbles: true })); } catch (eIn) {}
+        try { _ta.focus(); } catch (eFo) {}
+      }
+      thMapClose();
+      thMapToast('已填入输入框：前往' + sel);
+      return;
+    }
+  } catch (eTxtJump) {}
   var c = thMapCost(path), en = 100;
   try { en = EnergyManager.ensure(); } catch (e0) {}
   if (c.energy > en) {
@@ -4494,7 +4525,16 @@ var BgmPlayer = {
     } catch (e) {}
     /* ★ v163：标题页起来的那一下必须是第一首（syncArc 可能还没被调用） */
     try { if (thAtTitleScreen()) this.index = 0; } catch (eT3) {}
-    this.audio = new Audio(list[this.index] ? list[this.index].url : '');
+    /* ★★ 2026-11-26（作者：音乐还是打不开，第 8 次）★★
+       以前是 `new Audio(url)` —— 元素建在**这个脚本自己的 iframe 文档**里。
+       可点击发生在状态栏那个 iframe（24-statusbar）。Chrome 的自动播放白名单
+       是「按文档」算的：一次点击只激活「被点的 iframe + 它的祖先」，
+       激活不到**兄弟 iframe** ⇒ 从 10-core 的 iframe 里调 play() 一律被拒，
+       表现就是「按钮亮成暂停、一点声音都没有」。
+       改成用 HOST 的 Audio 构造器建元素（元素归属顶层文档）：
+       任何子 iframe 里的点击都会激活顶层文档 ⇒ play() 放行。 */
+    var _AudioCtor = (HOST && typeof HOST.Audio === 'function') ? HOST.Audio : Audio;
+    this.audio = new _AudioCtor(list[this.index] ? list[this.index].url : '');
     this.audio.volume = 0.4;
     this.audio.loop = (this.mode === 'single');
     var self = this;
@@ -4723,10 +4763,24 @@ var BgmPlayer = {
             window.removeEventListener('pointerdown', unlockOnce, true);
             window.removeEventListener('keydown', unlockOnce, true);
           } catch (eR) {}
+          try {
+            if (HOST && HOST.document && HOST.document !== document) {
+              HOST.document.removeEventListener('pointerdown', unlockOnce, true);
+              HOST.document.removeEventListener('keydown', unlockOnce, true);
+            }
+          } catch (eR2) {}
         };
         try {
           window.addEventListener('pointerdown', unlockOnce, true);
           window.addEventListener('keydown', unlockOnce, true);
+          /* ★ 2026-11-26（音乐第 8 次）：状态栏在**另一个 iframe** 里，它的点击
+             到不了本 iframe 的 window ⇒ 解锁监听永远等不到。顶层文档也挂一份。 */
+          try {
+            if (HOST && HOST.document && HOST.document !== document) {
+              HOST.document.addEventListener('pointerdown', unlockOnce, true);
+              HOST.document.addEventListener('keydown', unlockOnce, true);
+            }
+          } catch (eH2) {}
         } catch (eA) {}
         return false;
       });
@@ -16482,6 +16536,38 @@ try {
   window.__thPurgeRoster = purgeOtherArcRoster;
   HOST.__thBgmSyncArc = function () { return BgmPlayer.syncArc(); };
   window.__thBgmSyncArc = HOST.__thBgmSyncArc;
+  /* ★ 2026-11-26（作者：音乐切换按钮没有）：给文字版状态栏用的 BGM 控制接口 */
+  HOST.__thBgmCtrl = window.__thBgmCtrl = {
+    toggle: function () {
+      try {
+        if (!BgmPlayer.audio || !BgmPlayer.audio.src) { BgmPlayer.audio = null; BgmPlayer.init(); }
+        var a = BgmPlayer.audio; if (!a) return null;
+        if (!a.paused) { try { a.pause(); } catch (e) {} BgmPlayer.isPlaying = false; return false; }
+        /* 玩家点了播放 ⇒ 音乐电源记成「开」，否则下一次 syncArc 又会把它按灭 */
+        try { setBgmPower(true); } catch (ePw) {}
+        var p = null;
+        try { p = a.play(); } catch (e) { BgmPlayer.isPlaying = false; return null; }
+        BgmPlayer.isPlaying = true;
+        if (p && p.catch) p.catch(function () {
+          BgmPlayer.isPlaying = false;
+          try { window.__thBgmErr = 'play-rejected'; } catch (e2) {}
+          /* ★ 2026-11-26：真被拦了就挂「下一次点击补放」，别让玩家点十次都没声 */
+          try { BgmPlayer._unlockBound = false; BgmPlayer.playWithUnlock(); } catch (e3) {}
+        });
+        return true;
+      } catch (e) { return null; }
+    },
+    next: function () { try { BgmPlayer.next(true); } catch (e) {} },
+    info: function () {
+      /* ★ 2026-11-26：状态以**元素真实 paused** 为准，不再用乐观标志 ——
+         以前 play() 被自动播放策略拒了，按钮照样显示「播放中」，玩家听不到声音还以为坏了。 */
+      try {
+        var a = BgmPlayer.audio;
+        var c = BgmPlayer.current() || {};
+        return { playing: !!(a && a.src && !a.paused), name: c.name || '', err: window.__thBgmErr || '' };
+      } catch (e) { return {}; }
+    }
+  };
   /* ★ v165：角色变量补全的对外出口。
      —— 篇章切换控制器 / 外部脚本 / 控制台都可以直接调，不必自己判谁能补。
      · __thRosterEnsure(arc)        指定篇章补齐
