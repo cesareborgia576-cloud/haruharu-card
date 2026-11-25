@@ -13,6 +13,14 @@
 (function () {
   'use strict';
 
+  /* ★ 2026-11-26：薄卡那边 loader 已经自己挂过遮罩了（它才是真正在下载脚本的人）。
+     loader 一开始就把 __TH_LOADER_PRESENT__ 置上，拉完再置 __TH_LOADER_MASK_DONE__。
+     看到任一个就直接退出 —— 遮罩归 loader 管，这里只服务「脚本已经内置在卡里」的本地卡。 */
+  try {
+    if (window.__TH_LOADER_PRESENT__ || window.__TH_LOADER_MASK_DONE__) return;
+    if (window.top && (window.top.__TH_LOADER_PRESENT__ || window.top.__TH_LOADER_MASK_DONE__)) return;
+  } catch (e0) {}
+
   var ID = 'th-boot-mask';
   var STYLE_ID = 'th-boot-mask-style';
   var T0 = Date.now();
