@@ -13116,9 +13116,6 @@ function buildShellDOM() {
         '<button type="button" class="th-gal-btn-map" data-th-mapopen="1" title="打开世界地图：选格子可快速跳转">🗺️ 地图</button>' +
         /* ★ v142：村历（会被齿轮收起来，齿轮里那一项 .click() 转发它） */
         '<button type="button" class="th-gal-btn-calendar" data-th-calopen="1" title="村历与年中行事：今天几月几号、有什么节庆">📅 村历</button>' +
-        /* ★ v143：一键重载所有图（图床抽风 / 首屏黑图时的急救） */
-        /* ★ v158：文案与行为对齐 —— 现在是全卡全量重载，不是只重载当前篇章 */
-        '<button type="button" class="th-gal-btn-reloadimg" data-th-reloadimg="1" title="全量重载图片：全卡场景图 / 立绘 / 插图全部重新拉一遍（按钮上会显示进度）">🖼 重载全部</button>' +
         '<button type="button" class="th-gal-btn-bag" title="打开背包">🎒 背包</button>' +
         '<div class="th-gal-energy-indicator">⚡ 精力: <span class="th-gal-energy-val">100</span>/100</div>' +
         '<button type="button" class="th-gal-btn-mvu-heal" title="MVU 变量自愈监控：实时嗅探，点击可查看状态或手动补算">🩺 变量自愈</button>' +
@@ -13154,7 +13151,7 @@ function buildShellDOM() {
         /* ★ v153：标题页固定用神社篇最漂亮那张（神龛佛堂外·前庭正殿）。
            以前这张会被 seasonSceneUrl('开场白') 覆盖成村里四季图，
            于是「开局图放错了」。现在写死神社，并且 thUpdateSeasonHud 不再动它。 */
-        '<img class="th-gal-title-bg-img" src="https://a.imgckr.com/2026/10/10/XwSMu.jpg" alt="神龛佛堂外·神社前庭" data-title-bg="shrine" />' +
+        '<img class="th-gal-title-bg-img" src="https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-shrine-summer@main/shrine_summer/sb01_day.jpg" alt="神社后山·夏樱" data-title-bg="shrine" />' +
         '<div class="th-gal-title-mask"></div>' +
         '<div class="th-gal-title-inner">' +
           '<div class="th-gal-title-logo-wrap">' +
@@ -21935,6 +21932,20 @@ function buildCleanProseClone(box) {
     for (var i = 0; i < m; i++) {
       var le = liveAll[i], ce = cloneAll[i];
       if (!le || !ce || !ce.setAttribute) continue;
+      /* ★★ 2026-11-25（作者：翻页 38→31 页、对白又被剔）：翻页重算走的是老路径
+         buildCleanProseClone，这里的 isInjectedEl「带 class ⇒ 注入物」会把 21-avatar
+         的 .thdl-wrap 对白气泡整块 kill ⇒ 翻着翻着对白页消失。对白气泡是正文本体，
+         .thdl-wrap 及其子树一律不 kill。 */
+      try {
+        if (le.matches && le.matches('.thdl-wrap')) {
+          var _nm2 = le.querySelector('.thdl-name'), _bub2 = le.querySelector('.thdl-bubble');
+          var _tx2 = (_nm2 ? '{' + String(_nm2.textContent || '').trim() + '}' : '') + (_bub2 ? String(_bub2.textContent || '').trim() : '');
+          if (_tx2) { if (ce.parentNode) ce.parentNode.replaceChild(ce.ownerDocument.createTextNode(_tx2), ce); }
+          else { if (ce.parentNode) ce.parentNode.removeChild(ce); }
+          continue;
+        }
+        if (le.closest && le.closest('.thdl-wrap')) continue;
+      } catch (eDlgKeep2) {}
       if (!isInjectedEl(le, boxVisible)) continue;
       /* 带属性的块如果装着本层一半以上的字，那它是「正文容器」而不是美化。
          美化 / 思维链块一般只占一小块。放过它——不然整层会被剔空，
@@ -22841,6 +22852,21 @@ function thNativeProjection(box, mode) {
         var el = kids[i];
         if (!el || el.nodeType !== 1) continue;
         var tag = String(el.tagName || '').toLowerCase();
+        /* ★★ 2026-11-25（作者：人物对白被剔除在对话框）：21-avatar 把 {名}「话」
+           渲染成 .thdl-wrap 气泡；投影「带 class 且文字占比<25% ⇒ 当美化剔」会把
+           真实楼层里占比很小的对白气泡整块剔掉 ⇒ 对话框只剩旁白、人物对白消失。
+           对白气泡是正文本体，不是美化 —— 遇到 .thdl-wrap 及其子树一律原样保留。 */
+        try {
+          if (el.matches && el.matches('.thdl-wrap')) {
+            /* 还原成 {名字}「话」：21-avatar 渲染后花括号没了，对话框靠 {} 提说话人，必须补回 */
+            var _nm = el.querySelector('.thdl-name'), _bub = el.querySelector('.thdl-bubble');
+            var _tx = (_nm ? '{' + String(_nm.textContent || '').trim() + '}' : '') + (_bub ? String(_bub.textContent || '').trim() : '');
+            if (_tx) { if (el.parentNode) el.parentNode.replaceChild(el.ownerDocument.createTextNode(_tx), el); }
+            else { if (el.parentNode) el.parentNode.removeChild(el); }
+            continue;
+          }
+          if (el.closest && el.closest('.thdl-wrap')) continue;
+        } catch (eDlgKeep) {}
         /* ★★ 取对应的**活元素** —— 所有 CSS 相关判定必须在活元素上做。
            见上面那段长注释：clone 不在文档树里，getComputedStyle 恒为空 ⇒
            靠 CSS 隐藏的思维链在 clone 上永远判不出来。 */
