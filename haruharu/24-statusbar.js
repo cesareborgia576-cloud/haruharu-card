@@ -1132,60 +1132,74 @@
   /* ★★★ 2026-11-25（作者：状态栏一直没有）：mount 函数在之前删正文美化时被一起删掉了，
      scan 里的 mount(last) 一直抛 ReferenceError 被 try 吞掉 —— 从未真正挂载过。
      这里补回：状态栏 iframe 挂在最新 AI 楼 .mes_text 之后（正文之下）。 */
+  /* ★★★ 2026-11-25（作者：状态栏呢 / 常驻显示在下面）：
+     改成**固定底部常驻**（输入框上方），单例复用 —— 不进消息 DOM、不随楼层高度跑掉。
+     之前那版失败是因为 scan 的清理把它当「多余 host」删了；这里 scan 不再碰它。 */
+  function sbDockInputH(doc) {
+    try {
+      var se = doc.getElementById('send_form') || doc.getElementById('send_form_container');
+      var h = se && se.getBoundingClientRect ? se.getBoundingClientRect().height : 0;
+      if (!h || h < 40) h = 110;
+      return Math.round(h) + 6;
+    } catch (e) { return 116; }
+  }
   function mount(mesEl) {
     try {
       var doc = hostDoc();
-      if (!doc || !doc.body || !mesEl) return;
-      if (mesEl.querySelector('.haru-sb-host')) return;
-      var mt = mesEl.querySelector('.mes_text');
-      if (!mt) return;
-      var host = doc.createElement('div');
-      host.className = 'haru-sb-host';
-      host.style.cssText = 'margin:12px 0;clear:both;';
-      var f = doc.createElement('iframe');
-      f.className = 'haru-sb-frame';
-      f.setAttribute('style', 'width:100%;border:0;background:transparent;display:block;height:600px;');
-      f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-      f.srcdoc = SB_HTML;
-      host.appendChild(f);
-      if (mt.parentNode) mt.parentNode.insertBefore(host, mt.nextSibling);
-      else mesEl.appendChild(host);
+      if (!doc || !doc.body) return;
+      var host = doc.getElementById('haru-sb-dock');
+      if (!host) {
+        host = doc.createElement('div');
+        host.id = 'haru-sb-dock';
+        host.className = 'haru-sb-host';
+        doc.body.appendChild(host);
+      }
+      var f = host.querySelector('iframe');
+      if (!f) {
+        f = doc.createElement('iframe');
+        f.className = 'haru-sb-frame';
+        f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+        f.srcdoc = SB_HTML;
+        host.appendChild(f);
+        try {
+          f.addEventListener('load', function () {
+            try { injectChg(f); } catch (e4) {}
+            try { injectFunc(f); } catch (e5) {}
+          });
+        } catch (e3) {}
+      }
+      function place() {
+        try {
+          var ih = sbDockInputH(doc);
+          host.style.cssText = 'position:fixed;left:0;right:0;bottom:' + ih + 'px;z-index:900;'
+            + 'height:320px;max-height:46vh;margin:0;padding:0;box-sizing:border-box;'
+            + 'background:#12100c;border-top:1px solid rgba(200,164,92,.35);'
+            + 'box-shadow:0 -8px 24px rgba(0,0,0,.55);';
+          if (f) { f.style.cssText = 'width:100%;height:100%;border:0;background:#12100c;display:block;'; }
+          /* 给聊天区留出底部空间，别被状态栏盖住 */
+          var pad = doc.getElementById('haru-sb-pad');
+          if (!pad) {
+            pad = doc.createElement('style');
+            pad.id = 'haru-sb-pad';
+            doc.head.appendChild(pad);
+          }
+          pad.textContent = 'body.haru-txt-mode{padding-bottom:' + (ih + 330) + 'px !important;}';
+        } catch (eP) {}
+      }
+      place();
       try {
-        f.addEventListener('load', function () {
-          try { injectChg(f); } catch (e4) {}
-          try { injectFunc(f); } catch (e5) {}
-        });
-      } catch (e3) {}
+        if (!window.__haruSbPlaceTimer) {
+          window.__haruSbPlaceTimer = setInterval(function () { try { place(); } catch (e) {} }, 1500);
+        }
+      } catch (eT) {}
     } catch (e) {}
   }
 
   function scan() {
     var doc = hostDoc(); if (!doc || !doc.body) return;
     try { injectTextSkin(doc); } catch (eSkin) {}
-    var list = doc.querySelectorAll('.mes');
-    var last = null;
-    for (var i = list.length - 1; i >= 0; i--) {
-      var isU = false;
-      try { isU = list[i].getAttribute('is_user') === 'true'; } catch (eU) {}
-      if (!isU) { last = list[i]; break; }
-    }
-    /* ★★★ 2026-11-25（作者：状态栏依旧消失）：**先清理、再挂载**。
-       mount 里若「文档里已有 host」会提前返回，随后清理又把它删掉 ⇒ 一个不剩。 */
-    try {
-      var oldDock = doc.getElementById('haru-sb-dock');
-      if (oldDock && oldDock.parentNode) oldDock.parentNode.removeChild(oldDock);
-      var pad = doc.getElementById('haru-sb-dock-pad');
-      if (pad && pad.parentNode) pad.parentNode.removeChild(pad);
-    } catch (eDock) {}
-    var hosts = doc.querySelectorAll('.haru-sb-host');
-    var keep = null;
-    for (var j = 0; j < hosts.length; j++) {
-      var h = hosts[j];
-      if (!last || !last.contains(h)) { try { h.remove(); } catch (eR0) {} continue; }
-      if (keep) { try { h.remove(); } catch (eR2) {} }
-      else keep = h;
-    }
-    if (last && !keep) { try { mount(last); } catch (eM0) {} }
+    /* 状态栏是 body 上的固定单例，只要存在就不再重建 */
+    try { mount(null); } catch (eM0) {}
   }
   var timer = null;
   function schedule() { if (timer) return; timer = setTimeout(function () { timer = null; scan(); }, 400); } // debounce
