@@ -297,16 +297,7 @@
          游戏版那边是功能面板顶部一颗胶囊 + 左上角状态卡；文字版没有状态卡，
          所以就在这里加一行。数据源统一走 HOST.__thGameModeNow（10-core 导出的），
          **不在这里另判一次模型** —— 同一个量两套判据必然显示不一致。 */
-      '<div class="ver-row"><span class="ver-k">正文美化</span>',
-      '<span class="ver-v" id="sb-fn-skin-v">开</span>',
-      '<button type="button" class="ver-btn" id="sb-fn-skin">关闭</button></div>',
-      /* ★ 2026-11-20：三套皮肤循环（浅纸 / 深色樱 / 暗金） */
-      '<div class="ver-row"><span class="ver-k">正文皮肤</span>',
-      '<span class="ver-v" id="sb-fn-skinvar-v">深色樱</span>',
-      '<button type="button" class="ver-btn" id="sb-fn-skinvar">切换</button></div>',
-      '<div class="ver-row"><span class="ver-k">气泡美化</span>',
-      '<span class="ver-v" id="sb-fn-bubble-v">开</span>',
-      '<button type="button" class="ver-btn" id="sb-fn-bubble">关闭</button></div>',
+      /* ⛔ 2026-11-25：正文美化 / 正文皮肤 / 气泡美化 三行下架（作者要求排查） */
       /* ★ 2026-11-19：作者「新增一个修改器在文字版的功能分页里」 */
       /* ★ 2026-11-20 作者：「搬，包括回忆」—— 历史 / 回忆 / 自愈 / 重载图
          ★ 2026-11-21：格式补全已彻底下架，对应行整条删除。 */
@@ -1237,6 +1228,10 @@
   }
 
   function injectTextSkin(doc) {
+    /* ⛔ 2026-11-25（作者：把正文美化下架，看看到底是谁的问题）：
+       整块停用 —— 不注入任何样式、不加 body 类。
+       要恢复：把下面这行 return 删掉。 */
+    return;
     try {
       if (!doc || !doc.head) return;
       /* 清掉上一版（天元录纸）可能残留的上下沿装饰 —— 它们会让楼层高度错位 */
