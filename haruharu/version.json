@@ -3,7 +3,7 @@
   "seq": 195,
   "fixNo": 1,
   "label": "v1.74（第 1 次更新 · stable）",
-  "stableRef": "",
+  "stableRef": "ec5cf6e8e7e51b9d10d652132446b56fffaf5d92",
   "updated": "2026-11-17T12:31:54.624Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
