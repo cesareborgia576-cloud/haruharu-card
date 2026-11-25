@@ -1,1 +1,1 @@
-window.__CQ_OSS_VER__="v1.75（第 1 次更新 · stable）";window.__CQ_OSS_SEQ__=204;window.__CQ_OSS_LABEL__="v1.75（第 1 次更新 · stable）";window.__CQ_OSS_FIXNO__=1;window.__CQ_OSS_UTITLE__="v1.75（第 1 次更新 · stable）";window.__CQ_OSS_UITEMS__=[];
+window.__CQ_OSS_VER__="v1.76";window.__CQ_OSS_SEQ__=205;window.__CQ_OSS_LABEL__="v1.76（第 1 次更新 · stable）";window.__CQ_OSS_FIXNO__=1;window.__CQ_OSS_UTITLE__="v1.76：修复人物对白被误当推演剔除（对话框对白恢复）";window.__CQ_OSS_UITEMS__=["修复：撤掉「正文锚点前文字当推演」的误剔，人物对白不再被从对话框剔除","修复：游戏版对话框恢复显示人物对白（含单句分页）"];

@@ -23652,16 +23652,13 @@ var DialogueReader = {
          以前这里把 parse 也标成 raw，玩家看到 TXT 就以为在跑兜底原文 —— 其实不是。 */
       this.lastSource = content ? 'parse' : 'none';
     }
-    /* ★★ 2026-11-25 实机 E2E「孤立闭合推演尾巴」统一剔除：
-       content 到这里已定稿（dom/parse/raw 三条路都汇合）。原文里若存在
-       正文锚点之前的推演前缀（含被浏览器吃掉的孤立 </think_nya> 尾巴），
-       把它从 content 开头机械剔掉 —— 靠位置（推演恒在正文前），不靠穷举标签名。 */
-    try {
-      if (content) {
-        var _thinkPrefix = thThinkPrefixFromRaw(rawText);
-        if (_thinkPrefix) content = thTrimThinkPrefixFromDom(content, _thinkPrefix);
-      }
-    } catch (eTrimPrefix) {}
+    /* ⛔ ★★ 2026-11-25 撤销「锚点前文字当推演前缀」的剔除（作者：人物说话直接消失、被剔除在对话框）：
+       上一版在这里用 thThinkPrefixFromRaw(rawText) 取「正文锚点之前的所有可见文字」当推演前缀，
+       再 thTrimThinkPrefixFromDom 从 content 开头剔掉。**判据本身是错的**——
+       真实消息里人物对白经常写在 <content> 锚点之前，于是整段对白被当成推演前缀剔光
+       ⇒ 对话框里人物对白直接消失。
+       孤立闭合推演尾巴改由「thStripOrphanThinkFromClone（clone 层，只在含 think 闭合的注释前剔裸文本）」
+       这条精准路径处理，它不会碰到正常对白。这套位置判据彻底不再使用。 */
     /* ★★★ 2026-11-16 23:5x：content 到这里才算定稿（可能已被 DOM 那份整片替换）。
        现在数一遍「标记还在不在」：
          · 还在 ⇒ 走老路（按第几个标记数），兜底不许插手；
