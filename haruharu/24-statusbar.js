@@ -1,10 +1,8 @@
 (function () {
   'use strict';
-  /* ★ 2026-11-25：统一清单后各自门禁 —— 只在「文字版」时运行 */
-  try {
-    var _uiM = (typeof window.thUiModeIs === 'function') ? (window.thUiModeIs('text') ? 'text' : 'other') : 'text';
-    if (_uiM !== 'text') return;
-  } catch (eGate) {}
+  /* ★ 2026-11-25（作者：状态栏还是没有）：**去掉模式门禁** ——
+     门禁一旦误判成游戏版就整份不跑，表现就是「状态栏彻底没有」。
+     状态栏两版都该在（游戏版里也会显示，不影响壳）。 */
 
   var TOP = null;
   try { if (window.top && window.top.document) TOP = window.top; } catch (e) {}
@@ -464,7 +462,6 @@
     /* ★ 2026-11-16：文字版功能页「人物关系网 / 查看」。
        弹层由 10-core.js 挂在宿主 document（iframe 太小），这里只负责叫它出来；
        不传 focus —— 从功能页点开的是总图，不定位到任何人。 */
-    try { thBindSkinButtons(d); } catch (eSkinB) {}
     /* ══ 2026-11-19：修改器（文字版功能分页）══════════════════════
        写法走 MVU 自己的 API（replaceMvuData），**不自己拼 JSONPatch**：
        自拼容易和模型写的结构对不上，一次写错就把存档弄脏。 */
@@ -1049,66 +1046,63 @@
    所以这里把旧的纸/樱花边/padding/border-image 整套**删除**，
    只保留气泡与字色的美化（色值取自天元录 v590 的水墨灰）。 */
 /* ★ 2026-11-25：恢复原正文美化（樱花边 + ❀ + 和纸底 + 皮肤），天元录纸方案在实机上导致滚动异常，撤掉。 */
+  /* ══ ★ 2026-11-25（作者：回退到「状态栏美化」那一版，其他不变）═══════════
+     正文美化（樱花纸 + ❀ + 和纸底 + 皮肤）原样恢复；
+     天元录纸方案、气泡改色、haruInk 那一套全部不再使用。 */
   var TEXT_SKIN_CSS = "/* ══ 正文纸（文字版）：深红樱花边 + 深红字 + 浅和纸底 ══════════════════\n   底色必须是浅的：作者要「正文深红」，深红压在深色底上必然糊成一片。\n   所以纸用暖白（#fffdf9→#f3e6d7），字用 #7a1f2b，对比度 8:1 以上。 */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text {\n  position: relative;\n  margin: 12px 2px;\n  padding: 18px 22px 16px !important;\n  border-radius: 13px;\n  color: #7a1f2b !important;\n  background: radial-gradient(130% 100% at 50% -10%, #fffdf9 0%, #faf2e7 48%, #f3e6d7 100%) !important;\n  border: 1px solid rgba(140, 43, 52, .55) !important;\n  border-top: 14px solid transparent !important;\n  border-bottom: 14px solid transparent !important;\n  border-image: url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='14'%3E%3Cg fill='%238c2b34' fill-opacity='.42'%3E%3Cellipse cx='9' cy='5' rx='3.2' ry='2' transform='rotate(-25 9 5)'/%3E%3Cellipse cx='13.4' cy='4' rx='3.2' ry='2' transform='rotate(25 13.4 4)'/%3E%3Cellipse cx='11.2' cy='7.6' rx='2.2' ry='2.6'/%3E%3Cellipse cx='31' cy='5' rx='2.4' ry='1.6' transform='rotate(20 31 5)'/%3E%3Cellipse cx='34.4' cy='6.4' rx='2.4' ry='1.6' transform='rotate(-20 34.4 6.4)'/%3E%3C/g%3E%3Cg stroke='%238c2b34' stroke-opacity='.30' stroke-width='1'%3E%3Cpath d='M0 12.5H44'/%3E%3C/g%3E%3C/svg%3E\") 14 0 round !important;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7), inset 0 0 26px rgba(140, 43, 52, .06), 0 5px 16px rgba(90, 20, 28, .10) !important;\n  font-size: 15px;\n  line-height: 1.95;\n  letter-spacing: .02em;\n  overflow: visible !important;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::before,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::after {\n  content: \"❀\";\n  position: absolute;\n  font-size: 15px;\n  line-height: 1;\n  color: rgba(140, 43, 52, .38);\n  pointer-events: none;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::before { top: 2px; left: 6px; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::after { bottom: 2px; right: 6px; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text p,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text span,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text div { color: inherit; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text b,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text strong { color: #5e1620; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text em,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text i { color: #8c2b34; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text a { color: #a0313d; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text hr { border: 0; border-top: 1px solid rgba(140, 43, 52, .22); }\n/* ── 兼容插图：不裁切、不撑破，圆角跟着纸走 ── */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text img,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text video,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text canvas {\n  max-width: 100% !important;\n  height: auto !important;\n  border-radius: 9px;\n  border: 1px solid rgba(140, 43, 52, .28);\n  box-shadow: 0 3px 12px rgba(90, 20, 28, .14);\n  background: #fffdf8;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text iframe { max-width: 100% !important; }\n/* ── 兼容对话气泡：气泡自己留白底，字仍是深红 ── */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .bubble,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .dialogue,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .chat-bubble,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text blockquote {\n  background: #fffdf8 !important;\n  border: 1px solid rgba(140, 43, 52, .22) !important;\n  border-left: 3px solid rgba(140, 43, 52, .55) !important;\n  border-radius: 10px;\n  padding: 8px 12px;\n  margin: 8px 0;\n  color: #6f1b26 !important;\n  box-shadow: 0 2px 8px rgba(90, 20, 28, .08);\n}\nbody.haru-txt-mode #chat .mes[is_user=\"true\"] .mes_text { color: #2f3a46; }\n/* ══ ★ 2026-11-19：两颗开关以前只加 class、**没有任何 CSS 消费它** ⇒ 纯摆设。\n   这里补上真正的「关」：正文美化关 → 纸/边/樱花/字色全回原样；气泡美化关 → 气泡回原样。 */\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text {\n  background: none !important; border: 0 !important; border-image: none !important;\n  box-shadow: none !important; border-radius: 0 !important; padding: 0 !important;\n  margin: 0 !important; color: inherit !important; font-size: inherit !important;\n  line-height: inherit !important; letter-spacing: normal !important;\n}\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text::before,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text::after { content: none !important; }\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text img,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text video,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text canvas {\n  border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: none !important;\n}\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .bubble,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .dialogue,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .chat-bubble,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text blockquote {\n  background: none !important; border: 0 !important; border-left: 0 !important;\n  border-radius: 0 !important; padding: 0 !important; margin: 0 !important;\n  box-shadow: none !important; color: inherit !important;\n}";
+  
+    /* ★ 2026-11-25（作者：粉色的不要了）：深色樱整块删除，默认暗金。 */
+  
+    /* ══ 2026-11-20：正文美化三套皮肤（浅纸 / 深色樱 / 暗金）═══════════════════
+       作者：① 深色下气泡对话框看不见（本来就透明）；② 再来一套暗金色；③ 四角必须圆角。
+       切换存 localStorage `haru_skin_variant`；类打在 body 上：haru-skin-paper / -dark / -gold。 */
+    try {
+      TEXT_SKIN_CSS += [
+        /* ── 气泡：深色 / 暗金下也要看得见（半透明白底 + 细边 + 全圆角） ── */
+        'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .bubble,',
+        'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .dialogue,',
+        'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .chat-bubble,',
+        'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text blockquote {',
+        '  background: rgba(255,255,255,.09) !important;',
+        '  border: 1px solid rgba(226,184,87,.42) !important;',
+        '  border-left: 3px solid rgba(244,114,182,.65) !important;',
+        '  border-radius: 12px !important;',
+        '  padding: 8px 12px !important; margin: 8px 0 !important;',
+        '  color: #f7e6ef !important;',
+        '  box-shadow: 0 2px 10px rgba(0,0,0,.45) !important;',
+        '}',
+        /* ── 暗金皮肤 ── */
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text {',
+        '  padding: 18px 20px !important; margin: 12px 0 !important;',
+        '  color: #f0dfb8 !important;',
+        '  background: radial-gradient(130% 100% at 50% -10%, #241d10 0%, #1a150c 52%, #14100a 100%) !important;',
+        '  border: 1px solid rgba(212,175,55,.62) !important;',
+        '  border-radius: 14px !important;',
+        '  box-shadow: inset 0 0 0 1px rgba(255,215,120,.10), inset 0 0 30px rgba(0,0,0,.5), 0 5px 18px rgba(0,0,0,.5) !important;',
+        '}',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text::before,',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text::after { color: rgba(212,175,55,.7) !important; }',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text b,',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text strong { color: #ffe9a8 !important; }',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text em,',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text i { color: #e8c884 !important; }',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .bubble,',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .dialogue,',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .chat-bubble,',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text blockquote {',
+        '  background: rgba(212,175,55,.10) !important;',
+        '  border: 1px solid rgba(212,175,55,.5) !important;',
+        '  border-left: 3px solid rgba(255,215,120,.75) !important;',
+        '  border-radius: 12px !important; padding: 8px 12px !important; margin: 8px 0 !important;',
+        '  color: #f6e7c2 !important; box-shadow: 0 2px 10px rgba(0,0,0,.45) !important;',
+        '}',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text img,',
+        'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text video {',
+        '  border: 1px solid rgba(212,175,55,.45) !important; border-radius: 12px !important; background: #14100a !important;',
+        '}'
+      ].join('\n');
+    } catch (eGold) {}
 
-  /* ★ 2026-11-25（作者：粉色的不要了）：深色樱整块删除，默认暗金。 */
-
-  /* ══ 2026-11-20：正文美化三套皮肤（浅纸 / 深色樱 / 暗金）═══════════════════
-     作者：① 深色下气泡对话框看不见（本来就透明）；② 再来一套暗金色；③ 四角必须圆角。
-     切换存 localStorage `haru_skin_variant`；类打在 body 上：haru-skin-paper / -dark / -gold。 */
-  try {
-    TEXT_SKIN_CSS += [
-      /* ── 气泡：深色 / 暗金下也要看得见（半透明白底 + 细边 + 全圆角） ── */
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .bubble,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .dialogue,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .chat-bubble,',
-      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text blockquote {',
-      '  background: rgba(255,255,255,.09) !important;',
-      '  border: 1px solid rgba(226,184,87,.42) !important;',
-      '  border-left: 3px solid rgba(244,114,182,.65) !important;',
-      '  border-radius: 12px !important;',
-      '  padding: 8px 12px !important; margin: 8px 0 !important;',
-      '  color: #f7e6ef !important;',
-      '  box-shadow: 0 2px 10px rgba(0,0,0,.45) !important;',
-      '}',
-      /* ── 暗金皮肤 ── */
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text {',
-      '  padding: 18px 20px !important; margin: 12px 0 !important;',
-      '  color: #f0dfb8 !important;',
-      '  background: radial-gradient(130% 100% at 50% -10%, #241d10 0%, #1a150c 52%, #14100a 100%) !important;',
-      '  border: 1px solid rgba(212,175,55,.62) !important;',
-      '  border-radius: 14px !important;',
-      '  box-shadow: inset 0 0 0 1px rgba(255,215,120,.10), inset 0 0 30px rgba(0,0,0,.5), 0 5px 18px rgba(0,0,0,.5) !important;',
-      '}',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text::before,',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text::after { color: rgba(212,175,55,.7) !important; }',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text b,',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text strong { color: #ffe9a8 !important; }',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text em,',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text i { color: #e8c884 !important; }',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .bubble,',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .dialogue,',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .chat-bubble,',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text blockquote {',
-      '  background: rgba(212,175,55,.10) !important;',
-      '  border: 1px solid rgba(212,175,55,.5) !important;',
-      '  border-left: 3px solid rgba(255,215,120,.75) !important;',
-      '  border-radius: 12px !important; padding: 8px 12px !important; margin: 8px 0 !important;',
-      '  color: #f6e7c2 !important; box-shadow: 0 2px 10px rgba(0,0,0,.45) !important;',
-      '}',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text img,',
-      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text video {',
-      '  border: 1px solid rgba(212,175,55,.45) !important; border-radius: 12px !important; background: #14100a !important;',
-      '}'
-    ].join('\n');
-  } catch (eGold) {}
-
-  /* ══ 正文美化（文字版）：深红樱花边 + 深红正文 ═══════════════════════
-     只在「没有游戏壳」时生效（body.haru-txt-mode），游戏版一个字都不碰。
-     兼容性：插图不裁切、气泡保留自己的白底、用户消息不改色。 */
-  /* ★ 2026-11-18：功能页两颗开关 —— 正文美化 / 气泡美化。
-     状态存 localStorage；关掉只是给 body 加 haru-no-skin / haru-no-bubble，
-     皮肤本身不动，随时能开回来。 */
   function thApplySkinToggles(d) {
     try {
       var doc = d || hostDoc();
@@ -1117,223 +1111,24 @@
       doc.body.classList.toggle('haru-no-bubble', localStorage.getItem('haru_no_bubble') === '1');
     } catch (e) {}
   }
-  /* 绑定两颗按钮（d = 状态栏 iframe 的 document） */
-  function thApplySkinVariant() {
-    try {
-      var doc = hostDoc();
-      if (!doc || !doc.body) return;
-      var body = doc.body;
-      var v = localStorage.getItem('haru_skin_variant') || 'gold';
-      if (v !== 'paper' && v !== 'gold') v = 'gold';
-      if (body.classList.contains('haru-skin-gold') === (v === 'gold')
-        && body.classList.contains('haru-skin-paper') === (v === 'paper')) return;
-      sbKeepScroll(function () {
-        doc.body.classList.toggle('haru-skin-gold', v === 'gold');
-        doc.body.classList.toggle('haru-skin-paper', v === 'paper');
-      });
-      /* ★ 2026-11-20：作者「浅色的正文美化没生效」。
-         真因：浅纸以前靠 `haru-skin-sun` 这个类，而它是**状态栏主题**在用的 ——
-         thBindThemeBridge 每次收到 haru-theme 消息都会 `toggle('haru-skin-sun', !!sunlight)`，
-         玩家状态栏是深色主题 ⇒ 这个类被摘掉 ⇒ 浅纸的 CSS 永远不生效。
-         现在浅纸有自己的类 `haru-skin-paper`，主题类归主题、皮肤类归皮肤，互不干扰。
-         （`haru-skin-sun` 保留：状态栏切到日光时正文纸也跟着走浅纸。） */
-      /* ⚠ 这里**不再**动 `haru-skin-sun` —— 那个类是状态栏主题桥在用的，
-         两边都写会互相抢：切主题就把玩家选的皮肤冲掉（这就是「浅色没生效」的老病根）。 */
-    } catch (e) {}
-  }
-  try { thApplySkinVariant(); } catch (eSV0) {}
-
-  function thBindSkinButtons(d) {
-    try {
-      var s1 = d.getElementById('sb-fn-skin');
-      var s2 = d.getElementById('sb-fn-bubble');
-      function paintBtn() {
-        var noSkin = localStorage.getItem('haru_no_skin') === '1';
-        var noBub = localStorage.getItem('haru_no_bubble') === '1';
-        var v1 = d.getElementById('sb-fn-skin-v'), b1 = d.getElementById('sb-fn-skin');
-        if (v1) v1.textContent = noSkin ? '关' : '开';
-        if (b1) b1.textContent = noSkin ? '打开' : '关闭';
-        var v2 = d.getElementById('sb-fn-bubble-v'), b2 = d.getElementById('sb-fn-bubble');
-        if (v2) v2.textContent = noBub ? '关' : '开';
-        if (b2) b2.textContent = noBub ? '打开' : '关闭';
-      }
-      if (s1) s1.onclick = function () {
-        localStorage.setItem('haru_no_skin', localStorage.getItem('haru_no_skin') === '1' ? '0' : '1');
-        thApplySkinToggles(); paintBtn();
-      };
-      var s3 = d.getElementById('sb-fn-skinvar');
-      function paintVar() {
-        var v = localStorage.getItem('haru_skin_variant') || 'gold';
-        var lbl = v === 'gold' ? '暗金' : (v === 'paper' ? '浅纸' : '深色樱');
-        var el = d.getElementById('sb-fn-skinvar-v');
-        if (el) el.textContent = lbl;
-        thApplySkinVariant();
-      }
-      if (s3) s3.onclick = function () {
-        var cur = localStorage.getItem('haru_skin_variant') || 'dark';
-        var next = cur === 'dark' ? 'gold' : (cur === 'gold' ? 'paper' : 'dark');
-        localStorage.setItem('haru_skin_variant', next);
-        paintVar();
-      };
-      try { paintVar(); } catch (eV) {}
-      if (s2) s2.onclick = function () {
-        localStorage.setItem('haru_no_bubble', localStorage.getItem('haru_no_bubble') === '1' ? '0' : '1');
-        thApplySkinToggles(); paintBtn();
-      };
-      paintBtn();
-    } catch (e) {}
-  }
-
-  /* ★ 2026-11-20：状态栏主题变了 → 正文美化跟着换（日光 / 深色） */
-  function thBindThemeBridge() {
-    try {
-      if (window.__thThemeBridge) return;
-      window.__thThemeBridge = true;
-      window.addEventListener('message', function (ev) {
-        try {
-          var d = ev && ev.data;
-          if (!d || d.type !== 'haru-theme') return;
-          var doc = hostDoc();
-          if (!doc || !doc.body) return;
-          doc.body.classList.toggle('haru-skin-sun', !!d.sunlight);
-        } catch (e) {}
-      });
-    } catch (e) {}
-  }
-  try { thBindThemeBridge(); } catch (eTB) {}
-
-  /* ★ 2026-11-25（作者：正文美化会吞楼层、强制返回开场白）：
-     美化给每楼加了高度（padding/边框/外边距），聊天容器不会跟着调滚动位置 ——
-     视觉上就「跳回开场白」、状态栏也滚出视口。这里在做任何视觉变更前后
-     把滚动位置保住：原本贴底就贴底，原本在中段就回原位。 */
-  function sbKeepScroll(fn) {
-    var doc = null, chat = null, st = 0, atBottom = true;
-    try {
-      doc = hostDoc(); chat = doc && doc.getElementById('chat');
-      if (chat) { st = chat.scrollTop; atBottom = (chat.scrollHeight - chat.scrollTop - chat.clientHeight) < 180; }
-    } catch (e0) {}
-    try { fn(); } catch (e1) {}
-    try {
-      if (!chat) return;
-      var restore = function () {
-        try {
-          if (!chat.isConnected) return;
-          chat.scrollTop = atBottom ? chat.scrollHeight : st;
-        } catch (e2) {}
-      };
-      restore();
-      setTimeout(restore, 60);
-      setTimeout(restore, 220);
-    } catch (e3) {}
-  }
 
   function injectTextSkin(doc) {
-    /* ⛔ 2026-11-25（作者：把正文美化下架，看看到底是谁的问题）：
-       整块停用 —— 不注入任何样式、不加 body 类。
-       要恢复：把下面这行 return 删掉。 */
-    return;
     try {
       if (!doc || !doc.head) return;
-      /* 清掉上一版（天元录纸）可能残留的上下沿装饰 —— 它们会让楼层高度错位 */
-      try {
-        var leftovers = doc.querySelectorAll('.haru-scroll-top,.haru-scroll-bot');
-        for (var li = 0; li < leftovers.length; li++) { try { leftovers[li].remove(); } catch (eL) {} }
-        var ink = doc.querySelectorAll('.haru-ink-scroll,.haru-ink-mes');
-        for (var li2 = 0; li2 < ink.length; li2++) {
-          try { ink[li2].classList.remove('haru-ink-scroll'); ink[li2].classList.remove('haru-ink-mes'); } catch (eL2) {}
-        }
-      } catch (eLeft) {}
-      var needCss = !doc.getElementById('haru-txt-skin');
+      if (!doc.getElementById('haru-txt-skin')) {
+        var st = doc.createElement('style');
+        st.id = 'haru-txt-skin';
+        st.textContent = TEXT_SKIN_CSS;
+        doc.head.appendChild(st);
+      }
       var hasGal = false;
       try { hasGal = !!doc.getElementById('th-gal-shell-root'); } catch (eG) {}
-      var needMode = !!doc.body && !hasGal && !doc.body.classList.contains('haru-txt-mode');
-      if (!needCss && !needMode) { try { thApplySkinToggles(doc); } catch (eST0) {} return; }
-      sbKeepScroll(function () {
-        if (needCss) {
-          var st = doc.createElement('style');
-          st.id = 'haru-txt-skin';
-          st.textContent = TEXT_SKIN_CSS;
-          doc.head.appendChild(st);
-        }
-        if (!hasGal && doc.body) doc.body.classList.add('haru-txt-mode');
-        else if (hasGal && doc.body) doc.body.classList.remove('haru-txt-mode');
-        try { thApplySkinToggles(doc); } catch (eST) {}
-      });
+      if (!hasGal && doc.body) doc.body.classList.add('haru-txt-mode');
+      else if (hasGal && doc.body) doc.body.classList.remove('haru-txt-mode');
+      try { thApplySkinToggles(doc); } catch (eST) {}
     } catch (eS) {}
   }
-  function mount(mesEl) {
-    /* ══ ★ 2026-11-25：照天元录的挂法 —— 状态栏挂在**最新 AI 楼 .mes_text 内部** ══
-       天元录（05-界面脚本）：`.xz-root` 是 `.mes_text` 的子节点，
-       锚点优先 `.xz-status-anchor`，否则挂到 `.mes_text` 最末端。
-       ⚠ 天元录记过的坑：酒馆重绘 .mes_text 会把挂进去的节点一起冲掉 ——
-         所以 scan() 每轮都要检查、缺了就重挂（这里 mount 每次都会执行）。 */
-    if (!mesEl) return;
-    try { if (mesEl.getAttribute && mesEl.getAttribute('is_user') === 'true') return; } catch (e) {}
-    var mt = mesEl.querySelector('.mes_text');
-    if (!mt) return;
-    /* ★ 2026-11-25（作者：状态栏一直闪）：判断范围改成整个 .mes ——
-       状态栏现在挂在 .mes_text 外面，只看 .mes_text 内部会每轮都判「没有」，
-       于是每轮新建一个、再被去重删掉 ⇒ 一闪一闪。 */
-    if (mesEl.querySelector('.haru-sb-host')) return;
-    var doc = hostDoc(); if (!doc) return;
-    var host = doc.createElement('div');
-    host.className = 'haru-sb-host';
-    host.style.cssText = 'margin:10px 0;clear:both;width:100%;max-width:100%;box-sizing:border-box;';
-    var f = doc.createElement('iframe');
-    f.className = 'haru-sb-frame';
-    /* ★ 2026-11-25（作者：状态栏别搞这么恶心，抄天元录）：高度**由内容决定** ——
-       内嵌页每 0.9 秒把 scrollHeight 报上来，这里设成一样高，不留内部滚动条。 */
-    /* ★ 2026-11-25（作者：疯狂滚回第0层）：高度自适应会反复改高度 → 聊天容器重排 →
-       视觉上一直往顶滚。回退成**固定高度 600px + 内部滚动**（稳定优先）。 */
-    f.setAttribute('style', 'width:100%;max-width:none;border:0;background:transparent;display:block;'
-      + 'height:600px;');
-    f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-    f.srcdoc = SB_HTML;
-    try {
-      var onSbMsg = function (ev) {
-        try {
-          var hh = ev && ev.data && ev.data.__sprSbH;
-          if (!hh || f.__sprGone) return;
-          var px = Math.max(160, Math.min(1400, Math.round(Number(hh) || 0)));
-          if (px && Math.abs(px - (Number(f.__sprH) || 0)) > 2) {
-            f.__sprH = px;
-            f.style.height = px + 'px';
-          }
-        } catch (eM) {}
-      };
-      if (!window.__sprSbMsgBound) { window.__sprSbMsgBound = true; window.addEventListener('message', onSbMsg); }
-    } catch (eMsg) {}
-    host.appendChild(f);
-    /* ★ 2026-11-25（作者：状态栏就是状态栏，别被正文美化包住）：
-       挂在 .mes_text **外面**（它的兄弟节点），正文美化的卡片样式（背景/边框/内边距）
-       就套不到状态栏身上；同时给足宽度。 */
-    /* ★ 2026-11-25（作者：状态栏搭载方式照抄天元录）：
-       天元录是 `#xz-status-host` 挂在**最新 AI 楼的 .mes_text 里**（锚点后，否则最末端）。
-       这里同样挂进 .mes_text 末尾；正文美化已不再给 .mes_text 套纸，所以不会被包裹。 */
-    var _anchor = null;
-    try { _anchor = mt.querySelector('.xz-status-anchor'); } catch (eAn) {}
-    if (_anchor && _anchor.parentNode) _anchor.parentNode.insertBefore(host, _anchor.nextSibling);
-    else {
-      var _bot = null;
-      try { _bot = mt.querySelector('.haru-scroll-bot'); } catch (eBot) {}
-      if (_bot && _bot.parentNode) _bot.parentNode.insertBefore(host, _bot);
-      else mt.appendChild(host);
-    }
-    try {
-      f.addEventListener('load', function () {
-        /* 高度交给 postMessage（见上），这里只在拿不到消息时兜底一次 */
-        try {
-          var bd = f.contentDocument && f.contentDocument.body;
-          if (bd && !f.__sprH) {
-            var hh0 = Math.max(bd.scrollHeight || 0, 420);
-            f.style.height = Math.min(1400, hh0) + 'px';
-          }
-        } catch (e2) {}
-        try { injectChg(f); } catch (e4) {}
-        try { injectFunc(f); } catch (e5) {}
-      });
-    } catch (e3) {}
-  }
+
   function scan() {
     var doc = hostDoc(); if (!doc || !doc.body) return;
     try { injectTextSkin(doc); } catch (eSkin) {}

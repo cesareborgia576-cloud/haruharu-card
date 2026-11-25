@@ -1,29 +1,4 @@
 /* ★ 2026-11-24：装载标记 —— 20-heal 垫片用它判断 10-core 是否已在场，避免二次加载 */
-/* ★ 2026-11-25（作者：文字版很多按钮点不了）：26-关系网 / 27-回忆 之前漏在 loader 清单外，
-   功能页那两颗按钮永远找不到模块。这里按**自己的脚本 URL** 推断同目录地址，动态补载 ——
-   走的是热更同一条 ref，不改 loader、不用重导卡。 */
-try {
-  (function () {
-    var _me = '';
-    try { _me = String(document.currentScript && document.currentScript.src || ''); } catch (e0) {}
-    if (!_me) return;
-    var _need = ['26-relnet.js', '27-recall.js'];
-    for (var i = 0; i < _need.length; i++) {
-      (function (f) {
-        try {
-          if (document.querySelector('script[src*="' + f.replace('.js', '') + '"]')) return;
-          var u = _me.replace(/10-core\.js.*$/, f);
-          if (u === _me) return;
-          var sc = document.createElement('script');
-          sc.src = u;
-          sc.async = false;
-          (document.head || document.documentElement).appendChild(sc);
-        } catch (e1) {}
-      })(_need[i]);
-    }
-  })();
-} catch (eDyn) {}
-
 try { window.__TH_CORE_LOADED__ = true; if (window.top && window.top !== window) { try { window.top.__TH_CORE_LOADED__ = true; } catch (e1) {} } } catch (e0) {}
 /* ============================================================
    《四邻宅邸 & 全景漫游 & 真同层完美完全体 v27.0》
