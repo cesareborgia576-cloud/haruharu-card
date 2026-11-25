@@ -23639,9 +23639,22 @@ var DialogueReader = {
          （那是防「读错楼层 / 读到界面文字」，不是猜正文）。
          TH_NATIVE_PROJECTION 置 false 可整体退回旧行为。 */
       if (TH_NATIVE_PROJECTION) {
-        content = fromDom;
-        this.lastSource = 'dom';
-        try { window.__thDomAccepted = { dom: String(fromDom).length, parsed: String(detect.text || '').length }; } catch (eAcc) {}
+        /* ★★ 2026-11-25（作者：35 页瞬间变 10 页全对白）：游戏版壳把楼层 display:none，
+           DOM 投影读隐藏楼层不可靠（丢了旁白、只剩对白）⇒ 楼层 display:none 时改用
+           原始消息解析 detect.text（来自 chat 原文，稳定、含旁白+对白），不用 DOM 投影。 */
+        var _floorHidden = false;
+        try {
+          var _lm = latestAiMesEl(getDoc());
+          if (_lm) { var _dv = _lm.ownerDocument && _lm.ownerDocument.defaultView; if (_dv && _dv.getComputedStyle) _floorHidden = _dv.getComputedStyle(_lm).display === 'none'; }
+        } catch (eFH) {}
+        if (_floorHidden && detect.text) {
+          content = detect.text;
+          this.lastSource = 'parse-hidden-floor';
+        } else {
+          content = fromDom;
+          this.lastSource = 'dom';
+        }
+        try { window.__thDomAccepted = { dom: String(fromDom).length, parsed: String(detect.text || '').length, floorHidden: !!_floorHidden }; } catch (eAcc) {}
       } else {
       /* 重合度校验：DOM 版与解析器版，取较短的那份做子序列比对。
          只要 DOM 里多出超过 20 字「解析器没有的东西」，就判定它混进了标签外的内容。 */
