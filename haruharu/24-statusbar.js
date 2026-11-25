@@ -1057,105 +1057,60 @@
    「头像 + 姓名 + 水墨灰气泡 + 旁白」，消息容器本身保持酒馆原生。
    所以这里把旧的纸/樱花边/padding/border-image 整套**删除**，
    只保留气泡与字色的美化（色值取自天元录 v590 的水墨灰）。 */
-/* ══════════════ ★ 2026-11-25（作者：正文美化直接删，照抄天元录）══════════════
-   照抄天元录 05-界面脚本 的「绢本手卷 v639 + 满铺（帕罗亚范式）」：
-     · 纸 = .mes_text 自己（加 haru-ink-scroll 类），不是另起元素
-     · 纸底：半透明灰 + 上下渐隐 + 横竖织纹（全 CSS 渐变，零图片）
-     · 对称内边距 18/20/16、圆角 16px、内描边 + 内投影
-     · 楼层 .mes 加 haru-ink-mes：清宿主 padding/圆角/底色/头像列 ⇒ 纸铺满
-     · 上下沿是零高度装饰线（不占正文垂直空间）
-     · 状态栏（haru-sb-host）在纸内，margin-top 16px 呼吸位
-     · 第 0 楼（开场白）不美化 —— 与天元录一致 */
-var INK_CLS = 'haru-ink-scroll';
-var INK_MES = 'haru-ink-mes';
-var INK_MARK = 'data-haru-ink';
-var TEXT_SKIN_CSS = [
-  '.haru-ink-scroll{',
-  '  --haru-ink-paper:rgba(158,166,178,0.10);',
-  '  --haru-ink-fiber:rgba(255,255,255,0.014);',
-  '  --haru-ink-rule:rgba(214,222,232,0.40);',
-  '  --haru-ink-rule-2:rgba(214,222,232,0.13);',
-  '  --haru-ink-edge:rgba(0,0,0,0.26);',
-  '  position:relative;box-sizing:border-box;max-width:100%;',
-  '  padding:18px 20px 16px !important;',
-  '  margin:0 !important;',
-  '  border-radius:16px !important;',
-  '  background-color:var(--haru-ink-paper);',
-  '  background-image:',
-  '    linear-gradient(180deg,var(--haru-ink-edge) 0,rgba(0,0,0,0) 9%,rgba(0,0,0,0) 91%,var(--haru-ink-edge) 100%),',
-  '    repeating-linear-gradient(0deg,var(--haru-ink-fiber) 0 1px,rgba(0,0,0,0) 1px 3px),',
-  '    repeating-linear-gradient(90deg,var(--haru-ink-fiber) 0 1px,rgba(0,0,0,0) 1px 5px);',
-  '  background-repeat:no-repeat,repeat,repeat;',
-  '  background-size:100% 100%,100% 3px,5px 100%;',
-  '  box-shadow:inset 0 0 0 1px rgba(255,255,255,.045),inset 0 0 0 1.5px var(--haru-ink-rule-2),inset 0 0 30px rgba(0,0,0,0.18);',
-  '}',
-  '.mes.haru-ink-mes{padding:0 !important;margin:10px 0 !important;border-radius:0 !important;background:transparent !important;border-color:transparent !important;box-shadow:none !important;}',
-  '.mes.haru-ink-mes .mes_block{padding:0 !important;margin:0 !important;}',
-  '.mes.haru-ink-mes .mesAvatarWrapper{display:none !important;}',
-  '.haru-ink-scroll q,.haru-ink-scroll q *{color:inherit !important;font-style:normal;}',
-  '.haru-ink-scroll > .haru-sb-host{margin-top:16px !important;}',
-  '.haru-scroll-top,.haru-scroll-bot{position:relative;height:0;margin:0;}',
-  '.haru-scroll-top::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,rgba(0,0,0,0) 0,var(--haru-ink-rule) 16px,var(--haru-ink-rule) calc(100% - 16px),rgba(0,0,0,0) 100%);}',
-  '.haru-scroll-top::after{content:"";position:absolute;left:12%;right:12%;top:7px;height:1px;background:linear-gradient(90deg,rgba(0,0,0,0),var(--haru-ink-rule-2) 24%,var(--haru-ink-rule-2) 76%,rgba(0,0,0,0));}',
-  '.haru-scroll-bot::before{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,rgba(0,0,0,0) 0,var(--haru-ink-rule) 16px,var(--haru-ink-rule) calc(100% - 16px),rgba(0,0,0,0) 100%);}',
-  '.haru-scroll-bot::after{content:"";position:absolute;left:50%;bottom:3px;width:7px;height:7px;margin:0 0 0 -3.5px;transform:rotate(45deg);background:var(--haru-ink-rule);box-shadow:0 0 12px var(--haru-ink-rule-2);}',
-  '@media (max-width:480px){.haru-ink-scroll{padding:14px 14px 12px !important;border-radius:12px !important;}}',
-  'body.haru-no-skin .haru-ink-scroll{background:none !important;background-image:none !important;box-shadow:none !important;padding:0 !important;border-radius:0 !important;}',
-  'body.haru-no-skin .haru-scroll-top,body.haru-no-skin .haru-scroll-bot{display:none !important;}'
-].join(String.fromCharCode(10));
+/* ★ 2026-11-25：恢复原正文美化（樱花边 + ❀ + 和纸底 + 皮肤），天元录纸方案在实机上导致滚动异常，撤掉。 */
+  var TEXT_SKIN_CSS = "/* ══ 正文纸（文字版）：深红樱花边 + 深红字 + 浅和纸底 ══════════════════\n   底色必须是浅的：作者要「正文深红」，深红压在深色底上必然糊成一片。\n   所以纸用暖白（#fffdf9→#f3e6d7），字用 #7a1f2b，对比度 8:1 以上。 */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text {\n  position: relative;\n  margin: 12px 2px;\n  padding: 18px 22px 16px !important;\n  border-radius: 13px;\n  color: #7a1f2b !important;\n  background: radial-gradient(130% 100% at 50% -10%, #fffdf9 0%, #faf2e7 48%, #f3e6d7 100%) !important;\n  border: 1px solid rgba(140, 43, 52, .55) !important;\n  border-top: 14px solid transparent !important;\n  border-bottom: 14px solid transparent !important;\n  border-image: url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='14'%3E%3Cg fill='%238c2b34' fill-opacity='.42'%3E%3Cellipse cx='9' cy='5' rx='3.2' ry='2' transform='rotate(-25 9 5)'/%3E%3Cellipse cx='13.4' cy='4' rx='3.2' ry='2' transform='rotate(25 13.4 4)'/%3E%3Cellipse cx='11.2' cy='7.6' rx='2.2' ry='2.6'/%3E%3Cellipse cx='31' cy='5' rx='2.4' ry='1.6' transform='rotate(20 31 5)'/%3E%3Cellipse cx='34.4' cy='6.4' rx='2.4' ry='1.6' transform='rotate(-20 34.4 6.4)'/%3E%3C/g%3E%3Cg stroke='%238c2b34' stroke-opacity='.30' stroke-width='1'%3E%3Cpath d='M0 12.5H44'/%3E%3C/g%3E%3C/svg%3E\") 14 0 round !important;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7), inset 0 0 26px rgba(140, 43, 52, .06), 0 5px 16px rgba(90, 20, 28, .10) !important;\n  font-size: 15px;\n  line-height: 1.95;\n  letter-spacing: .02em;\n  overflow: visible !important;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::before,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::after {\n  content: \"❀\";\n  position: absolute;\n  font-size: 15px;\n  line-height: 1;\n  color: rgba(140, 43, 52, .38);\n  pointer-events: none;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::before { top: 2px; left: 6px; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text::after { bottom: 2px; right: 6px; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text p,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text span,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text div { color: inherit; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text b,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text strong { color: #5e1620; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text em,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text i { color: #8c2b34; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text a { color: #a0313d; }\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text hr { border: 0; border-top: 1px solid rgba(140, 43, 52, .22); }\n/* ── 兼容插图：不裁切、不撑破，圆角跟着纸走 ── */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text img,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text video,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text canvas {\n  max-width: 100% !important;\n  height: auto !important;\n  border-radius: 9px;\n  border: 1px solid rgba(140, 43, 52, .28);\n  box-shadow: 0 3px 12px rgba(90, 20, 28, .14);\n  background: #fffdf8;\n}\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text iframe { max-width: 100% !important; }\n/* ── 兼容对话气泡：气泡自己留白底，字仍是深红 ── */\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .bubble,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .dialogue,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text .chat-bubble,\nbody.haru-txt-mode #chat .mes:not([is_user=\"true\"]) .mes_text blockquote {\n  background: #fffdf8 !important;\n  border: 1px solid rgba(140, 43, 52, .22) !important;\n  border-left: 3px solid rgba(140, 43, 52, .55) !important;\n  border-radius: 10px;\n  padding: 8px 12px;\n  margin: 8px 0;\n  color: #6f1b26 !important;\n  box-shadow: 0 2px 8px rgba(90, 20, 28, .08);\n}\nbody.haru-txt-mode #chat .mes[is_user=\"true\"] .mes_text { color: #2f3a46; }\n/* ══ ★ 2026-11-19：两颗开关以前只加 class、**没有任何 CSS 消费它** ⇒ 纯摆设。\n   这里补上真正的「关」：正文美化关 → 纸/边/樱花/字色全回原样；气泡美化关 → 气泡回原样。 */\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text {\n  background: none !important; border: 0 !important; border-image: none !important;\n  box-shadow: none !important; border-radius: 0 !important; padding: 0 !important;\n  margin: 0 !important; color: inherit !important; font-size: inherit !important;\n  line-height: inherit !important; letter-spacing: normal !important;\n}\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text::before,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text::after { content: none !important; }\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text img,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text video,\nbody.haru-no-skin #chat .mes:not([is_user=\"true\"]) .mes_text canvas {\n  border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: none !important;\n}\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .bubble,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .dialogue,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text .chat-bubble,\nbody.haru-no-bubble #chat .mes:not([is_user=\"true\"]) .mes_text blockquote {\n  background: none !important; border: 0 !important; border-left: 0 !important;\n  border-radius: 0 !important; padding: 0 !important; margin: 0 !important;\n  box-shadow: none !important; color: inherit !important;\n}";
 
-/* ── 照抄天元录的挂载函数：给每楼加类 + 插零高度上下沿 ── */
-function haruInkBox(mesEl) {
-  try { return mesEl.querySelector('.mes_text') || null; } catch (e) { return null; }
-}
-function haruInkStrip(mesEl) {
-  var box = haruInkBox(mesEl); if (!box) return 0;
-  var n = 0;
+  /* ★ 2026-11-25（作者：粉色的不要了）：深色樱整块删除，默认暗金。 */
+
+  /* ══ 2026-11-20：正文美化三套皮肤（浅纸 / 深色樱 / 暗金）═══════════════════
+     作者：① 深色下气泡对话框看不见（本来就透明）；② 再来一套暗金色；③ 四角必须圆角。
+     切换存 localStorage `haru_skin_variant`；类打在 body 上：haru-skin-paper / -dark / -gold。 */
   try {
-    var olds = box.querySelectorAll('.haru-scroll-top,.haru-scroll-bot');
-    for (var i = 0; i < olds.length; i++) {
-      try { if (olds[i].parentNode) { olds[i].parentNode.removeChild(olds[i]); n++; } } catch (e0) {}
-    }
-    box.classList.remove(INK_CLS);
-    mesEl.classList.remove(INK_MES);
-    mesEl.removeAttribute(INK_MARK);
-  } catch (e1) {}
-  return n;
-}
-function haruInkRender(mesEl) {
-  if (!mesEl) return 0;
-  try { if (mesEl.getAttribute('is_user') === 'true') return 0; } catch (eU) {}
-  var box = haruInkBox(mesEl); if (!box) return 0;
-  try { if (String(mesEl.getAttribute('mesid')) === '0') { haruInkStrip(mesEl); return 0; } } catch (e0) {}
-  var intact = false;
-  try {
-    intact = mesEl.getAttribute(INK_MARK) === '1' && box.classList.contains(INK_CLS)
-      && mesEl.classList.contains(INK_MES)
-      && !!box.querySelector('.haru-scroll-top') && !!box.querySelector('.haru-scroll-bot');
-  } catch (eI) { intact = false; }
-  if (intact) return 0;
-  haruInkStrip(mesEl);
-  try {
-    var doc = hostDoc() || document;
-    var top = doc.createElement('div'); top.className = 'haru-scroll-top'; top.setAttribute('aria-hidden', 'true');
-    var bot = doc.createElement('div'); bot.className = 'haru-scroll-bot'; bot.setAttribute('aria-hidden', 'true');
-    var first = box.firstChild;
-    if (first) box.insertBefore(top, first); else box.appendChild(top);
-    box.appendChild(bot);
-    box.classList.add(INK_CLS);
-    mesEl.classList.add(INK_MES);
-    mesEl.setAttribute(INK_MARK, '1');
-  } catch (e1) { return 0; }
-  return 1;
-}
-function haruInkScan() {
-  try {
-    if (localStorage.getItem('haru_no_skin') === '1') return;
-    var doc = hostDoc(); if (!doc) return;
-    var list = doc.querySelectorAll('#chat .mes');
-    for (var i = 0; i < list.length; i++) { try { haruInkRender(list[i]); } catch (e) {} }
-  } catch (e) {}
-}
+    TEXT_SKIN_CSS += [
+      /* ── 气泡：深色 / 暗金下也要看得见（半透明白底 + 细边 + 全圆角） ── */
+      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .bubble,',
+      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .dialogue,',
+      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text .chat-bubble,',
+      'body.haru-txt-mode:not(.haru-skin-paper) #chat .mes:not([is_user="true"]) .mes_text blockquote {',
+      '  background: rgba(255,255,255,.09) !important;',
+      '  border: 1px solid rgba(226,184,87,.42) !important;',
+      '  border-left: 3px solid rgba(244,114,182,.65) !important;',
+      '  border-radius: 12px !important;',
+      '  padding: 8px 12px !important; margin: 8px 0 !important;',
+      '  color: #f7e6ef !important;',
+      '  box-shadow: 0 2px 10px rgba(0,0,0,.45) !important;',
+      '}',
+      /* ── 暗金皮肤 ── */
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text {',
+      '  padding: 18px 20px !important; margin: 12px 0 !important;',
+      '  color: #f0dfb8 !important;',
+      '  background: radial-gradient(130% 100% at 50% -10%, #241d10 0%, #1a150c 52%, #14100a 100%) !important;',
+      '  border: 1px solid rgba(212,175,55,.62) !important;',
+      '  border-radius: 14px !important;',
+      '  box-shadow: inset 0 0 0 1px rgba(255,215,120,.10), inset 0 0 30px rgba(0,0,0,.5), 0 5px 18px rgba(0,0,0,.5) !important;',
+      '}',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text::before,',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text::after { color: rgba(212,175,55,.7) !important; }',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text b,',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text strong { color: #ffe9a8 !important; }',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text em,',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text i { color: #e8c884 !important; }',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .bubble,',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .dialogue,',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text .chat-bubble,',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text blockquote {',
+      '  background: rgba(212,175,55,.10) !important;',
+      '  border: 1px solid rgba(212,175,55,.5) !important;',
+      '  border-left: 3px solid rgba(255,215,120,.75) !important;',
+      '  border-radius: 12px !important; padding: 8px 12px !important; margin: 8px 0 !important;',
+      '  color: #f6e7c2 !important; box-shadow: 0 2px 10px rgba(0,0,0,.45) !important;',
+      '}',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text img,',
+      'body.haru-txt-mode.haru-skin-gold #chat .mes:not([is_user="true"]) .mes_text video {',
+      '  border: 1px solid rgba(212,175,55,.45) !important; border-radius: 12px !important; background: #14100a !important;',
+      '}'
+    ].join('\n');
+  } catch (eGold) {}
 
   /* ══ 正文美化（文字版）：深红樱花边 + 深红正文 ═══════════════════════
      只在「没有游戏壳」时生效（body.haru-txt-mode），游戏版一个字都不碰。
@@ -1284,6 +1239,15 @@ function haruInkScan() {
   function injectTextSkin(doc) {
     try {
       if (!doc || !doc.head) return;
+      /* 清掉上一版（天元录纸）可能残留的上下沿装饰 —— 它们会让楼层高度错位 */
+      try {
+        var leftovers = doc.querySelectorAll('.haru-scroll-top,.haru-scroll-bot');
+        for (var li = 0; li < leftovers.length; li++) { try { leftovers[li].remove(); } catch (eL) {} }
+        var ink = doc.querySelectorAll('.haru-ink-scroll,.haru-ink-mes');
+        for (var li2 = 0; li2 < ink.length; li2++) {
+          try { ink[li2].classList.remove('haru-ink-scroll'); ink[li2].classList.remove('haru-ink-mes'); } catch (eL2) {}
+        }
+      } catch (eLeft) {}
       var needCss = !doc.getElementById('haru-txt-skin');
       var hasGal = false;
       try { hasGal = !!doc.getElementById('th-gal-shell-root'); } catch (eG) {}
@@ -1316,8 +1280,6 @@ function haruInkScan() {
        状态栏现在挂在 .mes_text 外面，只看 .mes_text 内部会每轮都判「没有」，
        于是每轮新建一个、再被去重删掉 ⇒ 一闪一闪。 */
     if (mesEl.querySelector('.haru-sb-host')) return;
-    /* ★ 双保险：整个文档里已有状态栏就不再建（防任何路径重复挂载导致闪烁） */
-    try { if (doc.getElementById('haru-sb-dock') || (doc.querySelectorAll('.haru-sb-host').length > 0)) return; } catch (eOnce) {}
     var doc = hostDoc(); if (!doc) return;
     var host = doc.createElement('div');
     host.className = 'haru-sb-host';
@@ -1326,9 +1288,10 @@ function haruInkScan() {
     f.className = 'haru-sb-frame';
     /* ★ 2026-11-25（作者：状态栏别搞这么恶心，抄天元录）：高度**由内容决定** ——
        内嵌页每 0.9 秒把 scrollHeight 报上来，这里设成一样高，不留内部滚动条。 */
+    /* ★ 2026-11-25（作者：疯狂滚回第0层）：高度自适应会反复改高度 → 聊天容器重排 →
+       视觉上一直往顶滚。回退成**固定高度 600px + 内部滚动**（稳定优先）。 */
     f.setAttribute('style', 'width:100%;max-width:none;border:0;background:transparent;display:block;'
-      + 'height:520px;');
-    f.setAttribute('scrolling', 'no');
+      + 'height:600px;');
     f.setAttribute('sandbox', 'allow-scripts allow-same-origin');
     f.srcdoc = SB_HTML;
     try {
@@ -1386,30 +1349,23 @@ function haruInkScan() {
       try { isU = list[i].getAttribute('is_user') === 'true'; } catch (eU) {}
       if (!isU) { last = list[i]; break; }
     }
-    if (last) mount(last);
-    /* ★ 先挂状态栏，再画纸（上沿/下沿）—— 顺序反了会出现「下沿在状态栏上面」 */
-    try { haruInkScan(); } catch (eInk) {}
-    /* 只留最新 AI 楼里的状态栏；body 上遗留的旧 dock 一并清掉 */
+    /* ★★★ 2026-11-25（作者：状态栏依旧消失）：**先清理、再挂载**。
+       mount 里若「文档里已有 host」会提前返回，随后清理又把它删掉 ⇒ 一个不剩。 */
     try {
       var oldDock = doc.getElementById('haru-sb-dock');
       if (oldDock && oldDock.parentNode) oldDock.parentNode.removeChild(oldDock);
       var pad = doc.getElementById('haru-sb-dock-pad');
       if (pad && pad.parentNode) pad.parentNode.removeChild(pad);
     } catch (eDock) {}
-    /* ★ 2026-11-25（作者：为什么有两个状态栏）：同一楼里只许留一个 ——
-       旧版挂在 .mes_text 内部、新版挂在外面，升级后两个都活着。
-       规则：只留一个（优先 .mes_text 外面的），其余全删。 */
     var hosts = doc.querySelectorAll('.haru-sb-host');
     var keep = null;
     for (var j = 0; j < hosts.length; j++) {
       var h = hosts[j];
-      var inText = false;
-      try { inText = !!h.closest('.mes_text'); } catch (eC) {}
       if (!last || !last.contains(h)) { try { h.remove(); } catch (eR0) {} continue; }
-      if (inText) { try { h.remove(); } catch (eR1) {} continue; }   /* 旧挂法残留：删 */
-      if (keep) { try { h.remove(); } catch (eR2) {} }                /* 重复的：删 */
+      if (keep) { try { h.remove(); } catch (eR2) {} }
       else keep = h;
     }
+    if (last && !keep) { try { mount(last); } catch (eM0) {} }
   }
   var timer = null;
   function schedule() { if (timer) return; timer = setTimeout(function () { timer = null; scan(); }, 400); } // debounce
