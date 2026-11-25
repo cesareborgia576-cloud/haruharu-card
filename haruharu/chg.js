@@ -1,1 +1,1 @@
-window.__CQ_CHANGELOG__={"version":"v1.88（第 1 次更新 · stable）","updated":"2026-11-25T19:55:41.311Z","entries":[{"ver":"v1.88（第 1 次更新 · stable）","date":"2026-11-26","title":"v1.88：加载遮罩居中全屏","items":["修复：加载遮罩改成显式全屏定位（inset:0 在酒馆里会被压成一条，之前跑到屏幕顶上去了）"]}]};
+window.__CQ_CHANGELOG__={"version":"v1.89（第 1 次更新 · stable）","updated":"2026-11-25T19:57:06.077Z","entries":[{"ver":"v1.89（第 1 次更新 · stable）","date":"2026-11-26","title":"v1.89：加载遮罩不再被二次覆盖","items":["修复：01-bootmask 与 loader 抢遮罩，进度文案被换成通用文案"]}]};

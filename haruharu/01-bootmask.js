@@ -19,6 +19,10 @@
   try {
     if (window.__TH_LOADER_PRESENT__ || window.__TH_LOADER_MASK_DONE__) return;
     if (window.top && (window.top.__TH_LOADER_PRESENT__ || window.top.__TH_LOADER_MASK_DONE__)) return;
+    /* ★ 双保险：屏幕上已经有 loader 挂的那块遮罩（同一个 id）就别再抢 ——
+       实测光靠全局变量不够（脚本可能跑在另一个 iframe 上下文里，读不到 top 上的标志）。 */
+    var _d = (window.top && window.top.document) || document;
+    if (_d && _d.getElementById('th-boot-mask')) return;
   } catch (e0) {}
 
   var ID = 'th-boot-mask';

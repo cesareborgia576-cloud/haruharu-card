@@ -1,1 +1,1 @@
-window.__CQ_OSS_VER__="v1.88";window.__CQ_OSS_SEQ__=217;window.__CQ_OSS_LABEL__="v1.88（第 1 次更新 · stable）";window.__CQ_OSS_FIXNO__=1;window.__CQ_OSS_UTITLE__="v1.88：加载遮罩居中全屏";window.__CQ_OSS_UITEMS__=["修复：加载遮罩改成显式全屏定位（inset:0 在酒馆里会被压成一条，之前跑到屏幕顶上去了）"];
+window.__CQ_OSS_VER__="v1.89";window.__CQ_OSS_SEQ__=218;window.__CQ_OSS_LABEL__="v1.89（第 1 次更新 · stable）";window.__CQ_OSS_FIXNO__=1;window.__CQ_OSS_UTITLE__="v1.89：加载遮罩不再被二次覆盖";window.__CQ_OSS_UITEMS__=["修复：01-bootmask 与 loader 抢遮罩，进度文案被换成通用文案"];
