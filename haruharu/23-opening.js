@@ -1009,20 +1009,8 @@
   function tick() {
     try {
       if (state.busy) return;                    /* 确认流程中不动界面（拨 swipe 会重画楼层） */
-      /* ★★ 2026-11-25（作者：开局脚本出现在旧存档里 / 疯狂滚回第0层）：
-         文字版**绝不自动弹开局面板** —— 面板插在第 0 楼会让那层变巨大、
-         聊天滚动错位（看着像滚回开场白）、状态栏被挤出视口。
-         文字版只在玩家主动点「悬浮章 / 功能页」时打开（state.open 由外部置位）。 */
-      var _isText = false;
-      try {
-        if (typeof window.thUiModeIs === 'function') _isText = !!window.thUiModeIs('text');
-      } catch (eTM) {}
-      if (_isText && !state.userOpened) {
-        try { unmountPanel(); } catch (eU0) {}
-        if (!state.done && chatLen() > 1) { try { mountChip(); } catch (eC0) {} }
-        else { try { unmountChip(); } catch (eC1) {} }
-        return;
-      }
+      /* ★ 2026-11-25（作者：开局脚本呢）：恢复文字版自动弹面板。
+         滚动已单独去掉（mountPanel 里不再 scrollIntoView），不会再跳回第 0 层。 */
       /* ★ v10.6：先扫【开局】标签，再判 done —— 顺序反了会把该弹的面板拆掉。
          关键词触发 latch：这一楼曾带【开局】标签就认定该弹面板，
          标签被 scrub 抹掉后依然成立。 */
