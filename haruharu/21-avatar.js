@@ -23,11 +23,12 @@
    ============================================================ */
 (function () {
   'use strict';
-  /* ★ 2026-11-25：统一清单后各自门禁 —— 只在「文字版」时运行 */
-  try {
-    var _uiM = (typeof window.thUiModeIs === 'function') ? (window.thUiModeIs('text') ? 'text' : 'other') : 'text';
-    if (_uiM !== 'text') return;
-  } catch (eGate) {}
+  /* ★ 2026-11-25 修复：原来这里按 thUiModeIs('text') 加了门禁，
+     真实卡里脚本跑在 iframe，模式判定有时拿不到 → 直接 return。
+     而 10-core 早把 {名}「话」从显示正文剥掉了，脚本一不跑就没人画回来
+     ⇒ 人物对话整段消失（作者：「人物的话压根不显示了」）。
+     这个脚本只处理正文里的 {名}「话」，游戏版壳里没有这种正文，天然不会误伤。
+     ⇒ 取消门禁，始终渲染。 */
 
 
   var VER = 'v16-upperbody';   /* ★ v15：头像改成「立绘放大一倍 + 只取上半部分」，必须换 VER 才会重灌 CSS */

@@ -4020,6 +4020,29 @@ function thMapCenterOn(key, noScaleReset) {
 function thMapOpen(preselect) {
   try { thMapRefreshPeople(); } catch (eMP0) {}
   var m = thEl('th-gal-mapmodal');   /* ★ v155：跨 document 找 */
+  /* ★ 2026-11-25：文字版没有游戏壳 ⇒ 地图 modal 也不存在，按钮点了没反应。
+     这里按同一份 HTML 造一个 body 级浮层（fixed + 100vw/100vh，
+     避开宿主 html 上的 transform 导致的 0 高包含块）。 */
+  if (!m) {
+    try {
+      var _d = getDoc();
+      var _w = _d.createElement('div');
+      _w.innerHTML = TH_MAP_MODAL_HTML;
+      var _el = _w.firstElementChild;
+      if (_el) {
+        _el.setAttribute('style',
+          'position:fixed !important;top:0 !important;left:0 !important;' +
+          'width:100vw !important;height:100vh !important;' +
+          'z-index:2147483620 !important;display:flex !important;');
+        _d.body.appendChild(_el);
+        m = _el;
+      }
+    } catch (eMkMap) { m = null; }
+    /* ★ 浮层自己再绑一次点击委托 —— 不依赖 iframe 里的 document 级捕获 */
+    try {
+      if (m && window.__thMapOnClick) m.addEventListener('click', window.__thMapOnClick, true);
+    } catch (eBindFloat) {}
+  }
   if (!m) return;
   var keep = (typeof preselect === 'string') ? preselect : '';
   if (keep && !TH_MAP_GRID[keep]) keep = '';
@@ -4252,6 +4275,10 @@ try {
         try { PixelAudio.playPageBlip(); } catch (e3) {}
       }
     };
+    /* ★ 2026-11-25（作者：地图弹层里任何按钮都点不动）：
+       酒馆把文本版脚本塞进 iframe，document 级委托在某些宿主里收不到浮层点击。
+       把这个处理器导出，浮层创建时直接再绑一层，双保险。 */
+    try { window.__thMapOnClick = __thMapOnClick; } catch (eExpClick) {}
     /* 三个候选 document 全挂（当前 iframe / top / parent），去重 */
     var __thMapDocs = [];
     try { if (document) __thMapDocs.push(document); } catch (eD0) {}
@@ -4347,6 +4374,19 @@ try {
   }
 } catch (eMapBind) {}
 try { HOST.__thMapOpen = thMapOpen; HOST.__thMapSync = thMapSyncMinimap; HOST.__thMapDoJump = thMapDoJump; } catch (eHost) {}
+/* ★ 2026-11-25（作者：地图呢）：状态栏脚本在自己的 iframe 里，pickFn 只扫
+   top/window/parent/兄弟 iframe。只挂 HOST 一个作用域会漏 —— 三个作用域全挂。 */
+try { window.__thMapOpen = thMapOpen; } catch (eMw) {}
+try { if (window.parent && window.parent !== window) window.parent.__thMapOpen = thMapOpen; } catch (eMp) {}
+try { if (window.top && window.top !== window) window.top.__thMapOpen = thMapOpen; } catch (eMt) {}
+/* ★ 2026-11-25（作者：查看历史楼层调用的是回忆的）：游戏版历史楼层导出。
+   必须跟 __thMapOpen 放在同一段 —— 这段是文字版 iframe 里确定执行到的位置；
+   放在 openCheatSheet 旁边那段在文字版里够不到 top，状态栏 pickFn 就抓不到。 */
+try { window.__TH_FLOORS__ = { open: openHistorySheet }; } catch (eFl0) {}
+try { if (window.parent && window.parent !== window) window.parent.__TH_FLOORS__ = window.__TH_FLOORS__; } catch (eFlP0) {}
+try { if (window.top && window.top !== window) window.top.__TH_FLOORS__ = window.__TH_FLOORS__; } catch (eFlT0) {}
+/* 2026-11-25：场景图查询导出（文字版状态栏「地点」页要用） */
+try { HOST.__thSceneBgUrl = getSceneBgUrl; window.__thSceneBgUrl = getSceneBgUrl; } catch (eSceneExp) {}
 
 var BGM_LISTS = {
   '夏越村': [
@@ -4891,6 +4931,29 @@ function startFloorEliminator() {
 
   function eliminateFloors() {
     var allMes = chatContainer.querySelectorAll('.mes');
+    /* ★ 2026-11-25（作者：文字版吞全部正文 / 只显示开场白0 / 滚回第0层）：
+       这个函数是游戏版专用的「只留含壳那一楼」。文字版根本没有游戏壳，
+       于是它把第一个 AI 楼（开场白0）当宿主，把其余所有楼层 inline 设成
+       display:none!important;height:0 —— 正文被整片吞掉、状态栏（挂在最新楼）
+       也跟着消失；再叠加 MutationObserver 反复跑，手机端就疯狂往上滚回第0层。
+       ⇒ 文字版一律不藏楼层，并清掉以前残留的 inline 样式。 */
+    try { if (thUiIsTextMode()) {
+      /* CSS 里 body.th-gal-shell-live 也会藏楼层 —— 文字版必须把这个 class 摘掉 */
+      try { var _b = getDoc().body; if (_b && _b.classList) _b.classList.remove('th-gal-shell-live'); } catch (eB) {}
+      allMes.forEach(function (el) {
+        try {
+          el.style.removeProperty('display');
+          el.style.removeProperty('visibility');
+          el.style.removeProperty('height');
+          el.style.removeProperty('margin');
+          el.style.removeProperty('padding');
+          var av = el.querySelector('.avatar'); if (av) av.style.removeProperty('display');
+          var hd = el.querySelector('.mes_header'); if (hd) hd.style.removeProperty('display');
+          var bt = el.querySelector('.mes_buttons'); if (bt) bt.style.removeProperty('display');
+        } catch (eC) {}
+      });
+      return;
+    } } catch (eTxtMode) {}
     var shellAnywhere = null;
     try { shellAnywhere = getDoc().getElementById('th-gal-shell-root'); } catch (eS) {}
     var hostMes = chatContainer.querySelector('.mes:has(#th-gal-shell-root)');
@@ -11239,10 +11302,57 @@ function bagConsume(key) {
 /* ══════════════════════════════════════════════════════════════
    ★ v31 通用面板
    ══════════════════════════════════════════════════════════════ */
+/* ★ 2026-11-25：文字版没有游戏壳 ⇒ 以前 Sheet.open 直接 return，
+   功能页「修改器 / 背包 / 主角信息」在文字版里全是死按钮。
+   这里加一个 body 级浮层兜底：position:fixed + inset:0，永远贴着可视区居中，
+   不会再跟着楼层滚到屏幕外（手机端作者报的就是这个）。 */
+function thSheetFloat() {
+  var doc = getDoc();
+  var old = doc.getElementById('th-sheet-float');
+  if (old) return old;
+  var wrap = doc.createElement('div');
+  wrap.id = 'th-sheet-float';
+  wrap.setAttribute('style',
+    'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483620;display:none;align-items:center;justify-content:center;' +
+    'background:rgba(6,7,10,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);' +
+    'padding:12px;box-sizing:border-box;');
+  wrap.innerHTML =
+    '<div style="width:94%;max-width:560px;max-height:86vh;display:flex;flex-direction:column;' +
+      'background:rgba(18,20,26,.98);border:1px solid rgba(160,168,185,.28);border-radius:12px;' +
+      'box-shadow:0 18px 46px rgba(0,0,0,.66);overflow:hidden;color:#e8eef5;' +
+      'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Noto Sans SC,sans-serif;font-size:13px;">' +
+      '<div class="th-gal-sheet-head" style="display:flex;align-items:center;gap:8px;padding:9px 12px;' +
+        'border-bottom:1px solid rgba(160,168,185,.2);font-size:14px;font-weight:700;color:#f0f3f6;flex:0 0 auto;">' +
+        '<b class="th-gal-sheet-title" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></b>' +
+        '<button type="button" class="th-gal-sheet-close" title="关闭" ' +
+          'style="flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.25);' +
+          'background:rgba(255,255,255,.1);color:#e2e8f0;font-size:13px;line-height:1;cursor:pointer;">✕</button>' +
+      '</div>' +
+      '<div class="th-gal-sheet-body" style="padding:10px 12px;overflow:auto;display:flex;flex-direction:column;gap:6px;' +
+        '-webkit-overflow-scrolling:touch;"></div>' +
+    '</div>';
+  doc.body.appendChild(wrap);
+  wrap.addEventListener('click', function (e) { if (e.target === wrap) thSheetCloseEl(wrap); });
+  var x = wrap.querySelector('.th-gal-sheet-close');
+  if (x) x.addEventListener('click', function () { thSheetCloseEl(wrap); });
+  return wrap;
+}
+function thSheetCloseEl(node) {
+  if (!node) return;
+  if (node.id === 'th-sheet-float') node.style.display = 'none';
+  else node.setAttribute('hidden', '');
+}
+function thSheetNode() {
+  var doc = getDoc();
+  var n = doc.querySelector('#th-gal-shell-root .th-gal-sheet');
+  if (n) return n;
+  return thSheetFloat();
+}
+
 var Sheet = {
   open: function (title, bodyHtml, actionsHtml) {
     var doc = getDoc();
-    var node = doc.querySelector('#th-gal-shell-root .th-gal-sheet');
+    var node = thSheetNode();
     if (!node) return;
     node.querySelector('.th-gal-sheet-title').textContent = title || '';
     node.querySelector('.th-gal-sheet-body').innerHTML = bodyHtml || '<div class="th-gal-empty">没有内容</div>';
@@ -11261,16 +11371,15 @@ var Sheet = {
        背包也会被撑成整屏。要铺满的面板自己打开后再加回来。 */
     node.classList.remove('is-history');
     node.removeAttribute('hidden');
+    if (node.id === 'th-sheet-float') node.style.display = 'flex';
   },
   close: function () {
-    var doc = getDoc();
-    var node = doc.querySelector('#th-gal-shell-root .th-gal-sheet');
-    if (node) node.setAttribute('hidden', '');
+    thSheetCloseEl(thSheetNode());
   },
   isOpen: function () {
-    var doc = getDoc();
-    var node = doc.querySelector('#th-gal-shell-root .th-gal-sheet');
-    return Boolean(node && !node.hasAttribute('hidden'));
+    var node = thSheetNode();
+    if (!node) return false;
+    return node.id === 'th-sheet-float' ? node.style.display !== 'none' : !node.hasAttribute('hidden');
   }
 };
 
@@ -12145,6 +12254,15 @@ function openCheatSheet() {
   });
 }
 
+
+/* ★ 2026-11-25：导出给文字版状态栏「功能 → 修改器」用 */
+try { window.__TH_CHEAT__ = { open: openCheatSheet }; } catch (eCheat) {}
+try { if (window.top && window.top !== window) window.top.__TH_CHEAT__ = { open: openCheatSheet }; } catch (eCheatT) {}
+/* ★ 2026-11-25（作者：查看历史楼层调用的是回忆的）：游戏版那套「历史楼层」
+   独立导出；文字版状态栏只准认 __TH_FLOORS__，不再误抓 __TH_RECALL__。 */
+try { window.__TH_FLOORS__ = { open: openHistorySheet }; } catch (eFl) {}
+try { if (window.parent && window.parent !== window) window.parent.__TH_FLOORS__ = window.__TH_FLOORS__; } catch (eFlP) {}
+try { if (window.top && window.top !== window) window.top.__TH_FLOORS__ = window.__TH_FLOORS__; } catch (eFlT) {}
 function openHeroSheet() {
   var sd = sdCache() || {};
   var h = (sd.主角信息 || {});
@@ -12909,6 +13027,58 @@ function thPaintFsBtn(shell, on) {
   } catch (e) {}
 }
 
+var TH_MAP_MODAL_HTML =
+    '<div class="th-gal-mapmodal" id="th-gal-mapmodal" hidden>' +
+      '<div class="th-map-box">' +
+        '<div class="th-map-head">' +
+          '<span class="th-map-title">世界地图</span>' +
+          '<span class="th-map-sub">拖动平移 · 滚轮缩放 · 点格子选目的地 · 确认后按格数结算时间与精力</span>' +
+          '<div class="th-map-tabs">' +
+            '<button type="button" class="th-map-tab is-on" data-th-mapact="area:全部">全部</button>' +
+            '<button type="button" class="th-map-tab" data-th-mapact="area:夏越村">夏越村</button>' +
+            '<button type="button" class="th-map-tab" data-th-mapact="area:公寓">幸福公寓</button>' +
+            '<button type="button" class="th-map-tab" data-th-mapact="area:神社">神社</button>' +
+          '</div>' +
+          '<div class="th-map-head-acts">' +
+            '<button type="button" class="th-map-tbtn th-map-tbtn-locate" data-th-mapact="locate" title="把地图移回我所在的位置">定位到我</button>' +
+            '<button type="button" class="th-map-tbtn" data-th-mapact="zoomout" title="缩小">－</button>' +
+            '<button type="button" class="th-map-tbtn" data-th-mapact="zoomin" title="放大">＋</button>' +
+            '<button type="button" class="th-map-tbtn th-map-tbtn-help" data-th-mapact="help" title="图例说明">?</button>' +
+            '<button type="button" class="th-map-tbtn" data-th-mapact="close">关闭</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="th-map-viewport" id="th-map-viewport">' +
+          '<div class="th-map-world" id="th-map-world"></div>' +
+          /* ★ v164：图例整块删掉（原来这里有个 .th-map-legend 常驻左下角，两行说明）。
+             玩家原话：「把上下两个框给老子去掉啊，搞得地图就显示一点点，手机端怎么看地图」。
+             手机端 375×667 下，顶栏约 72px + 底栏约 60px + 图例 44px ≈ 176px 全被吃掉，
+             真正能看能点的画布只剩 490px 高里的 300 出头。
+             图例文案没有丢 —— 收进了顶栏标题旁那颗「?」里，点开才盖一层浮层，不占地。 */
+          '<div class="th-map-help" id="th-map-help" hidden>' +
+            '<div class="th-map-help-card">' +
+              '<div class="th-map-help-hd">图例 <button type="button" class="th-map-help-x" data-th-mapact="help">×</button></div>' +
+              '<div class="th-map-help-bd">' +
+                '<p><b>朱印</b>　现在所在</p>' +
+                '<p><b>金框</b>　选中的去处（会呼吸）</p>' +
+                '<p><b>赭框</b>　途经格</p>' +
+                '<p><b>朱红虚线</b>　跨片区通道（搭车 / 山道 / 石阶）</p>' +
+                '<hr>' +
+                '<p>每格 <b>10 分钟 / 2 精力</b>；跨片区每道额外 <b>20 分钟</b>。</p>' +
+                '<p>拖动平移 · 滚轮缩放 · 点格子选目的地。</p>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="th-map-foot">' +
+          /* 底栏那颗 cost 只留「状态播报」（点没点选、几格、几分钟），
+             不再重复图例。原写法把整段图例又抄了一遍，等于上下两块说一模一样的话。 */
+          '<div class="th-map-cost" id="th-map-cost">点格子选目的地</div>' +
+          '<button type="button" class="th-map-btn th-map-btn-go" id="th-map-btn-go" data-th-mapact="confirm" disabled>确认前往</button>' +
+          '<button type="button" class="th-map-btn th-map-btn-cancel" data-th-mapact="cancel">取消</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
 function buildShellDOM() {
   /* ★ v148：首帧就带 is-hud-fold —— 否则要等 setupHudFold 跑完才折，
      玩家会看到「顶栏底栏先闪一下再消失」。 */
@@ -12952,6 +13122,10 @@ function buildShellDOM() {
         '<button type="button" class="th-gal-btn-bag" title="打开背包">🎒 背包</button>' +
         '<div class="th-gal-energy-indicator">⚡ 精力: <span class="th-gal-energy-val">100</span>/100</div>' +
         '<button type="button" class="th-gal-btn-mvu-heal" title="MVU 变量自愈监控：实时嗅探，点击可查看状态或手动补算">🩺 变量自愈</button>' +
+        /* ★ v115：正文修复单独一颗，紧挨变量自愈（用户要求「放在变量补全的旁边」）
+           ★ 2026-11-18：名字从「格式补全」改成「正文修复」——作者要求。
+             功能没变（本楼读不出正文时调 AI 补 &lt;content&gt;），只是名字讲人话。 */
+        '<button type="button" class="th-gal-btn-format-fix" title="正文修复：本楼读不出正文时，点这里调 AI 补上 &lt;content&gt;">🩹 正文修复</button>' +
         '<button type="button" class="th-gal-btn-home" title="直接回家（免消耗）">🏠 回家</button>' +
         /* ★ 2026-11-18：全屏按钮（作者要求）——「全屏」两个字、圆角正方形、契合主题金棕色。
            以前功能面板里那颗 ⛶ 全屏 已删除，只留这一颗常驻入口。 */
@@ -12980,8 +13154,7 @@ function buildShellDOM() {
         /* ★ v153：标题页固定用神社篇最漂亮那张（神龛佛堂外·前庭正殿）。
            以前这张会被 seasonSceneUrl('开场白') 覆盖成村里四季图，
            于是「开局图放错了」。现在写死神社，并且 thUpdateSeasonHud 不再动它。 */
-        /* ★ 2026-11-22 热更验证：标题图换乡村篇（作者要求测试热更真的会改；验证完可改回 shrine） */
-        '<img class="th-gal-title-bg-img" src="https://cdn.jsdelivr.net/gh/cesareborgia576-cloud/haruharu-village@main/scenes/1790783022588.jpg" alt="夏越村·乡村小路" data-title-bg="village" />' +
+        '<img class="th-gal-title-bg-img" src="https://a.imgckr.com/2026/10/10/XwSMu.jpg" alt="神龛佛堂外·神社前庭" data-title-bg="shrine" />' +
         '<div class="th-gal-title-mask"></div>' +
         '<div class="th-gal-title-inner">' +
           '<div class="th-gal-title-logo-wrap">' +
@@ -13403,8 +13576,6 @@ function buildShellDOM() {
            「打开插图」按钮点，结果开成外置。现在它改为**内置插图开关**（卡里自带图组），
            点一下就是打开/关闭被关掉的插图。保留 class 名仅为复用 CSS / 镜像 / 分组归属。 */
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-extillust" title="打开 / 关闭内置插图（卡里自带的图组）">🖼 插图：开</button>' +
-        /* ★ 2026-11-24（作者）：插图屏蔽模式 —— 外置/内置插图全部不显示，有图只留一行提示 */
-        '<button type="button" class="th-gal-shell-act-btn th-gal-btn-illust-block" title="插图屏蔽：开启后所有插图（外置 / 内置）都不显示">🚫 插图屏蔽：关</button>' +
         '<button type="button" class="th-gal-shell-act-btn th-gal-btn-toggle-options" title="呼出或隐藏当前前往选项">🧭 选项</button>' +
       '</div>' +
       '<div class="th-gal-shell-input-row">' +
@@ -13431,56 +13602,7 @@ function buildShellDOM() {
     '</div>' +
 
     /* ★ v137：可拖动 / 缩放的世界地图 modal（放在 root 内，覆盖整个舞台） */
-    '<div class="th-gal-mapmodal" id="th-gal-mapmodal" hidden>' +
-      '<div class="th-map-box">' +
-        '<div class="th-map-head">' +
-          '<span class="th-map-title">世界地图</span>' +
-          '<span class="th-map-sub">拖动平移 · 滚轮缩放 · 点格子选目的地 · 确认后按格数结算时间与精力</span>' +
-          '<div class="th-map-tabs">' +
-            '<button type="button" class="th-map-tab is-on" data-th-mapact="area:全部">全部</button>' +
-            '<button type="button" class="th-map-tab" data-th-mapact="area:夏越村">夏越村</button>' +
-            '<button type="button" class="th-map-tab" data-th-mapact="area:公寓">幸福公寓</button>' +
-            '<button type="button" class="th-map-tab" data-th-mapact="area:神社">神社</button>' +
-          '</div>' +
-          '<div class="th-map-head-acts">' +
-            '<button type="button" class="th-map-tbtn th-map-tbtn-locate" data-th-mapact="locate" title="把地图移回我所在的位置">定位到我</button>' +
-            '<button type="button" class="th-map-tbtn" data-th-mapact="zoomout" title="缩小">－</button>' +
-            '<button type="button" class="th-map-tbtn" data-th-mapact="zoomin" title="放大">＋</button>' +
-            '<button type="button" class="th-map-tbtn th-map-tbtn-help" data-th-mapact="help" title="图例说明">?</button>' +
-            '<button type="button" class="th-map-tbtn" data-th-mapact="close">关闭</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="th-map-viewport" id="th-map-viewport">' +
-          '<div class="th-map-world" id="th-map-world"></div>' +
-          /* ★ v164：图例整块删掉（原来这里有个 .th-map-legend 常驻左下角，两行说明）。
-             玩家原话：「把上下两个框给老子去掉啊，搞得地图就显示一点点，手机端怎么看地图」。
-             手机端 375×667 下，顶栏约 72px + 底栏约 60px + 图例 44px ≈ 176px 全被吃掉，
-             真正能看能点的画布只剩 490px 高里的 300 出头。
-             图例文案没有丢 —— 收进了顶栏标题旁那颗「?」里，点开才盖一层浮层，不占地。 */
-          '<div class="th-map-help" id="th-map-help" hidden>' +
-            '<div class="th-map-help-card">' +
-              '<div class="th-map-help-hd">图例 <button type="button" class="th-map-help-x" data-th-mapact="help">×</button></div>' +
-              '<div class="th-map-help-bd">' +
-                '<p><b>朱印</b>　现在所在</p>' +
-                '<p><b>金框</b>　选中的去处（会呼吸）</p>' +
-                '<p><b>赭框</b>　途经格</p>' +
-                '<p><b>朱红虚线</b>　跨片区通道（搭车 / 山道 / 石阶）</p>' +
-                '<hr>' +
-                '<p>每格 <b>10 分钟 / 1 精力</b>；跨片区每道额外 <b>20 分钟</b>。</p>' +
-                '<p>拖动平移 · 滚轮缩放 · 点格子选目的地。</p>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="th-map-foot">' +
-          /* 底栏那颗 cost 只留「状态播报」（点没点选、几格、几分钟），
-             不再重复图例。原写法把整段图例又抄了一遍，等于上下两块说一模一样的话。 */
-          '<div class="th-map-cost" id="th-map-cost">点格子选目的地</div>' +
-          '<button type="button" class="th-map-btn th-map-btn-go" id="th-map-btn-go" data-th-mapact="confirm" disabled>确认前往</button>' +
-          '<button type="button" class="th-map-btn th-map-btn-cancel" data-th-mapact="cancel">取消</button>' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
+    TH_MAP_MODAL_HTML +
     /* ★ v142：村历面板（挂壳内，跟世界地图同构；全屏时随壳一起进 portal） */
     '<div class="th-gal-calmodal" id="th-gal-calmodal" hidden>' +
       '<div class="th-cal-box">' +
@@ -16941,8 +17063,8 @@ function v147AnyTagBlock(decoded) {
    ★ 顺序是铁律：必须在 stripNonProse / thStripOutsideBody / 任何兜底之前。
      推演里常自带 <game><content>…</content></game> 这种「举例用的字面标签」，
      不先剥掉，它就会被当成正文锚点，剪出来的还是推演。 */
-var TH_THINK_OPEN = /<\s*(think(?:_[A-Za-z0-9]+)?|thinking|thought|reasoning|cot|scratchpad|antmlThinking|analysis|Interleaving|内心独白|思考过程)(?=[\s>])[^>]*>/gi;
-var TH_THINK_CLOSE = /<\s*\/\s*(think(?:_[A-Za-z0-9]+)?|thinking|thought|reasoning|cot|scratchpad|antmlThinking|analysis|Interleaving|内心独白|思考过程)\s*>/gi;
+var TH_THINK_OPEN = /<\s*(think(?:_[A-Za-z0-9]+)*|thinking|thought|reasoning|cot|scratchpad|antmlThinking|analysis|Interleaving|内心独白|思考过程)(?=[\s>])[^>]*>/gi;
+var TH_THINK_CLOSE = /<\s*\/\s*(think(?:_[A-Za-z0-9]+)*|thinking|thought|reasoning|cot|scratchpad|antmlThinking|analysis|Interleaving|内心独白|思考过程)\s*>/gi;
 var TH_BODY_ANCHOR = /<\s*(?:content|game|gametext|maintext|正文|正文内容|text|对话框显示)(?=[\s>])[^>]*>/i;
 var TH_THINK_SENTINEL = '\n</think>\n';
 
@@ -21844,6 +21966,8 @@ function buildCleanProseClone(box) {
       try { if (dead[d].parentNode) dead[d].parentNode.removeChild(dead[d]); } catch (eD) {}
     }
   } catch (eD2) {}
+  /* ★ 实机第五形态：孤立闭合推演尾巴（裸文本+注释）在老路径也剔一遍 */
+  try { thStripOrphanThinkFromClone(clone); } catch (eOrphanOld) {}
   return { clone: clone, killed: killed, live: liveCount, spared: spared, vis: boxVisible };
 }
 /* ★ v93：诊断。想验证「机制判据到底生没生效」：
@@ -22320,6 +22444,111 @@ function thNativeCotLike(el) {
   } catch (e) { return false; }
 }
 
+/* ★★ 2026-11-25（作者点名特例）：游戏版对话框必须 100% 剔除
+   <think_nya>…</think_nya> 里的内容。
+   真凶（三处叠加）：
+     ① 投影路径 out.text = textOf(clone) 直接拼 DOM 文本，没过 thStripThinkChains；
+     ② thNativeCotLike 只看 class/id/data-*，不看 tagName ⇒ 无 class 的
+        <think_nya> 元素逃过判据；
+     ③ clean() 把未知标签转成 <div> 并保住文本 ⇒ 内容原样进对话框。
+   修法分两层，都不靠穷举预设 class 名（作者：「不穷举的情况下剔除美化」）：
+     · DOM 形态：按「标签名属于思维链族」这一物理事实整块剔 —— 标签族与
+       TH_THINK_OPEN 同源（think / think_nya / thinking / reasoning / …），
+       不是去猜预设把折叠写成什么 class。见 clean() 里的 thIsThinkTagName。
+     · 文本形态：酒馆有时把 <think_nya> 当纯文本显示（不是元素），DOM 判据够不到
+       ⇒ 最终文本再过一次 thStripThinkChains，并去掉给解析器用的 </think> 哨兵。 */
+function thIsThinkTagName(el) {
+  try {
+    if (!el || el.nodeType !== 1) return false;
+    var tag = String(el.tagName || '').toLowerCase();
+    if (!tag) return false;
+    /* 与 TH_THINK_OPEN 的标签族同源。判的是「标签本身就是思维链容器」，
+       不是穷举预设名；think_nya / think_nya_2 / antmlthinking 等变体全部命中。 */
+    return /^(?:think(?:_[a-z0-9]+)*|thinking|thought|reasoning|cot|scratchpad|analysis|antmlthinking|interleaving|内心独白|思考过程)$/i.test(tag);
+  } catch (e) { return false; }
+}
+function thDialogueStripThink(text) {
+  var s = thStripThinkChains(String(text == null ? '' : text));
+  /* 哨兵是给解析器定位正文用的（v147AfterLastThinkClose），绝不能显示进对话框 */
+  s = s.replace(/\s*<\s*\/\s*think\s*>\s*/gi, ' ');
+  return s.replace(/[ \t]{2,}/g, ' ').trim();
+}
+
+/* ★★ 2026-11-25 实机 E2E 第五形态「孤立闭合推演尾巴」：
+   原文 `推演尾巴</think_nya><!--</think>--><content>正文` 里的无主闭合标签会被
+   浏览器当垃圾吃掉，DOM 里只剩裸文本「推演尾巴」，投影/text 级都看不到标签 ⇒
+   推演漏进对话框。但**原始文本**里闭合标签还在，解析器认得出。
+   修法不靠穷举标签名，靠位置铁律：推演恒在正文锚点之前。
+     · 从原文里取「正文锚点之前的可见文字」= 推演前缀；
+     · 若投影读回的 DOM 文本以这段前缀开头，就把这段前缀机械剔掉。
+   正文锚点与 V147_TEXT_TAGS 同源，不新增任何预设名判断。 */
+/* ★★ 实机第五形态真因：现场 `推演尾巴</think_nya><!--</think>-->` 经浏览器解析后，
+   无主闭合 `</think_nya>` 被丢弃，DOM 里只剩【文本节点"推演尾巴" + 注释节点
+   "<!--</think>-->" + 正文锚点】。thStripThinkChains 第一步把注释删了，推演文本
+   就再没有标签可识别 ⇒ 漏进对话框。
+   修法：在 clone 上，凡遇含 think 闭合的注释，把它前面紧邻的裸文本一起删。
+   正文在 <content> 里（nodeType 1），不会被误删。投影与老路径共用。 */
+function thStripOrphanThinkFromClone(root) {
+  try {
+    if (!root) return;
+    var comments = [];
+    (function walk(n) {
+      if (!n) return;
+      for (var k = n.firstChild; k; k = k.nextSibling) {
+        if (k.nodeType === 8) comments.push(k);   /* COMMENT_NODE */
+        walk(k);
+      }
+    })(root);
+    for (var i = 0; i < comments.length; i++) {
+      var cm = comments[i];
+      var cv = String(cm.nodeValue || '');
+      if (!/<\s*\/?\s*think/i.test(cv)) continue;
+      var prev = cm.previousSibling;
+      while (prev && prev.nodeType === 3 && !String(prev.nodeValue || '').trim()) prev = prev.previousSibling;
+      if (prev && prev.nodeType === 3) {
+        try { if (prev.parentNode) prev.parentNode.removeChild(prev); } catch (eP) {}
+      }
+      try { if (cm.parentNode) cm.parentNode.removeChild(cm); } catch (eC) {}
+    }
+  } catch (e) {}
+}
+function thFlattenNoWs(s) { return String(s == null ? '' : s).replace(/\s+/g, ''); }
+function thThinkPrefixFromRaw(raw) {
+  try {
+    var s = decodeEntities(String(raw == null ? '' : raw));
+    if (!s) return '';
+    var anchorRe = /<\s*(?:content|gametext|game|maintext|正文|正文内容|text|对话框显示|galgame|game_text|narrative|story|scene|对话)(?=[\s>])[^>]*>/i;
+    var m = anchorRe.exec(s);
+    var cut = -1;
+    if (m) cut = m.index;
+    else {
+      /* 没写正文锚点：退一步用最靠后的 think 类闭合标签当正文起点 */
+      TH_THINK_CLOSE.lastIndex = 0;
+      var last = -1, mc;
+      while ((mc = TH_THINK_CLOSE.exec(s)) !== null) last = mc.index;
+      if (last < 0) return '';
+      cut = last;
+    }
+    var head = s.slice(0, cut)
+      .replace(/<!--[\s\S]*?-->/g, '')   /* 假闭合 <!--</think>--> 不算文字 */
+      .replace(/<[^>]*>/g, '');           /* 剩下的开/闭标签全部脱掉 */
+    return thFlattenNoWs(head);
+  } catch (e) { return ''; }
+}
+function thTrimThinkPrefixFromDom(text, prefix) {
+  try {
+    if (!prefix || !text) return text;
+    if (thFlattenNoWs(text).indexOf(prefix) !== 0) return text;
+    /* 原文前缀和 DOM 前缀的空格/换行可能不同 ⇒ 按「非空白字符数」对齐后再切 */
+    var need = prefix.length, i = 0;
+    for (; i < text.length && need > 0; i++) {
+      if (/\s/.test(text.charAt(i))) continue;
+      need--;
+    }
+    return String(text.slice(i)).replace(/^\s+/, '');
+  } catch (e) { return text; }
+}
+
 /* ② **元素自己被 CSS 藏起来**（不是「整层没渲染」）。
    只读该元素自身的 display/visibility/opacity，不往上爬、不看 getClientRects。
    为什么要单独一个：beautify 模式要保留美化样式，但「预设把它 display:none 藏起来的
@@ -22638,6 +22867,29 @@ function thNativeProjection(box, mode) {
                全楼 10~20%；按 0.55 判会把正文全剔掉，还会触发保险阀把思维链放回来）。
              · 例外里的例外：class 命中「推演/思维链」字样的，即使是正文容器也剔。 */
         var drop = !!forbidden[tag];
+        /* ★★ 2026-11-25 作者点名特例：<think_nya> 一族必须整块剔，优先级最高。
+           不靠 class 名穷举 —— 判的是「标签本身就是思维链容器」这个物理事实，
+           与 TH_THINK_OPEN 同源。放在 visibility / 选项 / 正文容器保护之前，
+           保证它绝不被 25% 保护或选项判据救回来。两种模式都剔。
+           ★ 未闭合形态：浏览器会把后面的 <content>正文 一起吞进 think 元素，
+             整块删会连正文丢 ⇒ 先把内部正文锚点提升到 think 前面，再删壳。 */
+        try {
+          if (thIsThinkTagName(liveEl || el)) {
+            var _promoted = false;
+            var _tk = Array.prototype.slice.call(el.childNodes || []);
+            for (var _ti = 0; _ti < _tk.length; _ti++) {
+              var _kn = _tk[_ti];
+              if (!_kn || _kn.nodeType !== 1) continue;
+              var _kt = String(_kn.tagName || '').toLowerCase();
+              /* 正文锚点 = 卡的正文契约（TH_BODY_ANCHOR 同源），不是穷举美化名 */
+              if (/^(?:content|game|gametext|maintext|正文|正文内容|text|对话框显示|galgame|game_text|narrative|story|scene|对话)$/i.test(_kt)) {
+                try { if (el.parentNode) { el.parentNode.insertBefore(_kn, el); _promoted = true; } } catch (ePro) {}
+              }
+            }
+            if (_promoted) { try { el.remove(); } catch (eRmT) { if (el.parentNode) el.parentNode.removeChild(el); } continue; }
+            drop = true;
+          }
+        } catch (eThinkTag) {}
         if (mode !== 'beautify') {
           /* ★★ 2026-11-21 第 173 次：这两条判定**必须传活元素**。
              传 clone 时 getComputedStyle 恒空、父链也在 clone 里 ⇒
@@ -22824,7 +23076,13 @@ function thNativeProjection(box, mode) {
       if (isBlock && x && !/\n$/.test(x)) x += '\n';
       return x;
     }
-    out.text = textOf(clone).replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    /* ★ 实机第五形态：孤立闭合 </think_nya><!--</think>--> 被浏览器吃掉标签后，
+       推演尾巴以裸文本+注释留在 clone 里 ⇒ 在拼文本前先剔掉这段。 */
+    try { thStripOrphanThinkFromClone(clone); } catch (eOrphanProj) {}
+    var _rawText = textOf(clone).replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    /* ★★ 2026-11-25：酒馆有时把 <think_nya> 当**纯文本**显示（不是元素），
+       DOM 判据够不到它 ⇒ 文本级再兜一道。并去掉给解析器用的 </think> 哨兵。 */
+    out.text = mode === 'beautify' ? _rawText : thDialogueStripThink(_rawText);
     out.html = String(clone.innerHTML || '');
   } catch (e) { out.text = ''; out.html = ''; }
   return out;
@@ -22931,6 +23189,11 @@ function listTextFromMes(mes) {
       var badTag = /<\s*(后台推演|UpdateVariable|Analysis|JSONPatch|重要记忆|剧情连携移动|连携转移|连携移动|地点|SystemDicePool)\b/i.exec(text);
       if (badTag) text = String(text.slice(0, badTag.index)).trim();
     } catch (eCut) {}
+    /* ★★ 2026-11-25 实机 E2E 补丁：老路径（buildCleanProseClone）兜底时，
+       游戏模式楼层 display:none ⇒ 投影判空回退到这里。这里原来没过 think 剔除，
+       <think_nya>…</think_nya> 以字面标签留在 text 里 ⇒ 秘密原样进对话框。
+       投影路径已剔，这条兜底路必须同样剔一遍，两种模式口径一致。 */
+    try { text = thDialogueStripThink(text); } catch (eThStrip2) {}
     if (text.length < 12) { try { window.__thProseFail = 'too-short:' + text.length; } catch (eF3) {} return ''; }
     try { window.__thProseFail = ''; } catch (eF4) {}
     return text;
@@ -23389,6 +23652,16 @@ var DialogueReader = {
          以前这里把 parse 也标成 raw，玩家看到 TXT 就以为在跑兜底原文 —— 其实不是。 */
       this.lastSource = content ? 'parse' : 'none';
     }
+    /* ★★ 2026-11-25 实机 E2E「孤立闭合推演尾巴」统一剔除：
+       content 到这里已定稿（dom/parse/raw 三条路都汇合）。原文里若存在
+       正文锚点之前的推演前缀（含被浏览器吃掉的孤立 </think_nya> 尾巴），
+       把它从 content 开头机械剔掉 —— 靠位置（推演恒在正文前），不靠穷举标签名。 */
+    try {
+      if (content) {
+        var _thinkPrefix = thThinkPrefixFromRaw(rawText);
+        if (_thinkPrefix) content = thTrimThinkPrefixFromDom(content, _thinkPrefix);
+      }
+    } catch (eTrimPrefix) {}
     /* ★★★ 2026-11-16 23:5x：content 到这里才算定稿（可能已被 DOM 那份整片替换）。
        现在数一遍「标记还在不在」：
          · 还在 ⇒ 走老路（按第几个标记数），兜底不许插手；
@@ -27800,6 +28073,23 @@ var MvuSelfHealing = (function() {
     '</div>';
 
     (shell || doc.body).appendChild(m);
+    /* ★ 2026-11-25：没有壳（文字版）时 absolute 是相对 <body> 的 ——
+       楼层滚到底部再打开，面板会出现在整个文档的最顶端，也就是「飞出屏幕外」。
+       挂 body 时必须 fixed + inset:0，永远贴着可视区。 */
+    if (!shell) {
+      try {
+        m.style.setProperty('position', 'fixed', 'important');
+        m.style.setProperty('top', '0', 'important');
+        m.style.setProperty('left', '0', 'important');
+        /* ⚠ 不能用 100% / inset:0：宿主 html 上有 transform:matrix(1,0,0,1,0,0)，
+           它会让 fixed 以 html 为包含块，而 html 高度是 0 ⇒ 弹层被压成 0/32 像素高，
+           整体跑到屏幕外（手机端作者报的正是这个）。vh/dvh 才是真正的可视区高度。 */
+        m.style.setProperty('width', '100vw', 'important');
+        m.style.setProperty('height', '100vh', 'important');
+        m.style.setProperty('min-height', '100dvh', 'important');
+        m.style.setProperty('z-index', '2147483620', 'important');
+      } catch (eMf) {}
+    }
     _modalEl = m;
 
     /* ★ v129：不再往 m 上挂 click —— 挂 m 上的话，只要面板被重建（换壳、热更、
@@ -31630,6 +31920,11 @@ function mountInSlot() {
         var _old = doc.getElementById('th-gal-shell-root');
         if (_old && _old.parentNode) _old.parentNode.removeChild(_old);
       } catch (eRm) {}
+      /* ★ 2026-11-25：样式照旧注入 —— 文字版功能页的弹层（自愈中心 / 修改器 /
+         背包）全部用 .th-gal-* 类，不注入就是一堆没排版的裸元素，手机上直接飞出屏幕。 */
+      try {
+        if (!doc.getElementById('th-gal-shell-style') && doc.head) doc.head.insertAdjacentHTML('beforeend', STYLE);
+      } catch (eSt) {}
       return;
     }
   } catch (eTxt) {}
@@ -33245,6 +33540,92 @@ function __thFixNoFromSeq(seq) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   ★ 2026-11-25：文字版状态栏「版本」页的唯一数据口。
+   状态栏跑在**另一个 iframe** 里，直接读 __SPR_* 会因作用域不同而全空
+   （作者报的「卡版本 / 世界书不显示、运行中没第几次」就是这个）。
+   这里在核心自己的作用域里把四项一次算好，广播到 top，状态栏只负责画。
+     card = 卡版本；wb = 世界书实际版本（附应为多少）；run = 运行中 + 第几次；live = 线上版本
+   ══════════════════════════════════════════════════════════════════════ */
+function __thStatusVerSnapshot() {
+  var s = {};
+  try { s = __thLiveVerState() || {}; } catch (e0) { s = {}; }
+  function winGet(name) {
+    var ws = [];
+    try { ws = thWbWins(); } catch (e1) { ws = []; }
+    if (!ws.length) { try { ws = [window, window.top, window.parent]; } catch (e2) { ws = [window]; } }
+    for (var i = 0; i < ws.length; i++) {
+      try { var v = ws[i] && ws[i][name]; if (v !== undefined && v !== null && v !== '') return v; } catch (e3) {}
+    }
+    return '';
+  }
+  var fix = 0;
+  try { fix = Number(winGet('__SPR_HOT_FIXNO__') || 0) || 0; } catch (e4) { fix = 0; }
+  if (!fix) { try { fix = __thFixNoFromSeq(s.runSeq || 0); } catch (e5) { fix = 0; } }
+  /* ★ 2026-11-25（作者：运行中显示 seq 算什么东西）：本地卡没有 loader，
+     「第几次」来自构建时注入的 __SPR_LOCAL_FIXNO__ / __SPR_CARD_LABEL__。 */
+  var localFix = 0, cardLabel = '';
+  try { localFix = Number(winGet('__SPR_LOCAL_FIXNO__') || 0) || 0; } catch (e4b) { localFix = 0; }
+  try { cardLabel = String(winGet('__SPR_CARD_LABEL__') || ''); } catch (e4c) { cardLabel = ''; }
+  if (!fix) fix = localFix;
+  /* 「第几次」优先用 loader 广播的 fixNo；没有就按线上条目包反查；都没有就退回 label 里的「第 N 次」 */
+  var runTxt = '';
+  if (s.runVer) {
+    runTxt = String(s.runVer);
+    if (fix) runTxt += '（第 ' + fix + ' 次更新）';
+  } else if (cardLabel) {
+    /* 本地卡：构建时写进来的完整 label（已含「第 N 次更新」），绝不显示 seq */
+    runTxt = cardLabel;
+  } else if (s.runSeq && fix) {
+    runTxt = 'v?' + '（第 ' + fix + ' 次更新）';
+  }
+  if (runTxt && !fix) {
+    try {
+      var m = /第\s*(\d+)\s*次/.exec(String(s.ossLabel || '') + String(winGet('__SPR_HOT_LABEL__') || ''));
+      if (m) runTxt += '（第 ' + m[1] + ' 次更新）';
+    } catch (e6) {}
+  }
+  var liveTxt = '';
+  if (s.ossLabel) liveTxt = String(s.ossLabel);
+  else if (s.ossVer) liveTxt = String(s.ossVer) + (s.ossSeq ? ' · seq ' + s.ossSeq : '');
+  else liveTxt = String(winGet('__SPR_HOT_LABEL__') || winGet('__SPR_HOT_VER__') || '');
+  var wbNow = '';
+  try { wbNow = String(_thWbVer.ver || ''); } catch (e7) {}
+  /* ★ 2026-11-25（作者：世界书读取呢）：_thWbVer.ver 只有跑过一次异步读取才有值，
+     文字版没有任何地方会去踢它 ⇒ 版本页永远「书里没读到」。
+     这里**同步**扫一遍卡内嵌 character_book（不依赖 API、不等 Promise），
+     有就直接用；顺手踢一次异步刷新，供后面显示「应为本」对比。 */
+  if (!wbNow) {
+    try {
+      var _lb = thWbLocalBags();
+      for (var _li = 0; _li < _lb.length; _li++) {
+        if (String(_lb[_li].title || '') === TH_WB_VER_ENTRY) { wbNow = String(_lb[_li].content || '').trim(); break; }
+      }
+    } catch (e7b) {}
+    try { thWbVerRefresh(false); } catch (e7c) {}
+  }
+  var wbWant = '';
+  try { wbWant = String(thWbWantLabel() || ''); } catch (e8) {}
+  var wbTxt = '';
+  if (wbNow) wbTxt = wbNow + (wbWant && wbNow !== wbWant ? '（应为 ' + wbWant + '）' : '');
+  else if (wbWant) wbTxt = '书里没读到，应为 ' + wbWant;
+  else wbTxt = '—';
+  var cardTxt = String(s.card || '');
+  if (!cardTxt) { try { cardTxt = String(winGet('__TH_WB_EXPECT_VER__') || ''); } catch (eCv2) {} }
+  return {
+    card: cardTxt,
+    wb: wbTxt, wbNow: wbNow, wbWant: wbWant,
+    run: runTxt, live: liveTxt,
+    runVer: String(s.runVer || ''), runSeq: Number(s.runSeq || 0), fixNo: fix,
+    /* ★ 2026-11-25：有没有新版本 —— 状态栏「版本」两个字靠它发红光 */
+    newer: !!s.newer, basis: String(s.basis || '')
+  };
+}
+try { window.__thStatusVer = __thStatusVerSnapshot; } catch (eSV0) {}
+try { window.__thWbDebug = function () { return thWbSelfRead(); }; } catch (eWbD) {}
+try { if (window.top && window.top !== window) window.top.__thWbDebug = window.__thWbDebug; } catch (eWbD2) {}
+try { if (window.top && window.top !== window) window.top.__thStatusVer = __thStatusVerSnapshot; } catch (eSV1) {}
+
+/* ══════════════════════════════════════════════════════════════════════
    ★ v167：世界书版本检测
 
    作者原话：「酒馆的世界书有时容易不更新，容易误导玩家。你参考天元录那边，
@@ -33542,6 +33923,32 @@ function thWbSelfRead() {
     }
     return null;
   }
+  /* ★ 2026-11-25（作者：世界书读取呢）：本地卡的世界书就在角色数据的
+     character_book 里（导入卡时原样带进来）。这条路**同步、不依赖任何宿主接口**，
+     先去这里找；找到就直接给结论，不再等 TavernHelper / 切换器
+     （它们没就绪时整条链会一直挂着，界面只能报「书里没读到」）。 */
+  try {
+    var lb0 = thWbLocalBags();
+    var hit0 = findVer(lb0);
+    if (hit0) {
+      out.ver = String(hit0.content == null ? '' : hit0.content).trim();
+      out.wb = String(hit0.book || '');
+      out.count = lb0.length;
+      out.verBy = 'local-first';
+      out.verSrcName = String(hit0.title || '');
+      out.sample = out.verSrcName + ' = ' + out.ver;
+      if (!out.ver) {
+        out.state = 'empty';
+        out.ok = false;
+        out.msg = '书里有《' + TH_WB_VER_ENTRY + '》，但正文是空的';
+        return Promise.resolve(out);
+      }
+      out.ok = true;
+      out.hit = 1;
+      out.state = 'ok';
+      return Promise.resolve(out);
+    }
+  } catch (eLF) {}
   return thWbCollectAll().then(function (flat) {
     var apiHit = findVer(flat);
     var all = flat.slice();
@@ -35371,7 +35778,9 @@ try { setTimeout(thLocalTagProbe, 6000); } catch (eLp1) {}
          它被 append 进 #th-gal-shell-root，跟着壳进全屏 / 出全屏，永远不出界面。
          没有壳时才退回 fixed（文字版兜底），这一条不删。 */
       '.th-relnet-mask{position:absolute;inset:0;z-index:2147483200;background:rgba(7,6,10,.88);display:flex;align-items:center;justify-content:center;padding:8px;box-sizing:border-box;overflow:hidden;}',
-      '.th-relnet-mask.is-fixed{position:fixed;}',
+      /* ★ 2026-11-25（作者：关系网依旧在屏幕外）：这条跟 26-relnet 共用同一个 style id，
+         10-core 先注入 ⇒ 它这条短规则赢了， mask fixed 后宽高塌成 8px。补齐。 */
+      '.th-relnet-mask.is-fixed{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;}',
       /* 宽高一律 100%：跟着 mask 走，mask 跟着壳走 ⇒ 三层同一个基准，不可能越界。 */
       '.th-relnet-box{width:100%;max-width:1180px;height:100%;max-height:100%;display:flex;flex-direction:column;background:linear-gradient(160deg,#191620,#100e15);border:1px solid rgba(217,187,122,.45);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.6);color:#e8dfd1;font-family:inherit;overflow:hidden;box-sizing:border-box;}',
       '.th-relnet-head{display:flex;align-items:center;gap:10px;padding:11px 15px;border-bottom:1px solid rgba(217,187,122,.22);}',
@@ -35900,7 +36309,17 @@ try { setTimeout(thLocalTagProbe, 6000); } catch (eLp1) {}
        那时加 is-fixed 让 position:fixed 生效，否则 absolute 会缩成 0 高）。 */
     var _shell0 = null;
     try { _shell0 = _rd.querySelector('#th-gal-shell-root'); } catch (eSh0) { _shell0 = null; }
+    /* ★ 2026-11-25：文字版会把壳删掉 / 藏在别的 document。抓到隐藏壳就 absolute inset:0 ⇒ 屏幕外。 */
+    var _shellOk = false;
     if (_shell0) {
+      try {
+        var _csR = HOST.getComputedStyle(_shell0);
+        _shellOk = (_csR && _csR.display !== 'none' && _csR.visibility !== 'hidden'
+          && (_shell0.offsetWidth > 0 || _shell0.offsetHeight > 0)
+          && !_shell0.hasAttribute('hidden'));
+      } catch (eVisR) { _shellOk = false; }
+    }
+    if (_shellOk) {
       try {
         var _sp0 = HOST.getComputedStyle(_shell0).position;
         if (!_sp0 || _sp0 === 'static') _shell0.style.setProperty('position', 'relative', 'important');
@@ -35908,8 +36327,9 @@ try { setTimeout(thLocalTagProbe, 6000); } catch (eLp1) {}
       mask.classList.remove('is-fixed');
     } else {
       mask.classList.add('is-fixed');
+      _shell0 = null;
     }
-    var _body = (_shell0 && _shell0.appendChild) ? _shell0 : (_rd.body || _rd.documentElement);
+    var _body = (_shellOk && _shell0 && _shell0.appendChild) ? _shell0 : (_rd.body || _rd.documentElement);
     if (!_body || !_body.appendChild) { throw new Error('找不到可挂载的页面主体'); }
     _body.appendChild(mask);
     var canvas = mask.querySelector('#th-relnet-canvas');

@@ -233,6 +233,18 @@
     inited: false,        /* 默认草稿是否已按当前开场白初始化过 */
     step: 1               /* ★ 2026-11-25：两页向导（1=篇章与季节，2=玩家与开局） */
   };
+  /* ★ 2026-11-25（作者：开局脚本新聊天后不会返回第一页）：
+     脚本 iframe 里 eventOn(chat_changed) 经常收不到。改用聊天对象身份指纹：
+     ST 切聊天时会换掉 ctx.chat 数组，认这个就够，不受同聊天内 swipe / 刷新影响。 */
+  var chatFp = null;
+  function chatFingerprint() {
+    try {
+      var ctx = getStContext();
+      if (!ctx || !ctx.chat) return null;
+      return { arr: ctx.chat, cid: String(ctx.characterId || '') };
+    } catch (e) { return null; }
+  }
+
   var draft = defaultDraft();
 
   function defaultDraft() {
@@ -362,6 +374,16 @@
       });
     }
 
+    /* ★ 2026-11-25（作者：乡村篇所在地一直是开场白）：
+       开场白自带的 <JSONPatch> 里明写 地点=开场白；confirmStart 提取的就是这份，
+       所以之前怎么补写都会被它盖回「开场白」。这里把种子/开场白里所有地点 op 删掉，
+       按所选篇章写死落点（跟 10-core 的 arcHomePlace / 三份 INIT_PATCH 同一套值）。 */
+    var PLACE_OF = { '夏越村': '春日大平家·客厅', '公寓': '301室-客厅', '神社': '神社客房' };
+    var ak = String((opt && opt.arc) || '夏越村');
+    var placeVal = PLACE_OF[ak] || PLACE_OF['夏越村'];
+    arr = arr.filter(function (op) { return String(op.path || '') !== '/主角信息/地点'; });
+    arr.push({ op: 'replace', path: '/主角信息/地点', value: placeVal });
+
     /* ④ 设置字段（压在种子之上；这些字段 schema 里已声明，不写会被 MVU 当野字段整理掉） */
     arr.push({ op: 'insert', path: '/全局/游戏模式', value: mode });
     arr.push({ op: 'insert', path: '/全局/季节', value: season });
@@ -442,18 +464,22 @@
   /* 写完后的补写拍：只补「设置字段包」，不重发整份种子。
      MVU 异步 parseMessage 开场白时可能用不带设置的旧快照整份 replaceMvuData，
      把刚写的设置冲掉 —— 900ms / 2400ms 各补一拍，冲掉就捡回来。 */
-  function reassertPack(d) {
+  function reassertPack(d, place) {
     var pack = {
       全局: { 游戏模式: normMode(d.mode), 季节: normSeason(d.season), 开局类型: normStartType(d.startType) },
       主角信息: {}
     };
     PLAYER_KEYS.forEach(function (k) { pack.主角信息[k] = String(d.player[k] == null ? '' : d.player[k]).trim(); });
+    /* ★ 2026-11-25（作者：乡村篇所在地还是开场白）：
+       种子里 /主角信息/地点 有值，但 MVU 异步 parseMessage 会把开场白的旧快照整份
+       replaceMvuData 回来，把地点冲成 schema 默认的「开场白」。补写拍必须连地点一起补。 */
+    if (place) pack.主角信息.地点 = String(place);
     /* ★ 2026-11-21：纯爱下架 —— 原来这里会在纯爱时清空苦主列表，已删。 */
     return pack;
   }
-  function scheduleReassert(d) {
-    setTimeout(function () { writeStatData(reassertPack(d)); }, 900);
-    setTimeout(function () { writeStatData(reassertPack(d)); }, 2400);
+  function scheduleReassert(d, place) {
+    setTimeout(function () { writeStatData(reassertPack(d, place)); }, 900);
+    setTimeout(function () { writeStatData(reassertPack(d, place)); }, 2400);
   }
 
   /* ══════════════ 拨开场白 swipe（数据层直改，照同层版 jumpToGreeting 数据层B）══════════════ */
@@ -497,6 +523,10 @@
           var fnSeed = (window.__TH_ARC_SEED_OPS__ || (window.top && window.top.__TH_ARC_SEED_OPS__));
           if (typeof fnSeed === 'function') {
             var arr = fnSeed(arc.key);
+            /* ★ 10-core 的 __TH_ARC_SEED_OPS__ 返回的是 JSON 字符串（arcInitPatch 里
+               return JSON.stringify(arr)），不是数组。不 parse 的话公寓篇开局直接抛
+               「没有种子」—— 公寓那篇正文恰好没带 <JSONPatch>。 */
+            if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch (eJP) { arr = []; } }
             if (Array.isArray(arr) && arr.length) ops = arr;
           }
         } catch (eSeed2) {}
@@ -521,7 +551,10 @@
       state.markSeen = false;        /* ★ 清 latch，否则下一拍 tick 又把面板弹回来 */
       state.open = false;
       state.scrolled = false;
-      scheduleReassert(d);
+      /* 从刚合成的 statObj 里取所在地，喂给补写拍（见 reassertPack 注释） */
+      var place0 = '';
+      try { place0 = String((statObj['主角信息'] || {})['地点'] || ''); } catch (ePl) {}
+      scheduleReassert(d, place0);
 
       /* ⑤ 界面：面板收起（不留悬浮球） */
       unmountPanel();
@@ -752,6 +785,48 @@
   /* ══════════════ ★ 2026-11-25：照抄天元录开局 ——
      第 1 页 = 标题页（大字标题 + 一句介绍 + 版本/世界书 + 前言注意事项 + 开始）
      第 2 页 = 设置页（篇章 / 季节 / 玩家 / 开局类型 + 确认） */
+  /* ★ 2026-11-25（作者：卡版本呢 / 世界书呢）：开局面板跑在自己的 iframe 里，
+     __SPR_CARD_VER 在别人那个 window 上 ⇒ 直接读永远是空。
+     这里按 top → parent → 自己的顺序读；世界书优先用核心算好的快照。 */
+  function coverGet(name) {
+    var ws = [];
+    try { ws.push(window.top); } catch (e0) {}
+    try { ws.push(window.parent); } catch (e1) {}
+    ws.push(window);
+    /* ★ 2026-11-25：酒馆助手把每个脚本塞进各自的 iframe ——
+       卡版本 / 世界书期望号往往在**兄弟 iframe** 的 window 上，top/parent 都看不见。 */
+    try {
+      var docs = [document];
+      try { if (window.top && window.top.document) docs.push(window.top.document); } catch (eD0) {}
+      for (var di = 0; di < docs.length; di++) {
+        var ifr = docs[di].querySelectorAll('iframe');
+        for (var fi = 0; fi < ifr.length; fi++) {
+          try { var cw = ifr[fi].contentWindow; if (cw) ws.push(cw); } catch (eF) {}
+        }
+      }
+    } catch (eScan) {}
+    for (var i = 0; i < ws.length; i++) {
+      try { var v = ws[i] && ws[i][name]; if (v !== undefined && v !== null && v !== '') return v; } catch (e2) {}
+    }
+    return '';
+  }
+  function fillCoverWb() {
+    try {
+      var el = getDoc().getElementById('thso-cover-wb');
+      if (!el) return;
+      var txt = '';
+      try {
+        var fn = coverGet('__thStatusVer');
+        if (typeof fn === 'function') {
+          var st = fn();
+          if (st && st.wb && st.wb !== '—') txt = String(st.wb);
+        }
+      } catch (e3) {}
+      if (!txt) txt = String(coverGet('__TH_WB_EXPECT_VER__') || '');
+      el.textContent = txt || '未读到';
+    } catch (e4) {}
+  }
+
   function panelHtml() {
     var step = (state.step === 2) ? 2 : 1;
     var h = '';
@@ -765,7 +840,7 @@
         '<div class="thso-cover-sub">七位熟女 · 三位巫女 · 八位苦主 —— 一座走不出去的山村，一段说不出口的夏天。</div>' +
         '</div>';
       h += '<div class="thso-cover-meta">' +
-        '<div class="thso-cover-row"><span>卡版本</span><b id="thso-cover-ver">' + escHtml(String(window.__SPR_CARD_VER || '—')) + '</b></div>' +
+        '<div class="thso-cover-row"><span>卡版本</span><b id="thso-cover-ver">' + escHtml(String(coverGet('__SPR_CARD_VER') || coverGet('__TH_WB_EXPECT_VER__') || '—')) + '</b></div>' +
         '<div class="thso-cover-row"><span>世界书</span><b id="thso-cover-wb">检测中…</b></div>' +
         '</div>';
       h += '<div class="thso-cover-note">' +
@@ -870,6 +945,7 @@
     host.innerHTML = panelHtml();
     mesText.appendChild(host);
     bindHost(host);
+    fillCoverWb();
     scrubMark(mesText);          /* ★ 关键词用完即抹，玩家不看见 */
     /* ★ 2026-11-25：**不再自动滚动**（面板插在第 0 楼，一滚就「跳回开场白」） */
   }
@@ -885,6 +961,7 @@
     if (!host) { mountPanel(); return; }
     host.innerHTML = panelHtml();
     bindHost(host);
+    fillCoverWb();
   }
 
   /* ══════════════ 悬浮章（完成后入口；可拖拽，单击打开）══════════════ */
@@ -1008,7 +1085,16 @@
      未完成但已聊起来（老档 / 玩家有意跳过）→ 不骚扰，只给悬浮章。 */
   function tick() {
     try {
-      if (state.busy) return;                    /* 确认流程中不动界面（拨 swipe 会重画楼层） */
+      if (state.busy) return;
+      /* ★ 换聊天 → 强制回第一页（不依赖 eventOn 事件） */
+      try {
+        var fpNow = chatFingerprint();
+        if (fpNow && chatFp && (fpNow.arr !== chatFp.arr || fpNow.cid !== chatFp.cid)) {
+          state.step = 1; state.markSeen = false; state.open = false;
+          draft = defaultDraft();
+        }
+        if (fpNow) chatFp = fpNow;
+      } catch (eFp) {}                    /* 确认流程中不动界面（拨 swipe 会重画楼层） */
       /* ★ 2026-11-25（作者：开局脚本呢）：恢复文字版自动弹面板。
          滚动已单独去掉（mountPanel 里不再 scrollIntoView），不会再跳回第 0 层。 */
       /* ★ v10.6：先扫【开局】标签，再判 done —— 顺序反了会把该弹的面板拆掉。
@@ -1050,7 +1136,7 @@
     w0.forEach(function (w) {
       try {
         if (w && w.eventOn) {
-          w.eventOn('chat_changed', function () { state.open = false; state.markSeen = false; unmountPanel(); draft = defaultDraft(); tick(); });
+          w.eventOn('chat_changed', function () { state.open = false; state.markSeen = false; state.step = 1; /* ★ 作者：新聊天必须回第一页 */ unmountPanel(); draft = defaultDraft(); tick(); });
           w.eventOn('MESSAGE_UPDATED', function () { if (!state.busy) tick(); });
         }
       } catch (eE) {}
@@ -1062,7 +1148,7 @@
     window.__thStartDebug = {
       open: function () { state.open = true; tick(); },
       close: function () { state.open = false; tick(); },
-      state: function () { return JSON.parse(JSON.stringify({ open: state.open, busy: state.busy, done: state.done, draft: draft })); },
+      state: function () { return JSON.parse(JSON.stringify({ open: state.open, busy: state.busy, done: state.done, step: state.step, draft: draft })); },
       buildPatch: thStartBuildPatch,
       opsToStatData: opsToStatData
     };

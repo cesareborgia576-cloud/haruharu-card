@@ -1,10 +1,10 @@
 {
-  "version": "v1.74（第 1 次更新 · stable）",
-  "seq": 203,
+  "version": "v1.75",
+  "seq": 204,
   "fixNo": 1,
-  "label": "v1.74（第 1 次更新 · stable）",
-  "stableRef": "42da3b54d7cb2f63b9a94e90d9e2b8ba305777a8",
-  "updated": "2026-11-17T12:31:54.624Z",
+  "label": "v1.75（第 1 次更新 · stable）",
+  "stableRef": "",
+  "updated": "2026-11-25T10:21:15.916Z",
   "repo": "cesareborgia576-cloud/haruharu-card",
   "dir": "haruharu/",
   "files": {
@@ -20,7 +20,6 @@
       "13-gal.js"
     ],
     "text": [
-      "20-heal.js",
       "21-avatar.js",
       "22-illust.js",
       "23-opening.js",
