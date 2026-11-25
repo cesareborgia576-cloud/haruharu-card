@@ -33553,9 +33553,15 @@ function __thLiveVerState() {
   } else if (ossVer && runVer) {
     newer = __thLiveVerCmp(ossVer, runVer) > 0;
     basis = 'ver';
+  } else if (ossVer || ossSeq) {
+    /* ★ 2026-11-25（作者：更新了提示没了、版本其实没更）：拿不准运行版本时，
+       绝不再「默认判已最新」把提示消掉。线上有版本、又确认不了已真正更新 ⇒
+       保守提示「有新版本」——宁可一直提醒，也不假消误导。 */
+    newer = true;
+    basis = 'unknown-run';
+  } else {
+    basis = 'none';
   }
-  /* 诊断：判成「没新版」时到底是没拿到数据，还是真的一样新 */
-  if (!basis) basis = (ossVer || ossSeq) ? 'unknown-run' : 'none';
 
   return {
     card: card, cardSeq: cardSeq,
