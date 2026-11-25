@@ -14701,6 +14701,10 @@ function thImgGateSet(p) {
   });
 }
 function thImgGateOpen(sub, title) {
+  /* ★ 2026-11-25 作者：开局的「载入素材」遮罩是摆设（预加载没实际效果、还挡视线），去掉不显示。 */
+  try { var _hg = thImgGateDoc().getElementById('th-img-gate'); if (_hg) { _hg.hidden = true; _hg.classList.remove('is-on'); } } catch (eHG0) {}
+  try { thImgGateDoc().body.classList.remove('th-img-gate-on'); } catch (eHG1) {}
+  return;
   var el = thImgGate();
   if (!el) return;
   /* 全屏搬运 / 壳重建之后，弹层可能还挂在旧父节点上 —— 每次开都重新归位。
@@ -21938,8 +21942,14 @@ function buildCleanProseClone(box) {
          .thdl-wrap 及其子树一律不 kill。 */
       try {
         if (le.matches && le.matches('.thdl-wrap')) {
-          var _nm2 = le.querySelector('.thdl-name'), _bub2 = le.querySelector('.thdl-bubble');
-          var _tx2 = (_nm2 ? '{' + String(_nm2.textContent || '').trim() + '}' : '') + (_bub2 ? String(_bub2.textContent || '').trim() : '');
+          var _tx2;
+          if (le.classList.contains('is-narr') || !le.querySelector('.thdl-bubble')) {
+            var _nt2 = le.querySelector('.thdl-narr-text');
+            _tx2 = String((_nt2 || le).textContent || '').trim();
+          } else {
+            var _nm2 = le.querySelector('.thdl-name'), _bub2 = le.querySelector('.thdl-bubble');
+            _tx2 = (_nm2 ? '{' + String(_nm2.textContent || '').trim() + '}' : '') + (_bub2 ? String(_bub2.textContent || '').trim() : '');
+          }
           if (_tx2) { if (ce.parentNode) ce.parentNode.replaceChild(ce.ownerDocument.createTextNode(_tx2), ce); }
           else { if (ce.parentNode) ce.parentNode.removeChild(ce); }
           continue;
@@ -22858,9 +22868,17 @@ function thNativeProjection(box, mode) {
            对白气泡是正文本体，不是美化 —— 遇到 .thdl-wrap 及其子树一律原样保留。 */
         try {
           if (el.matches && el.matches('.thdl-wrap')) {
-            /* 还原成 {名字}「话」：21-avatar 渲染后花括号没了，对话框靠 {} 提说话人，必须补回 */
-            var _nm = el.querySelector('.thdl-name'), _bub = el.querySelector('.thdl-bubble');
-            var _tx = (_nm ? '{' + String(_nm.textContent || '').trim() + '}' : '') + (_bub ? String(_bub.textContent || '').trim() : '');
+            /* 21-avatar 两种气泡：旁白 `.thdl-wrap.is-narr > .thdl-narr-text`（无 name/bubble）；
+               对白 `.thdl-wrap > .thdl-main > .thdl-name + .thdl-bubble`。
+               对白还原成 {名}「话」（对话框靠 {} 提说话人）；旁白取文本原样。 */
+            var _tx;
+            if (el.classList.contains('is-narr') || !el.querySelector('.thdl-bubble')) {
+              var _nt = el.querySelector('.thdl-narr-text');
+              _tx = String((_nt || el).textContent || '').trim();
+            } else {
+              var _nm = el.querySelector('.thdl-name'), _bub = el.querySelector('.thdl-bubble');
+              _tx = (_nm ? '{' + String(_nm.textContent || '').trim() + '}' : '') + (_bub ? String(_bub.textContent || '').trim() : '');
+            }
             if (_tx) { if (el.parentNode) el.parentNode.replaceChild(el.ownerDocument.createTextNode(_tx), el); }
             else { if (el.parentNode) el.parentNode.removeChild(el); }
             continue;
