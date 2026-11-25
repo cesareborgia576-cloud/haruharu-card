@@ -19856,7 +19856,8 @@ function splitPagesForGalInner(text, bodyEl) {
            读起来像她在念旁白。现在在「」处切开：
              · 一页只有对白（带名牌）
              · 后面的叙述另起一页（无名牌） */
-        var _raw = String(m[2] || '').replace(/\{[^{}\n]{1,24}\}/g, '').trim();
+        /* 酒馆把「」包成 <q>「…」</q>，content 里若残留 <q> 标签先剥掉，否则 _q 匹配不到「开头 */
+        var _raw = String(m[2] || '').replace(/\{[^{}\n]{1,24}\}/g, '').replace(/<\/?q\b[^>]*>/gi, '').trim();
         var _nm = m[1].trim();
         var _q = /^「([\s\S]*?)」\s*([\s\S]+)$/.exec(_raw);
         if (_q) {
