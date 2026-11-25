@@ -131,16 +131,20 @@
     'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);',
     'box-shadow:0 2px 8px rgba(0,0,0,.35);position:relative;}',
     '.thdl-ava img{width:100%;height:auto;max-width:none;object-fit:unset;display:block;',   /* ★ 2026-11-25：不裁 —— 立绘按宽铺满、从头顶往下显示上半身 */
-    'transform:scale(2);transform-origin:50% 0;image-rendering:auto;}',
+    'image-rendering:auto;}',
     /* 没头像的人（苦主/玩家）：用首字母占位，保持左边距一致不跳动 */
     '.thdl-ava.is-ph{display:flex;align-items:center;justify-content:center;',
     'font-size:15px;font-weight:600;color:rgba(255,255,255,.72);letter-spacing:.5px;}',
     '.thdl-main{flex:1 1 auto;min-width:0;}',
-    '.thdl-name{font-size:12px;font-weight:600;line-height:1.4;margin:0 0 3px;',
-    'color:#8ecdf7;letter-spacing:.3px;}',
-    '.thdl-bubble{position:relative;border-radius:12px;padding:8px 12px;',
-    'background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);',
-    'color:inherit;font-size:inherit;line-height:1.75;word-break:break-word;}',
+    '.thdl-name{font-size:11.5px;font-weight:600;line-height:1.4;margin:0 0 3px;',
+    'color:#b9c6d2;letter-spacing:.3px;}',
+    /* ★ 2026-11-25（作者：正文美化参考天元录）：气泡 = 水墨灰（同天元录 v590 色值） */
+    '.thdl-bubble{position:relative;border-radius:10px;padding:8px 12px;',
+    'background:radial-gradient(130% 82% at 20% 0%,rgba(152,158,166,.13) 0%,rgba(152,158,166,0) 58%),',
+    'linear-gradient(180deg,rgba(92,96,102,.90) 0%,rgba(70,74,80,.92) 100%);',
+    'border:1px solid rgba(160,166,174,.30);',
+    'box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 7px rgba(0,0,0,.28);',
+    'color:#e9e6e0;font-size:inherit;line-height:1.78;word-break:break-word;}',
     /* ★ v9.17：菱形小尖角已删。留一条 !important 兜底，盖掉热更前残留的旧 style */
     '.thdl-bubble::before{content:none !important;display:none !important;}',
     '.thdl-narr-text{font-size:inherit;line-height:1.78;}',
