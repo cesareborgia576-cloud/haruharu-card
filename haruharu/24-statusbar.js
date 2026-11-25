@@ -443,7 +443,7 @@
     } catch (eB) {}
     if (bg) {
       h += '<div style="border-radius:10px;overflow:hidden;border:1px solid rgba(200,164,92,.3);margin-bottom:8px;">'
-        + '<img src="' + esc(bg) + '" style="width:100%;height:150px;object-fit:cover;display:block;" loading="lazy" referrerpolicy="no-referrer">'
+        + '<img src="' + esc(bg) + '" style="width:100%;height:auto;max-height:260px;object-fit:contain;display:block;background:#14100a;" loading="lazy" referrerpolicy="no-referrer">'
         + '</div>';
     }
     h += '<div class="hb-cell" style="margin-bottom:8px"><div class="hb-k">📍 你在这里</div><div class="hb-v">' + esc(here || '—') + '</div></div>';
@@ -532,7 +532,9 @@
       ['🕸 关系网', 'relnet'],
       ['📜 回忆', 'recall'],
       ['🚫 插图屏蔽', 'illblk'],
-      ['🚫 立绘屏蔽', 'sprblk']
+      ['🚫 立绘屏蔽', 'sprblk'],
+      ['🎨 正文美化', 'skin'],
+      ['💬 气泡头像美化', 'bubble']
     ];
     var h = '<div class="hb-title">功能</div>';
     for (var i = 0; i < items.length; i++) {
@@ -686,6 +688,26 @@
         try { localStorage.setItem(isIll ? 'SPR_ILLUST_BLOCK' : 'SPR_SPRITE_BLOCK', cur ? '0' : '1'); } catch (e3) {}
         try { if (typeof ap === 'function') ap(); } catch (e4) {}
         toast((isIll ? '插图屏蔽' : '立绘屏蔽') + '：' + (cur ? '已关闭' : '已开启'));
+        return;
+      }
+      if (a === 'skin') {
+        /* 正文美化（暗金卷轴）开关：关掉就撤纸，开回来就装纸 */
+        var offSkin = false;
+        try { offSkin = localStorage.getItem('haru_no_skin') === '1'; } catch (eS0) {}
+        try { localStorage.setItem('haru_no_skin', offSkin ? '0' : '1'); } catch (eS1) {}
+        try { injectTextSkin(); } catch (eS2) {}
+        try { inkApply(); } catch (eS3) {}
+        toast('正文美化：' + (offSkin ? '已开启' : '已关闭'));
+        return;
+      }
+      if (a === 'bubble') {
+        /* 气泡头像美化开关：切换 body.haru-no-bubble，并重渲染一遍 21-avatar 气泡 */
+        var offBub = false;
+        try { offBub = localStorage.getItem('haru_no_bubble') === '1'; } catch (eB0) {}
+        try { localStorage.setItem('haru_no_bubble', offBub ? '0' : '1'); } catch (eB1) {}
+        try { injectTextSkin(); } catch (eB2) {}
+        try { var rr = pickFn('__thAvatarRerender'); if (typeof rr === 'function') rr(); } catch (eB3) {}
+        toast('气泡头像美化：' + (offBub ? '已开启' : '已关闭'));
         return;
       }
     } catch (e) {}
