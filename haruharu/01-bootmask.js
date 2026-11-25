@@ -55,7 +55,7 @@
         w = d.createElement('div');
         w.id = ID;
         w.setAttribute('style',
-          'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;'
+          'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;margin:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;'
           + 'background:rgba(6,9,6,.62);pointer-events:none;animation:thBootFade .25s ease-out;');
         w.innerHTML =
           '<div id="th-boot-box" style="min-width:230px;max-width:80vw;padding:20px 26px;border-radius:14px;text-align:center;'

@@ -1,1 +1,1 @@
-window.__CQ_OSS_VER__="v1.87";window.__CQ_OSS_SEQ__=216;window.__CQ_OSS_LABEL__="v1.87（第 1 次更新 · stable）";window.__CQ_OSS_FIXNO__=1;window.__CQ_OSS_UTITLE__="v1.87：线上加载提醒（遮罩挂到 loader 里）";window.__CQ_OSS_UITEMS__=["修复：线上薄卡没有加载提醒 —— 遮罩改由 loader 自己挂，拉脚本期间显示进度，拉完即摘","修复：01-bootmask 与 loader 抢同一个遮罩，现在 loader 在跑时它自动让位"];
+window.__CQ_OSS_VER__="v1.88";window.__CQ_OSS_SEQ__=217;window.__CQ_OSS_LABEL__="v1.88（第 1 次更新 · stable）";window.__CQ_OSS_FIXNO__=1;window.__CQ_OSS_UTITLE__="v1.88：加载遮罩居中全屏";window.__CQ_OSS_UITEMS__=["修复：加载遮罩改成显式全屏定位（inset:0 在酒馆里会被压成一条，之前跑到屏幕顶上去了）"];
