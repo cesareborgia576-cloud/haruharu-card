@@ -7131,7 +7131,7 @@ var STYLE = `<style id="th-gal-shell-style">
     flex-direction: column;
     gap: 11px;
     width: 100%;
-    max-width: 280px;
+    max-width: calc(280px * var(--ui-scale, 1));
   }
   .th-gal-title-menu-box[hidden] {
     display: none !important;
@@ -7146,7 +7146,7 @@ var STYLE = `<style id="th-gal-shell-style">
   .th-gal-title-btn.is-sub {
     flex: 1 1 0 !important;
     width: auto !important;
-    height: 34px !important;
+    height: calc(34px * var(--ui-scale, 1)) !important;
     border-radius: 999px !important;
     border-width: 1px !important;
     border-color: rgba(226, 184, 87, 0.5) !important;
@@ -7168,7 +7168,7 @@ var STYLE = `<style id="th-gal-shell-style">
     align-items: center !important;
     justify-content: center !important;
     gap: 10px !important;
-    height: 46px !important;
+    height: calc(46px * var(--ui-scale, 1)) !important;
     width: 100% !important;
     box-sizing: border-box !important;
     border-radius: 6px 22px 6px 22px !important;
@@ -7199,6 +7199,70 @@ var STYLE = `<style id="th-gal-shell-style">
     transform: scale(0.97) !important;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.9), 0 0 10px rgba(250, 204, 21, 0.4) !important;
   }
+  /* ══ ★★ 2026-11-26（作者：开始游玩按钮重做，要特别好看）★★
+     金色琥珀按钮：上缘高光 + 内阴影做出金属厚度，持续一道slow扫光，
+     悬停整体提亮并上浮。只作用于「开始游戏」这一颗，其他按钮不受影响。 */
+  .th-gal-title-menu-box #th-title-btn-start {
+    position: relative !important;
+    height: calc(54px * var(--ui-scale, 1)) !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 214, 130, 0.9) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 236, 190, 0.26) 0%, rgba(255, 205, 100, 0.08) 42%, rgba(0, 0, 0, 0) 43%),
+      linear-gradient(135deg, #6d3d0f 0%, #ab651b 48%, #7c4611 100%) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 242, 198, 0.62),
+      inset 0 -12px 26px rgba(0, 0, 0, 0.38),
+      0 10px 26px rgba(0, 0, 0, 0.55),
+      0 0 22px rgba(255, 176, 60, 0.32) !important;
+    overflow: hidden !important;
+    letter-spacing: 6px !important;
+    font-size: calc(15px * var(--ui-scale, 1)) !important;
+    color: #fff4da !important;
+    text-shadow: 0 1px 0 rgba(118, 60, 0, 0.95), 0 2px 10px rgba(255, 170, 40, 0.5) !important;
+  }
+  .th-gal-title-menu-box #th-title-btn-start::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: 12px !important;
+    background: radial-gradient(120% 70% at 50% -20%, rgba(255, 225, 150, 0.35), rgba(255, 225, 150, 0) 62%) !important;
+    opacity: 0.55 !important;
+    animation: thStartGlow 3.8s ease-in-out infinite !important;
+    pointer-events: none !important;
+  }
+  .th-gal-title-menu-box #th-title-btn-start::after {
+    content: '' !important;
+    position: absolute !important;
+    top: -80% !important;
+    left: -45% !important;
+    width: 38% !important;
+    height: 260% !important;
+    background: linear-gradient(100deg, rgba(255, 255, 255, 0) 0%, rgba(255, 246, 214, 0.5) 50%, rgba(255, 255, 255, 0) 100%) !important;
+    transform: rotate(18deg) !important;
+    animation: thStartShine 4.6s ease-in-out infinite !important;
+    pointer-events: none !important;
+  }
+  .th-gal-title-menu-box #th-title-btn-start:hover {
+    background:
+      linear-gradient(180deg, rgba(255, 240, 200, 0.34) 0%, rgba(255, 215, 120, 0.12) 42%, rgba(0, 0, 0, 0) 43%),
+      linear-gradient(135deg, #854a12 0%, #c8791f 50%, #915114 100%) !important;
+    border-color: #ffe291 !important;
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.42),
+      inset 0 1px 0 rgba(255, 248, 218, 0.75),
+      inset 0 -12px 26px rgba(0, 0, 0, 0.3),
+      0 12px 30px rgba(0, 0, 0, 0.6),
+      0 0 30px rgba(255, 186, 70, 0.55) !important;
+  }
+  #th-title-btn-start .btn-icon {
+    font-size: calc(17px * var(--ui-scale, 1)) !important;
+    filter: drop-shadow(0 0 7px rgba(255, 205, 100, 0.9)) !important;
+  }
+  @keyframes thStartGlow { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.75; } }
+  @keyframes thStartShine { 0% { left: -45%; } 45% { left: 118%; } 100% { left: 118%; } }
   .th-gal-title-btn .btn-icon {
     font-size: calc(16px * var(--ui-scale, 1)) !important;
     line-height: 1 !important;
@@ -13240,7 +13304,7 @@ function buildShellDOM() {
             '<div class="th-gal-title-subrow">' +
               '<button type="button" class="th-gal-title-btn is-sub" id="th-title-btn-notice">' +
                 '<span class="btn-icon">📢</span>' +
-                '<span class="btn-text">公告查看</span>' +
+                '<span class="btn-text">玩法查看</span>' +
               '</button>' +
               '<button type="button" class="th-gal-title-btn is-sub" id="th-title-btn-version">' +
                 '<span class="btn-icon">📜</span>' +
@@ -25417,7 +25481,7 @@ function thBuildHudPanel(shell) {
     var head = doc.createElement('div');
     head.setAttribute('style', 'flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:12px 14px;'
       + 'border-bottom:1px solid rgba(226,184,87,.20);');
-    head.innerHTML = '<b style="flex:1 1 auto;min-width:0;font-size:15px;color:#e6c884;letter-spacing:.5px;">📢 公告</b>'
+    head.innerHTML = '<b style="flex:1 1 auto;min-width:0;font-size:15px;color:#e6c884;letter-spacing:.5px;">🕹 玩法</b>'
       + '<span style="flex:0 0 auto;font-size:11px;color:#8b8175;">' + escHot(data.updated || '') + '</span>';
     var xb = doc.createElement('button');
     xb.type = 'button';
@@ -25574,7 +25638,10 @@ function thBuildHudPanel(shell) {
       if (!data || !data.entries || !data.entries.length) return false;
       try { window.__SPR_CHG_VER = data.version || ''; } catch (eV) {}
       var html = '';
-      (data.entries || []).forEach(function (e) {
+      /* ★ 2026-11-26（作者：版本更新预览只显示最近三次，其余保留在本地）：
+         远端 changelog.json 里历史条目一条不少，这里只渲染最近 3 条，免得弹层太长。 */
+      var _ents = (data.entries || []).slice(0, 3);
+      _ents.forEach(function (e) {
         html += '<div style="margin-bottom:16px;">';
         html += '<b style="color:#e6c884;font-size:14px;">' + escChg(e.ver) + '</b>';
         html += ' <span style="color:#6f6a63;font-size:12px;">' + escChg(e.date) + '</span>';
@@ -25583,6 +25650,10 @@ function thBuildHudPanel(shell) {
         (e.items || []).forEach(function (it) { html += '<li style="margin:3px 0;">' + escChg(it) + '</li>'; });
         html += '</ul></div>';
       });
+      if ((data.entries || []).length > 3) {
+        html += '<div style="margin-top:14px;color:#6f6a63;font-size:11.5px;text-align:center;">'
+          + '更早的更新记录保留在本地 changelog.json（共 ' + (data.entries || []).length + ' 条）</div>';
+      }
       body.innerHTML = html;
       return true;
     }

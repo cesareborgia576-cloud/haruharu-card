@@ -62,6 +62,72 @@
     '  border:1px solid rgba(200,164,92,.22);}',
     '#' + HOST_ID + ' .hb-k{font-size:10.5px;color:var(--hb-muted);letter-spacing:.4px;}',
     '#' + HOST_ID + ' .hb-v{font-size:12.5px;font-weight:700;color:var(--hb-text);margin-top:1px;word-break:break-all;}',
+    /* ★ 2026-11-26：数值条（数字写在条里）、方形头像框、小框网格 */
+    '#' + HOST_ID + ' .hb-bar{display:block;width:100%;box-sizing:border-box;position:relative;height:16px;margin-top:5px;border-radius:999px;overflow:hidden;',
+    '  background:rgba(0,0,0,.34);border:1px solid rgba(200,164,92,.22);}',
+    '#' + HOST_ID + ' .hb-bar i{position:absolute;left:0;top:0;bottom:0;display:block;border-radius:999px;',
+    '  background:linear-gradient(90deg,#8a6a20,#e6c884);transition:width .35s ease;}',
+    '#' + HOST_ID + ' .hb-bar.is-pink i{background:linear-gradient(90deg,#8e2e4e,#f0a2b8);}',
+    '#' + HOST_ID + ' .hb-bar.is-green i{background:linear-gradient(90deg,#2f6b46,#8fd8a8);}',
+    '#' + HOST_ID + ' .hb-bar.is-red i{background:linear-gradient(90deg,#7d2b2b,#e59a9a);}',
+    '#' + HOST_ID + ' .hb-bar span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;',
+    '  font-size:10px;font-weight:700;letter-spacing:.3px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);}',
+    '#' + HOST_ID + ' .hb-hero{display:flex;gap:10px;align-items:stretch;margin-bottom:9px;}',
+    '#' + HOST_ID + ' .hb-ava-sq{flex:0 0 auto;width:72px;height:72px;border-radius:12px;display:flex;',
+    '  align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--hb-muted);',
+    '  background:linear-gradient(160deg,#241e16,#181410);border:1px dashed rgba(200,164,92,.45);}',
+    '#' + HOST_ID + ' .hb-hero-grid{flex:1 1 auto;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:6px;}',
+    '#' + HOST_ID + ' .hb-cell.is-sm{padding:5px 8px;}',
+    '#' + HOST_ID + ' .hb-cell.is-sm .hb-k{font-size:9.5px;}',
+    '#' + HOST_ID + ' .hb-cell.is-sm .hb-v{font-size:11.5px;margin-top:0;}',
+    /* ★ 2026-11-26：人物分页改「卡片式」——立绘 + 名字/在场 + 三条数值条 + 心里话 + 地点 */
+    '#' + HOST_ID + ' .hb-cc{display:flex;gap:9px;padding:9px 10px;border-radius:11px;margin-bottom:8px;background:linear-gradient(165deg,#221d15,#191510);border:1px solid rgba(200,164,92,.22);}',
+    /* ★ 2026-11-26：人物「档案式」 */
+    /* ★ 2026-11-26：主角页「身份名片」 */
+    '#' + HOST_ID + ' .hb-id{display:flex;gap:11px;padding:11px 12px;border-radius:13px;margin-bottom:8px;',
+    '  background:linear-gradient(160deg,#262017,#1a1610);border:1px solid rgba(200,164,92,.32);',
+    '  box-shadow:0 6px 18px rgba(0,0,0,.35);}',
+    '#' + HOST_ID + ' .hb-id-ava{flex:0 0 auto;width:70px;height:70px;border-radius:12px;display:flex;',
+    '  align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--hb-muted);',
+    '  background:linear-gradient(160deg,#241e16,#181410);border:1px dashed rgba(200,164,92,.45);}',
+    '#' + HOST_ID + ' .hb-id-r{flex:1 1 auto;min-width:0;}',
+    '#' + HOST_ID + ' .hb-id-n{font-size:15.5px;font-weight:800;color:#f6e7c0;letter-spacing:.6px;line-height:1.25;}',
+    '#' + HOST_ID + ' .hb-id-sub{font-size:10.8px;color:var(--hb-muted);margin-top:3px;line-height:1.45;}',
+    '#' + HOST_ID + ' .hb-id-hr{height:1px;margin:7px 0;background:linear-gradient(90deg,rgba(200,164,92,.55),rgba(200,164,92,0));}',
+    /* ★ 2026-11-26（作者：第1天·夏·晴朗 这些也要美化）：时间轴改成一颗颗小金胶囊，
+       窄屏按颗换行，绝不会再被拆成「第/1/天」竖着排。 */
+    '#' + HOST_ID + ' .hb-id-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;}',
+    '#' + HOST_ID + ' .hb-chip{display:inline-flex;align-items:center;gap:3px;white-space:nowrap;',
+    '  font-size:9.8px;line-height:1;padding:4px 8px;border-radius:999px;',
+    '  background:rgba(200,164,92,.10);border:1px solid rgba(200,164,92,.22);color:#d6c8ab;}',
+    '#' + HOST_ID + ' .hb-chip b{color:var(--hb-gold);font-weight:700;}',
+    '#' + HOST_ID + ' .hb-doc{display:flex;gap:0;margin-bottom:8px;border-radius:11px;overflow:hidden;',
+    '  background:linear-gradient(165deg,#221d15,#191510);border:1px solid rgba(200,164,92,.22);}',
+    '#' + HOST_ID + ' .hb-doc-side{flex:0 0 auto;width:78px;padding:9px 8px;display:flex;flex-direction:column;',
+    '  align-items:center;gap:6px;border-right:1px solid rgba(200,164,92,.16);background:rgba(255,255,255,.02);}',
+    '#' + HOST_ID + ' .hb-doc-ava{width:58px;height:78px;border-radius:8px;overflow:hidden;',
+    '  background:rgba(255,255,255,.04);border:1px solid rgba(200,164,92,.3);}',
+    '#' + HOST_ID + ' .hb-doc-ava img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block;}',
+    '#' + HOST_ID + ' .hb-doc-main{flex:1 1 auto;min-width:0;padding:9px 10px;}',
+    '#' + HOST_ID + ' .hb-doc-n{font-size:12.5px;font-weight:800;color:#f3e3bb;letter-spacing:.4px;}',
+    '#' + HOST_ID + ' .hb-doc-meta{font-size:10px;color:var(--hb-muted);margin:2px 0 6px;word-break:break-all;}',
+    '#' + HOST_ID + ' .hb-doc-bars{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;}',
+    '#' + HOST_ID + ' .hb-doc-lab{font-size:9px;color:var(--hb-muted);margin-bottom:2px;letter-spacing:.4px;}',
+    '#' + HOST_ID + ' .hb-doc-bars .hb-bar{height:15px;margin-top:0;}',
+    '#' + HOST_ID + ' .hb-doc-q{margin:6px 0 4px;padding:5px 9px;border-left:2px solid rgba(200,164,92,.55);',
+    '  background:rgba(200,164,92,.07);border-radius:0 8px 8px 0;font-size:11px;line-height:1.6;color:#e8c884;}',
+    '#' + HOST_ID + ' .hb-doc-foot{font-size:10.2px;line-height:1.5;color:var(--hb-muted);word-break:break-all;}',
+    '#' + HOST_ID + ' .hb-bar b{font-weight:600;opacity:.85;margin-right:3px;}',
+    '#' + HOST_ID + ' .hb-cc-ava{flex:0 0 auto;width:52px;height:64px;border-radius:9px;overflow:hidden;',
+    '  background:rgba(255,255,255,.04);border:1px solid rgba(200,164,92,.3);}',
+    '#' + HOST_ID + ' .hb-cc-ava img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block;}',
+    '#' + HOST_ID + ' .hb-cc-main{flex:1 1 auto;min-width:0;}',
+    '#' + HOST_ID + ' .hb-cc-h{display:flex;align-items:center;gap:6px;margin-bottom:4px;}',
+    '#' + HOST_ID + ' .hb-cc-n{font-size:12.5px;font-weight:800;color:#f3e3bb;letter-spacing:.3px;}',
+    '#' + HOST_ID + ' .hb-cc-bars{display:grid;gap:4px;margin-bottom:5px;}',
+    '#' + HOST_ID + ' .hb-cc-bars .hb-bar{height:15px;margin-top:0;}',
+    '#' + HOST_ID + ' .hb-cc-q{font-size:11px;line-height:1.6;color:#e8c884;margin:0 0 3px;}',
+    '#' + HOST_ID + ' .hb-cc-foot{font-size:10.5px;line-height:1.55;color:var(--hb-muted);word-break:break-all;}',
     '#' + HOST_ID + ' .hb-row{display:flex;align-items:center;gap:7px;padding:5px 2px;font-size:11.5px;',
     '  border-bottom:1px dashed rgba(200,164,92,.14);}',
     '#' + HOST_ID + ' .hb-row:last-child{border-bottom:0;}',
@@ -85,12 +151,12 @@
     '  #' + HOST_ID + ' .hb-tab{padding:4px 9px;font-size:11px;}}',
     /* ★ 2026-11-26（作者：功能页要一个个格子，不要一条条） */
     '#' + HOST_ID + ' .hb-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px 2px;}',
-    '#' + HOST_ID + ' .hb-cell{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(200,164,92,.25);color:#f0e6d2;font-size:12.5px;cursor:pointer;text-align:center;line-height:1.3;}',
-    '#' + HOST_ID + ' .hb-cell:hover{background:rgba(200,164,92,.14);}',
-    '#' + HOST_ID + ' .hb-cell:active{transform:scale(.97);}',
-    '#' + HOST_ID + ' .hb-cell.is-off{opacity:.55;}',
-    '#' + HOST_ID + ' .hb-cell-st{margin-left:4px;font-style:normal;font-size:10.5px;padding:1px 6px;border-radius:999px;background:rgba(125,220,154,.2);color:#7ddc9a;}',
-    '#' + HOST_ID + ' .hb-cell.is-off .hb-cell-st{background:rgba(200,120,120,.2);color:#d08b8b;}',
+    '#' + HOST_ID + ' .hb-cell[data-hb-act]{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(200,164,92,.25);color:#f0e6d2;font-size:12.5px;cursor:pointer;text-align:center;line-height:1.3;}',
+    '#' + HOST_ID + ' .hb-cell[data-hb-act]:hover{background:rgba(200,164,92,.14);}',
+    '#' + HOST_ID + ' .hb-cell[data-hb-act]:active{transform:scale(.97);}',
+    '#' + HOST_ID + ' .hb-cell[data-hb-act].is-off{opacity:.55;}',
+    '#' + HOST_ID + ' .hb-cell[data-hb-act] .hb-cell-st{margin-left:4px;font-style:normal;font-size:10.5px;padding:1px 6px;border-radius:999px;background:rgba(125,220,154,.2);color:#7ddc9a;}',
+    '#' + HOST_ID + ' .hb-cell[data-hb-act].is-off .hb-cell-st{background:rgba(200,120,120,.2);color:#d08b8b;}',
     /* ★ 2026-11-26（作者：气泡头像关闭后没关）：关气泡美化 = 去头像去气泡框，名字+话内联成普通正文 */
     'body.haru-no-bubble .thdl-wrap{display:block !important;margin:2px 0 !important;}',
     'body.haru-no-bubble .thdl-ava{display:none !important;}',
@@ -288,13 +354,21 @@
 
   function ensureStyle() {
     var d = doc();
+    /* ★★ 2026-11-26（作者：美化全部掉完、头像铺满整个界面）★★
+       真凶：data-ver 写死了 'sb4'。页面里只要还挂着上一版那个 <style data-ver="sb4">，
+       这里就直接 return —— 新的 CSS 永远注入不进去：JS 换了新结构（身份名片/数值条/档案式），
+       CSS 还是旧的，于是卡片没底、条没样式、立绘按原图大小铺满屏幕。
+       改成按 CSS 内容算版本号（长度 + 简易哈希），内容一变就必然重建 <style>。 */
+    var _v = 0;
+    try { for (var _i = 0; _i < CSS.length; _i++) _v = (_v * 31 + CSS.charCodeAt(_i)) | 0; } catch (eV) { _v = CSS.length; }
+    var ver = 'sb5-' + CSS.length + '-' + _v;
     var old = d.getElementById(STYLE_ID);
-    if (old && old.getAttribute && old.getAttribute('data-ver') === 'sb4') return;
+    if (old && old.getAttribute && old.getAttribute('data-ver') === ver) return;
     if (old && old.parentNode) old.parentNode.removeChild(old);
     var st = d.createElement('style');
     st.id = STYLE_ID;
-    st.setAttribute('data-ver', 'sb4');
-    st.textContent = CSS + '\n' + SKIN_FIX;
+    st.setAttribute('data-ver', ver);
+    st.textContent = CSS + String.fromCharCode(10) + SKIN_FIX;
     (d.head || d.documentElement).appendChild(st);
   }
 
@@ -350,48 +424,64 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function hbBar(val, max, cls, label) {
+    var m = Number(max) || 100;
+    var v = Number(val);
+    if (isNaN(v)) v = 0;
+    var pct = Math.max(0, Math.min(100, Math.round(v / m * 100)));
+    /* ★ 2026-11-26（作者：好感那几个字没写）：条里的字必须带名字，光有数字谁知道是哪一项 */
+    return '<div class="hb-bar' + (cls ? ' ' + cls : '') + '"><i style="width:' + pct + '%"></i>'
+      + '<span>' + (label ? '<b>' + esc(label) + '</b>' : '') + esc(v) + ' / ' + esc(m) + '</span></div>';
+  }
+
   function pageMain(sd) {
     var p = sd['主角信息'] || {};
     var g = sd['全局'] || {};
     var t = sd['时间'] || {};
     var loc = String(p['地点'] || '');
+
+    var pname = String(p['玩家姓名'] || '').trim() || '无名';
+    var page_ = String(p['玩家年龄'] || '').trim();
+    var pchar = String(p['玩家性格'] || '').trim();
+    var plook = String(p['玩家外貌身材'] || '').trim();
+
+    /* 副行：17 岁 · 内向 · 清瘦，短发（空的项自动跳过） */
+    var subs = [];
+    if (page_) subs.push(esc(page_) + ' 岁');
+    if (pchar) subs.push(esc(pchar));
+    if (plook) subs.push(esc(plook));
+
+    /* 时间轴：一颗颗小胶囊（第几天 / 季节 / 天气 / 时间 / 篇章） */
+    var tl = [];
+    if (t['第几天'] != null && t['第几天'] !== '') tl.push('📅 第 <b>' + esc(t['第几天']) + '</b> 天');
+    if (g['季节']) tl.push('🌸 <b>' + esc(g['季节']) + '</b>');
+    if (g['天气']) tl.push('🌤 ' + esc(g['天气']));
+    var _d = (t['月份'] != null ? (esc(t['月份']) + '/' + esc(t['日期'])) : '');
+    var _h = (t['精确时间'] ? ' <b>' + esc(t['精确时间']) + '</b>' : '');
+    if (_d || _h) tl.push('🕰 ' + _d + _h);
+    if (g['当前篇章']) tl.push('🗾 <b>' + esc(g['当前篇章']) + '</b>');
+
     var h = '<div class="hb-title">主角信息</div>';
+    /* ★ 2026-11-26（作者选定：方案 1 · 身份名片） */
+    h += '<div class="hb-id">';
+    h += '<div class="hb-id-ava">?</div>';
+    h += '<div class="hb-id-r">';
+    h += '<div class="hb-id-n">' + esc(pname) + '</div>';
+    if (subs.length) h += '<div class="hb-id-sub">' + subs.join(' · ') + '</div>';
+    h += '<div class="hb-id-hr"></div>';
+    if (tl.length) {
+      h += '<div class="hb-id-chips">';
+      for (var _ci = 0; _ci < tl.length; _ci++) h += '<span class="hb-chip">' + tl[_ci] + '</span>';
+      h += '</div>';
+    }
+    h += '</div></div>';
+
     h += '<div class="hb-grid">';
+    h += '<div class="hb-cell"><div class="hb-k">✨ 魅力值</div>' + hbBar(p['魅力值'] == null ? 0 : p['魅力值'], 100, 'is-pink') + '</div>';
+    h += '<div class="hb-cell"><div class="hb-k">🔋 精力值</div>' + hbBar(p['精力值'] == null ? 0 : p['精力值'], 100, 'is-green') + '</div>';
     h += '<div class="hb-cell"><div class="hb-k">📍 当前地点</div><div class="hb-v">' + esc(loc || '—') + '</div></div>';
     h += '<div class="hb-cell"><div class="hb-k">💰 零花钱</div><div class="hb-v">¥' + esc(p['零花钱'] == null ? 0 : p['零花钱']) + '</div></div>';
-    h += '<div class="hb-cell"><div class="hb-k">✨ 魅力值</div><div class="hb-v">' + esc(p['魅力值'] == null ? 0 : p['魅力值']) + ' / 100</div></div>';
-    h += '<div class="hb-cell"><div class="hb-k">🔋 精力值</div><div class="hb-v">' + esc(p['精力值'] == null ? 0 : p['精力值']) + ' / 100</div></div>';
-    h += '</div><div style="height:8px"></div>';
-    var rows = [
-      ['📅 第几天', t['第几天']],
-      ['🌸 季节', g['季节']],
-      ['🌤 天气', g['天气']],
-      ['🕰 时间', (t['月份'] != null ? (t['月份'] + '/' + t['日期'] + ' ') : '') + (t['精确时间'] || '')],
-      ['🗾 篇章', g['当前篇章']],
-      ['🎭 模式', g['游戏模式']]
-    ];
-    for (var i = 0; i < rows.length; i++) {
-      h += '<div class="hb-row"><b>' + rows[i][0] + '</b><span>' + esc(rows[i][1] == null || rows[i][1] === '' ? '—' : rows[i][1]) + '</span></div>';
-    }
-    /* ★ 2026-11-25（作者：信息也没展示完）：开局设置里填的玩家信息，之前一条都不显示。
-       填了才出现，空着不占位。 */
-    var player = [
-      ['👤 姓名', p['玩家姓名']],
-      ['🎂 年龄', p['玩家年龄']],
-      ['🎭 性格', p['玩家性格']],
-      ['👗 外貌', p['玩家外貌身材']]
-    ];
-    var hasP = false;
-    for (var k = 0; k < player.length; k++) {
-      if (player[k][1] != null && String(player[k][1]).trim() !== '') hasP = true;
-    }
-    if (hasP) {
-      h += '<div class="hb-title" style="margin-top:9px;">玩家</div>';
-      for (var j = 0; j < player.length; j++) {
-        if (player[j][1] == null || String(player[j][1]).trim() === '') continue;
-        h += '<div class="hb-row"><b>' + player[j][0] + '</b><span>' + esc(player[j][1]) + '</span></div>';
-      }
-    }
+    h += '</div>';
     return h;
   }
 
@@ -406,25 +496,25 @@
       var on = c['在场状态'] === true;
       var pic = '';
       try { if (typeof stFn === 'function') pic = String(stFn(n) || ''); } catch (eP) {}
-      h += '<div class="hb-char" style="display:flex;gap:9px;align-items:flex-start;">';
-      if (pic) {
-        h += '<div style="flex:0 0 auto;width:54px;height:66px;border-radius:9px;overflow:hidden;'
-          + 'background:rgba(255,255,255,.04);border:1px solid rgba(200,164,92,.3);">'
-          + '<img src="' + esc(pic) + '" style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block;" loading="lazy" referrerpolicy="no-referrer">'
-          + '</div>';
-      }
-      h += '<div style="flex:1 1 auto;min-width:0;">';
-      h += '<div class="hb-char-h" style="margin-bottom:3px;"><span class="hb-char-n">' + esc(n) + '</span>'
-        + '<span class="hb-pill' + (on ? '' : ' off') + '">' + (on ? '在场' : '不在场') + '</span></div>';
-      h += '<div class="hb-mini">❤ 好感 ' + esc(c['好感度'] == null ? 0 : c['好感度'])
-        + '　💀 恶堕 ' + esc(c['恶堕值'] == null ? 0 : c['恶堕值'])
-        + '　⚠ 警惕 ' + esc(c['警惕值'] == null ? 0 : c['警惕值']) + '</div>';
-      /* ★ 2026-11-25（作者：人物资料的心里话呢）：心里话是角色此刻的内心独白，展示完整 */
+      /* ── 方案 B · 档案式：左边竖立绘条 + 在场徽章，右边档案区 ── */
+      h += '<div class="hb-doc">';
+      h += '<div class="hb-doc-side">'
+        + '<div class="hb-doc-ava">' + (pic ? '<img src="' + esc(pic) + '" loading="lazy" referrerpolicy="no-referrer" alt="">' : '') + '</div>'
+        + '<span class="hb-pill' + (on ? '' : ' off') + '">' + (on ? '在场' : '不在场') + '</span>'
+        + '</div>';
+      h += '<div class="hb-doc-main">';
+      h += '<div class="hb-doc-n">' + esc(n) + '</div>';
+      h += '<div class="hb-doc-meta">📍 ' + esc(c['地点'] || '—')
+        + (c['正在做'] ? ' · ' + esc(c['正在做']) : '') + '</div>';
+      h += '<div class="hb-doc-bars">';
+      h += '<div class="hb-doc-b"><div class="hb-doc-lab">好感</div>' + hbBar(c['好感度'], 100, 'is-pink', '') + '</div>';
+      h += '<div class="hb-doc-b"><div class="hb-doc-lab">恶堕</div>' + hbBar(c['恶堕值'], 100, 'is-red', '') + '</div>';
+      h += '<div class="hb-doc-b"><div class="hb-doc-lab">警惕</div>' + hbBar(c['警惕值'], 100, '', '') + '</div>';
+      h += '</div>';
       if (c['心里话'] != null && String(c['心里话']).trim()) {
-        h += '<div class="hb-mini" style="color:#e8c884;">💭 心里话：' + esc(c['心里话']) + '</div>';
+        h += '<div class="hb-doc-q">' + esc(c['心里话']) + '</div>';
       }
-      h += '<div class="hb-mini">📍 ' + esc(c['地点'] || '—') + '　' + esc(c['正在做'] || '')
-        + (c['具体正在做'] ? '：' + esc(c['具体正在做']) : '') + '</div>';
+      if (c['具体正在做']) h += '<div class="hb-doc-foot">' + esc(c['具体正在做']) + '</div>';
       h += '</div></div>';
     }
     return h;

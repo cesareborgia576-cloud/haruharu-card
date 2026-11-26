@@ -176,9 +176,9 @@
      这不是抄来的：04-校验会拿卡里 alternate_greetings 的实际内容逐一核对，
      顺序被谁动了闸当场红。 */
   var ARCS = [
-    { key: '夏越村', idx: 1, icon: '🌾', tag: '乡野田园', desc: '七位熟女与八位苦主 · 正篇' },
-    { key: '公寓',   idx: 2, icon: '🏢', tag: '都会公寓', desc: '五位邻居 · 牛头' },
-    { key: '神社',   idx: 3, icon: '⛩️', tag: '神隐秘境', desc: '三位巫女与两位非人 · 任何模式都没有苦主' }
+    { key: '夏越村', idx: 1, icon: '🌾', tag: '乡野田园', desc: '七位熟女与八位苦主' },
+    { key: '公寓',   idx: 2, icon: '🏢', tag: '都会公寓', desc: '五位邻居与多位苦主' },
+    { key: '神社',   idx: 3, icon: '⛩️', tag: '神隐秘境', desc: '三位巫女与两位非人' }
   ];
   var SEASON_META = {
     '春': { icon: '🌸', desc: '新绿与花 · 薄外套、湿润的风' },
@@ -195,12 +195,8 @@
     '冬': { 月份: 1, 日期: 6 }
   };
   var PLAYER_KEYS = ['玩家姓名', '玩家外貌身材', '玩家年龄', '玩家性格'];
-  var PLAYER_PLACEHOLDER = {
-    '玩家姓名': '留空＝不定义名字，正文只用「你」',
-    '玩家外貌身材': '留空＝不描写你的外貌',
-    '玩家年龄': '留空＝不暗示年纪',
-    '玩家性格': '留空＝不替你定性格'
-  };
+  /* ★ 2026-11-26（作者：框只能空出来）：四个输入框不再写「留空＝…」这类提示。 */
+  var PLAYER_PLACEHOLDER = { '玩家姓名': '', '玩家外貌身材': '', '玩家年龄': '', '玩家性格': '' };
   var PLAYER_LABEL = { '玩家姓名': '姓名', '玩家外貌身材': '外貌身材', '玩家年龄': '年龄', '玩家性格': '性格' };
 
   /* 五瓣樱花 SVG（瓣 = 椭圆绕花心转五次，蕊 = 暖黄圆）。标题与悬浮章共用这一朵。 */
@@ -665,9 +661,9 @@
     } catch (eOld) {}
     var css = [
       '#' + STYLE_ID + ' { display: none; }',
-      '#' + HOST_ID + ' { margin: 12px auto 6px; max-width: min(760px, 96vw); }',
+      '#' + HOST_ID + ' { margin: 10px auto 4px; max-width: min(860px, 97vw); }',
       /* v1.2 日光配色：白底 + 深墨字 + 蓝灰主色（原夜樱深紫粉在白底上浅粉字看不清） */
-      '.thso-card { background: linear-gradient(170deg, #221d15, #1a1610) !important; border: 1px solid rgba(200,164,92,.28) !important; border-radius: 12px !important; padding: 14px 16px 13px !important; color: #f0e6d2 !important; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif !important; font-size: 13px !important; line-height: 1.6 !important; box-shadow: 0 10px 30px rgba(0,0,0,.45) !important; box-sizing: border-box !important; text-align: left !important; }',
+      '.thso-card { background: linear-gradient(170deg, #221d15, #1a1610) !important; border: 1px solid rgba(200,164,92,.28) !important; border-radius: 12px !important; padding: 12px 15px 11px !important; color: #f0e6d2 !important; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif !important; font-size: 13px !important; line-height: 1.6 !important; box-shadow: 0 10px 30px rgba(0,0,0,.45) !important; box-sizing: border-box !important; text-align: left !important; }',
       '.thso-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 2px 8px !important; margin-bottom: 8px !important; border-bottom: 1px solid rgba(200,164,92,.22) !important; background: transparent !important; }',
       '.thso-sakura { flex: 0 0 auto !important; display: block !important; }',
       '.thso-title { font-size: 15px !important; font-weight: 800 !important; color: #f0e6d2 !important; letter-spacing: 1px !important; line-height: 1.2 !important; }',
@@ -719,7 +715,7 @@
       '.thso-cards-4 { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 12px !important; }',
       '.thso-cards-4 .thso-item { min-width: 0 !important; flex: none !important; width: auto !important; }',
       '@media (max-width: 620px) { .thso-cards-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }',
-      '.thso-item { flex: 1 1 158px !important; min-width: 148px !important; min-height: 46px !important; border: 1px solid #3d3527 !important; border-radius: 10px !important; padding: 8px 11px !important; cursor: pointer !important; background: #211d16 !important; transition: border-color .15s, background .15s, box-shadow .15s !important; box-sizing: border-box !important; user-select: none !important; -webkit-user-select: none !important; }',
+      '.thso-item { flex: 1 1 158px !important; min-width: 148px !important; min-height: 43px !important; border: 1px solid #3d3527 !important; border-radius: 10px !important; padding: 8px 11px !important; cursor: pointer !important; background: #211d16 !important; transition: border-color .15s, background .15s, box-shadow .15s !important; box-sizing: border-box !important; user-select: none !important; -webkit-user-select: none !important; }',
       '.thso-item:hover { border-color: #c8a45c !important; background: #26211a !important; }',
       '.thso-item.on { border-color: #c8a45c !important; background: rgba(217,177,104,.12) !important; box-shadow: 0 0 0 2px rgba(200,164,92,.18) !important; }',
       '.thso-item-tag { font-size: 10.5px !important; color: #a89b84 !important; line-height: 1.35 !important; }',
@@ -776,11 +772,8 @@
     var a = arcOf(draft.arc);
     var se = normSeason(draft.season);
     var name = String(draft.player['玩家姓名'] || '').trim();
-    /* ★ 2026-11-21：模式概念取消，汇总行不再显示「X模式」。 */
-    return '当前设置：<b>' + a.key + '篇</b> · <b>' +
-      SEASON_META[se].icon + ' ' + se + '</b> · <b>' + normStartType(draft.startType) + '</b> · 玩家姓名 ' +
-      (name ? ('<b>' + escHtml(name) + '</b>') : '<span class="thso-su-empty">（留空）</span>') +
-      '　—　确认后写入本局存档';
+    /* ★ 2026-11-26（作者：文字版开局这句删掉）：不再显示「当前设置…确认后写入本局存档」。 */
+    return '';
   }
   /* ══════════════ ★ 2026-11-25：照抄天元录开局 ——
      第 1 页 = 标题页（大字标题 + 一句介绍 + 版本/世界书 + 前言注意事项 + 开始）
@@ -837,7 +830,6 @@
       h += '<div class="thso-cover">' +
         '<div class="thso-cover-title">春日狂想曲</div>' +
         '<div class="thso-cover-line"></div>' +
-        '<div class="thso-cover-sub">七位熟女 · 三位巫女 · 八位苦主 —— 一座走不出去的山村，一段说不出口的夏天。</div>' +
         '</div>';
       h += '<div class="thso-cover-meta">' +
         '<div class="thso-cover-row"><span>卡版本</span><b id="thso-cover-ver">' + escHtml(String(coverGet('__SPR_CARD_VER') || coverGet('__TH_WB_EXPECT_VER__') || '—')) + '</b></div>' +
@@ -894,7 +886,8 @@
       h += itemHtml('startType', '梦幻开局', '🌙 所有女角色好感 100', '梦幻开局', '种子里的每位女角色好感直接拉满', draft.startType === '梦幻开局');
       h += '</div></div>';
 
-      h += '<div class="thso-summary" data-thso-summary="1">' + summaryHtml() + '</div>';
+      var _sum0 = summaryHtml();
+      if (_sum0) h += '<div class="thso-summary" data-thso-summary="1">' + _sum0 + '</div>';
       h += '<div class="thso-actions">' +
         '<button type="button" class="thso-btn thso-btn-ghost" data-thso-act="prev">‹ 上一步</button>' +
         '<button type="button" class="thso-btn thso-btn-confirm" data-thso-act="confirm">✓ 确认开局</button>' +
@@ -919,7 +912,7 @@
       el.classList.toggle('on', cur === v);
     });
     var su = host.querySelector('[data-thso-summary="1"]');
-    if (su) su.innerHTML = summaryHtml();
+    if (su) { su.innerHTML = summaryHtml(); su.style.display = summaryHtml() ? '' : 'none'; }
   }
 
   /* 挂载：找第 0 楼（第一个 AI 楼）的 .mes_text 末尾 append。
