@@ -28519,12 +28519,13 @@ var MvuSelfHealing = (function() {
         if (!TH) { try { TH = (typeof window !== 'undefined' && window.parent && window.parent.TavernHelper) || null; } catch (e2) {} }
         if (TH && typeof TH.generateRaw === 'function') {
           var promptText = Array.isArray(messages) ? messages.map(function(m){ return (m.role ? m.role + ': ' : '') + m.content; }).join('\n\n') : String(messages || '');
+          /* ★★ 2026-11-26（作者：推演疑似调多次 API，有一次消耗等于正文）★★
+             原来失败会依次退到 {user_input} 和裸字符串两种形态 —— 这两种酒馆助手会把
+             **整个聊天上下文**一起发过去（一次 4 万+ token），而且每退一档就是一次真生成。
+             现在只发一次 ordered_prompts（只带我们这段提示词）；失败就交给下面的中继接口，
+             不再用带上下文的形态重试。 */
           var rawOut = await Promise.resolve().then(function() {
             return TH.generateRaw({ ordered_prompts: [{ role: 'user', content: promptText }] });
-          }).catch(function() {
-            return TH.generateRaw({ user_input: promptText });
-          }).catch(function() {
-            return TH.generateRaw(promptText);
           });
           var outStr = String((rawOut && (rawOut.content || rawOut.text)) || rawOut || '');
           if (outStr.trim()) return outStr;

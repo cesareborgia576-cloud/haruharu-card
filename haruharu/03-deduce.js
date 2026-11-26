@@ -2083,34 +2083,29 @@
           reject(new Error('拿不到酒馆的 generateRaw（确认「酒馆助手」扩展已启用），或取消勾选「用当前酒馆模型」改填 API'));
           return;
         }
+        /* ★★ 2026-11-26（作者：后台推演疑似调多次 API，有一次消耗等于正文）★★
+           原来这里是「四种形态挨个试，谁先吐字用谁」—— 每一次 generateRaw 都是**真生成**，
+           探一次推演最多打 4 次 API；其中 `{user_input}` 和裸字符串两种形态，
+           酒馆助手会把**整个聊天上下文**一起发过去，所以那一次的开销就等于正文（4 万+ token）。
+           ⇒ 现在：**一次只发一次**。默认用 ordered_prompts（只发我们这段提示词，不带聊天记录），
+             成功后把形态记进 localStorage 下次直接用；失败（抛错）也不再换形态硬试，
+             直接把错误抛给玩家 —— 宁可报错，也不偷偷烧一次正文的钱。 */
+        var SHAPE_KEY = '__thso_gen_shape__';
+        var _shape = '';
+        try { _shape = localStorage.getItem(SHAPE_KEY) || ''; } catch (eSh) {}
+        function buildArgs() {
+          if (_shape === 'user_input') return { user_input: prompt };
+          return { ordered_prompts: [{ role: 'user', content: prompt }] };
+        }
+        try { S.apiCalls = (S.apiCalls || 0) + 1; } catch (eAc) {}
         Promise.resolve()
-          /* ★ 酒馆助手的 generateRaw 各版本参数形态不一样：依次试三种，谁先吐东西用谁 */
-          .then(function () {
-            function tryOne(fn) {
-              return Promise.resolve().then(fn).then(function (out) {
-                var s = String((out && (out.content || out.text)) || out || '');
-                if (s.trim()) return s;
-                return null;
-              }).catch(function () { return null; });
-            }
-            var shapes = [
-              function () { return TH.generateRaw({ ordered_prompts: [{ role: 'user', content: prompt }] }); },
-              function () { return TH.generateRaw({ user_input: prompt }); },
-              function () { return TH.generateRaw({ ordered_prompts: [prompt] }); },
-              function () { return TH.generateRaw(prompt); }
-            ];
-            var idx = 0;
-            function next() {
-              if (idx >= shapes.length) return null;
-              var f = shapes[idx++];
-              return tryOne(f).then(function (got) { return got || next(); });
-            }
-            return next();
-          })
+          .then(function () { return TH.generateRaw(buildArgs()); })
           .then(function (txt) {
             txt = String(txt || '');
+            /* 这次形态能用就记住，下次直接用它（只记一次，不再挨个试） */
+            try { localStorage.setItem(SHAPE_KEY, _shape === 'user_input' ? 'user_input' : 'ordered'); } catch (eSv) {}
             if (!txt.trim()) {
-              reject(new Error('酒馆模型没有返回内容（generateRaw 的四种调用形态都没拿到）——可以取消勾选「用当前酒馆模型」改填 API'));
+              reject(new Error('酒馆模型没有返回内容（本次只发了一次，没有偷偷重试）——可以取消勾选「用当前酒馆模型」改填 API'));
               return;
             }
             /* ★ 认出“它根本没看到提示词”：这种通用问候 / 自报家门的回复一律当失败，
@@ -2490,6 +2485,7 @@
     S.running = true;
     S.lastRunAt = now;
     S.usedStrict = false;   /* ★ v1.18c：这一轮有没有降级到严格模式 */
+    S.apiCalls = 0;         /* ★ 2026-11-26：本轮真的打了几次 API（面板/提示里都显示，方便核对） */
     setStatus('running', '推演中…');
     var prompt = '';
     try { prompt = buildPrompt(); } catch (e) { prompt = ''; }
@@ -2609,7 +2605,8 @@
         + (parsed.truncated ? '（输出被截断' + (parsed.filled ? '，已补写 ' + parsed.filled + ' 人' : '，建议调大最多输出') + '）' : '')
         + ' ' + new Date(S.lastAt).toLocaleTimeString());
       toast('🎲 推演完成：' + (parsed.path || '命中') + '，' + (S.lastMs / 1000).toFixed(1) + ' 秒，' + got.length + ' 字'
-        + (injected ? '，已注入给正文 AI' : '（注入关着）'));
+        + (injected ? '，已注入给正文 AI' : '（注入关着）')
+        + ' · API ' + (S.apiCalls || 1) + ' 次');
       renderPanel();
       return got;
     }).catch(function (err) {
